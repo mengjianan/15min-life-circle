@@ -3,6 +3,9 @@ import MapView from './components/MapView';
 import Report from './components/Report';
 import RadarChart from './components/RadarChart';
 import TimeComparison from './components/TimeComparison';
+import AreaComparison from './components/AreaComparison';
+import FacilityAccessibility from './components/FacilityAccessibility';
+import CustomCenter from './components/CustomCenter';
 import { SAMPLE_COMMUNITIES, Community } from './config';
 
 interface AnalysisResult {
@@ -23,12 +26,14 @@ interface MultiTimeData {
 
 function App() {
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
+  const [customCenter, setCustomCenter] = useState<{ lng: number; lat: number; name: string } | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [multiTimeData, setMultiTimeData] = useState<MultiTimeData | null>(null);
   const [selectedTime, setSelectedTime] = useState(15);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisResult[]>([]);
+  const [showCustomCenter, setShowCustomCenter] = useState(false);
 
   useEffect(() => {
     // 默认选择第一个社区
@@ -37,8 +42,17 @@ function App() {
     }
   }, []);
 
+  // 获取当前中心点
+  const getCurrentCenter = () => {
+    if (customCenter) {
+      return customCenter;
+    }
+    return selectedCommunity;
+  };
+
   const handleAnalyze = async () => {
-    if (!selectedCommunity) return;
+    const center = getCurrentCenter();
+    if (!center) return;
 
     setLoading(true);
     setError(null);
@@ -50,17 +64,17 @@ function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            lng: selectedCommunity.lng,
-            lat: selectedCommunity.lat,
-            community_name: selectedCommunity.name
+            lng: center.lng,
+            lat: center.lat,
+            community_name: center.name
           })
         }),
         fetch('/api/isochrone/multi-time', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            lng: selectedCommunity.lng,
-            lat: selectedCommunity.lat,
+            lng: center.lng,
+            lat: center.lat,
             directions: 36
           })
         })
@@ -90,6 +104,15 @@ function App() {
 
   const handleTimeChange = (time: number) => {
     setSelectedTime(time);
+  };
+
+  const handleCenterSelect = (lng: number, lat: number) => {
+    setCustomCenter({
+      lng,
+      lat,
+      name: '自定义位置'
+    });
+    setSelectedCommunity(null);
   };
 
   // 获取当前选中时间的等时圈数据
@@ -203,6 +226,8 @@ function App() {
     `;
   };
 
+  const currentCenter = getCurrentCenter();
+
   return (
     <div className="app-container">
       <header className="app-header">
@@ -221,8 +246,10 @@ function App() {
               onChange={(e) => {
                 const community = SAMPLE_COMMUNITIES.find(c => c.name === e.target.value);
                 setSelectedCommunity(community || null);
+                setCustomCenter(null);
               }}
             >
+              <option value="">自定义位置</option>
               {SAMPLE_COMMUNITIES.map((community) => (
                 <option key={community.name} value={community.name}>
                   {community.name}
@@ -233,9 +260,18 @@ function App() {
 
           <div className="control-group">
             <button
+              className="toggle-custom-button"
+              onClick={() => setShowCustomCenter(!showCustomCenter)}
+            >
+              📍 {showCustomCenter ? '隐藏' : '显示'}自定义位置
+            </button>
+          </div>
+
+          <div className="control-group">
+            <button
               className="analyze-button"
               onClick={handleAnalyze}
-              disabled={loading || !selectedCommunity}
+              disabled={loading || !currentCenter}
             >
               {loading ? (
                 <>
@@ -266,8 +302,16 @@ function App() {
 
         <div className="content-area">
           <div className="map-section">
+            {/* 自定义中心点面板 */}
+            {showCustomCenter && (
+              <CustomCenter
+                onCenterSelect={handleCenterSelect}
+                currentCenter={currentCenter}
+              />
+            )}
+
             <MapView
-              center={selectedCommunity}
+              center={currentCenter}
               isochrone={getCurrentIsochrone()}
               poiCoverage={analysisResult?.poi_coverage}
               blindSpots={analysisResult?.blind_spots}
@@ -290,12 +334,32 @@ function App() {
                   />
                 )}
 
+                {/* 面积对比图 */}
+                {multiTimeData && (
+                  <AreaComparison
+                    data={{
+                      time5: multiTimeData.layers.find(l => l.time === 300),
+                      time10: multiTimeData.layers.find(l => l.time === 600),
+                      time15: multiTimeData.layers.find(l => l.time === 900)
+                    }}
+                  />
+                )}
+
                 <Report
                   communityName={analysisResult.community_name}
                   score={analysisResult.score}
                   suggestions={analysisResult.suggestions}
                   blindSpots={analysisResult.blind_spots}
                 />
+
+                {/* 设施可达性分析 */}
+                {analysisResult.poi_coverage && currentCenter && (
+                  <FacilityAccessibility
+                    poiCoverage={analysisResult.poi_coverage}
+                    center={currentCenter}
+                  />
+                )}
+
                 <RadarChart
                   categories={analysisResult.score.categories}
                 />
@@ -304,7 +368,7 @@ function App() {
               <div className="placeholder">
                 <div className="placeholder-icon">🏘️</div>
                 <h3>开始分析</h3>
-                <p>选择一个社区，点击"开始体检"按钮生成分析报告</p>
+                <p>选择一个社区或自定义位置，点击"开始体检"按钮生成分析报告</p>
                 <div className="feature-list">
                   <div className="feature-item">
                     <span className="feature-icon">🕐</span>
