@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import MapView from './components/MapView';
 import Report from './components/Report';
 import RadarChart from './components/RadarChart';
@@ -6,23 +6,10 @@ import TimeComparison from './components/TimeComparison';
 import AreaComparison from './components/AreaComparison';
 import FacilityAccessibility from './components/FacilityAccessibility';
 import CustomCenter from './components/CustomCenter';
+import CommunityComparison from './components/CommunityComparison';
 import { SAMPLE_COMMUNITIES, Community } from './config';
-
-interface AnalysisResult {
-  community_name: string;
-  center: { lng: number; lat: number };
-  isochrone: any;
-  poi_coverage: any;
-  blind_spots: any[];
-  score: any;
-  suggestions: any[];
-}
-
-interface MultiTimeData {
-  center: { lng: number; lat: number };
-  layers: any[];
-  selected_time: number;
-}
+import { exportPDFReport } from './pdfExport';
+import type { AnalysisResult, MultiTimeData, IsochroneLayer } from './types';
 
 function App() {
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
@@ -118,7 +105,7 @@ function App() {
   // 获取当前选中时间的等时圈数据
   const getCurrentIsochrone = () => {
     if (multiTimeData && multiTimeData.layers) {
-      const layer = multiTimeData.layers.find(l => l.time === selectedTime * 60);
+      const layer = multiTimeData.layers.find((l: IsochroneLayer) => l.time === selectedTime * 60);
       return layer || analysisResult?.isochrone;
     }
     return analysisResult?.isochrone;
@@ -127,106 +114,20 @@ function App() {
   const handleExportReport = () => {
     if (!analysisResult) return;
 
-    // 生成报告内容
-    const reportContent = generateReportContent(analysisResult);
-
-    // 创建下载链接
-    const blob = new Blob([reportContent], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${analysisResult.community_name}_生活圈体检报告.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const generateReportContent = (result: AnalysisResult): string => {
-    return `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>${result.community_name} - 15分钟生活圈体检报告</title>
-    <style>
-        body { font-family: 'Microsoft YaHei', sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; background: #f5f5f5; }
-        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        h1 { color: #1890ff; border-bottom: 2px solid #1890ff; padding-bottom: 10px; margin-bottom: 20px; }
-        .score-section { background: linear-gradient(135deg, #1890ff, #722ed1); color: white; padding: 30px; border-radius: 8px; margin: 20px 0; text-align: center; }
-        .score-number { font-size: 64px; font-weight: bold; }
-        .score-level { font-size: 24px; margin-top: 10px; }
-        .section { margin: 30px 0; }
-        .section h2 { color: #333; border-left: 4px solid #1890ff; padding-left: 12px; margin-bottom: 16px; }
-        .category-item { display: flex; align-items: center; margin: 12px 0; padding: 12px; background: #f5f5f5; border-radius: 6px; }
-        .category-name { width: 80px; font-weight: 500; }
-        .category-bar { flex: 1; height: 24px; background: #e8e8e8; border-radius: 12px; overflow: hidden; margin: 0 16px; }
-        .category-fill { height: 100%; border-radius: 12px; transition: width 0.5s; }
-        .category-score { width: 60px; text-align: right; font-weight: bold; font-size: 18px; }
-        .suggestion { padding: 16px; margin: 12px 0; background: #fff1f0; border-left: 4px solid #ff4d4f; border-radius: 0 6px 6px 0; }
-        .suggestion.high { border-left-color: #ff4d4f; background: #fff1f0; }
-        .suggestion.medium { border-left-color: #faad14; background: #fff7e6; }
-        .blind-spot { padding: 16px; margin: 12px 0; background: #fff1f0; border: 1px solid #ffa39e; border-radius: 6px; }
-        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e8e8e8; color: #666; text-align: center; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🏘️ ${result.community_name} - 15分钟生活圈体检报告</h1>
-
-        <div class="score-section">
-            <div class="score-number">${result.score.total}</div>
-            <div class="score-level">综合评分：${result.score.level}</div>
-        </div>
-
-        <div class="section">
-            <h2>📈 各类设施评分</h2>
-            ${Object.entries(result.score.categories).map(([cat, score]) => {
-                const scoreNum = score as number;
-                const color = scoreNum >= 80 ? '#52c41a' : scoreNum >= 60 ? '#1890ff' : '#ff4d4f';
-                return `
-                    <div class="category-item">
-                        <span class="category-name">${cat}</span>
-                        <div class="category-bar">
-                            <div class="category-fill" style="width: ${scoreNum}%; background: ${color}"></div>
-                        </div>
-                        <span class="category-score" style="color: ${color}">${scoreNum}</span>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-
-        <div class="section">
-            <h2>💡 改善建议</h2>
-            ${result.suggestions.map(s => `
-                <div class="suggestion ${s.priority === '高' ? 'high' : 'medium'}">
-                    <strong>[${s.category}]</strong> ${s.message}
-                </div>
-            `).join('')}
-        </div>
-
-        <div class="section">
-            <h2>⚠️ 服务盲区</h2>
-            <p>发现 <strong>${result.blind_spots.length}</strong> 个服务盲区</p>
-            ${result.blind_spots.slice(0, 3).map(spot => `
-                <div class="blind-spot">
-                    <strong>📍 ${spot.category || '综合'}</strong>
-                    <p>${spot.description || '该区域服务设施覆盖不足'}</p>
-                </div>
-            `).join('')}
-        </div>
-
-        <div class="footer">
-            <p>报告生成时间：${new Date().toLocaleString()}</p>
-            <p>15分钟生活圈智能体检与规划助手</p>
-        </div>
-    </div>
-</body>
-</html>
-    `;
+    // 使用新的 PDF 导出功能
+    exportPDFReport(analysisResult, multiTimeData);
   };
 
   const currentCenter = getCurrentCenter();
+
+  // 准备社区对比数据
+  const comparisonData = analysisHistory.map((result: AnalysisResult) => ({
+    name: result.community_name,
+    score: result.score.total,
+    level: result.score.level,
+    categories: result.score.categories,
+    area: result.isochrone?.area || 0
+  }));
 
   return (
     <div className="app-container">
@@ -326,9 +227,9 @@ function App() {
                 {multiTimeData && (
                   <TimeComparison
                     data={{
-                      time5: multiTimeData.layers.find(l => l.time === 300),
-                      time10: multiTimeData.layers.find(l => l.time === 600),
-                      time15: multiTimeData.layers.find(l => l.time === 900)
+                      time5: multiTimeData.layers.find((l: IsochroneLayer) => l.time === 300),
+                      time10: multiTimeData.layers.find((l: IsochroneLayer) => l.time === 600),
+                      time15: multiTimeData.layers.find((l: IsochroneLayer) => l.time === 900)
                     }}
                     onTimeChange={handleTimeChange}
                   />
@@ -338,9 +239,9 @@ function App() {
                 {multiTimeData && (
                   <AreaComparison
                     data={{
-                      time5: multiTimeData.layers.find(l => l.time === 300),
-                      time10: multiTimeData.layers.find(l => l.time === 600),
-                      time15: multiTimeData.layers.find(l => l.time === 900)
+                      time5: multiTimeData.layers.find((l: IsochroneLayer) => l.time === 300),
+                      time10: multiTimeData.layers.find((l: IsochroneLayer) => l.time === 600),
+                      time15: multiTimeData.layers.find((l: IsochroneLayer) => l.time === 900)
                     }}
                   />
                 )}
@@ -392,12 +293,17 @@ function App() {
           </div>
         </div>
 
+        {/* 社区对比功能 */}
+        {analysisHistory.length > 1 && (
+          <CommunityComparison history={comparisonData} />
+        )}
+
         {/* 分析历史 */}
         {analysisHistory.length > 1 && (
           <div className="history-section">
             <h3>📋 分析历史</h3>
             <div className="history-list">
-              {analysisHistory.slice(1).map((item, index) => (
+              {analysisHistory.slice(1).map((item: AnalysisResult, index: number) => (
                 <div key={index} className="history-item">
                   <span className="history-name">{item.community_name}</span>
                   <span className="history-score">{item.score.total}分</span>

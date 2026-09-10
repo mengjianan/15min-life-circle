@@ -16,7 +16,7 @@ interface FacilityAccessibilityProps {
 
 const FacilityAccessibility: React.FC<FacilityAccessibilityProps> = ({
   poiCoverage,
-  center
+  center: _center
 }) => {
   // 设施图标配置
   const iconConfig: Record<string, { emoji: string; color: string }> = {

@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 
+interface TimeData {
+  time?: number;
+  time_text?: string;
+  area?: number;
+  boundary_points?: any[];
+}
+
 interface TimeComparisonProps {
   data: {
-    time5?: any;
-    time10?: any;
-    time15?: any;
+    time5?: TimeData;
+    time10?: TimeData;
+    time15?: TimeData;
   };
   onTimeChange: (time: number) => void;
 }
@@ -23,11 +30,14 @@ const TimeComparison: React.FC<TimeComparisonProps> = ({ data, onTimeChange }) =
     onTimeChange(time);
   };
 
-  // 计算面积数据
+  // 获取面积数据
   const getAreaData = () => {
     return timeOptions.map(option => {
-      const key = `time${option.value}`;
-      const area = data[key]?.area || 0;
+      let area = 0;
+      if (option.value === 5) area = data.time5?.area || 0;
+      else if (option.value === 10) area = data.time10?.area || 0;
+      else if (option.value === 15) area = data.time15?.area || 0;
+
       return {
         ...option,
         area: area,

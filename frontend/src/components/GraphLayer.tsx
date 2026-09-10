@@ -96,7 +96,7 @@ const GraphLayer: React.FC<GraphLayerProps> = ({ map, center, visible }) => {
 
     const BMap = (window as any).BMap;
 
-    routeData.features.forEach((feature, index) => {
+    routeData.features.forEach((feature, _index) => {
       const geometry = feature.geometry;
       const properties = feature.properties;
 
