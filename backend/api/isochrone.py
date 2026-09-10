@@ -3,10 +3,11 @@
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from core.isochrone_engine import IsochroneEngine, GeoPoint
 from services.baidu_map import BaiduMapService
+from services.cache import cache_service, generate_cache_key
 
 router = APIRouter()
 
@@ -17,6 +18,7 @@ class IsochroneRequest(BaseModel):
     lat: float
     max_time: Optional[int] = 900  # 默认15分钟（秒）
     directions: Optional[int] = 36  # 采样方向数
+    multi_time: Optional[bool] = False  # 是否计算多时间维度
 
 
 class IsochroneResponse(BaseModel):
@@ -26,6 +28,13 @@ class IsochroneResponse(BaseModel):
     polygon: dict
     area: float
     max_time: int
+
+
+class MultiTimeIsochroneResponse(BaseModel):
+    """多时间维度等时圈响应"""
+    center: dict
+    layers: List[Dict[str, Any]]
+    selected_time: int
 
 
 @router.post("/calculate", response_model=IsochroneResponse)
@@ -40,6 +49,18 @@ async def calculate_isochrone(request: IsochroneRequest):
         等时圈计算结果，包含边界点和GeoJSON多边形
     """
     try:
+        # 检查缓存
+        cache_key = generate_cache_key(
+            "isochrone",
+            request.lng,
+            request.lat,
+            request.max_time,
+            request.directions
+        )
+        cached_result = cache_service.get(cache_key)
+        if cached_result:
+            return cached_result
+
         engine = IsochroneEngine()
         center = GeoPoint(lng=request.lng, lat=request.lat)
 
@@ -51,7 +72,7 @@ async def calculate_isochrone(request: IsochroneRequest):
 
         area = engine.calculate_area(result.boundary_points)
 
-        return IsochroneResponse(
+        response = IsochroneResponse(
             center={"lng": center.lng, "lat": center.lat},
             boundary_points=[
                 {"lng": p.lng, "lat": p.lat}
@@ -61,6 +82,75 @@ async def calculate_isochrone(request: IsochroneRequest):
             area=area,
             max_time=result.max_time
         )
+
+        # 缓存结果
+        cache_service.set(cache_key, response.dict(), ttl=3600)
+
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/multi-time")
+async def calculate_multi_time_isochrone(request: IsochroneRequest):
+    """
+    计算多时间维度等时圈（5/10/15分钟）
+
+    Args:
+        request: 包含中心点坐标
+
+    Returns:
+        多时间维度等时圈计算结果
+    """
+    try:
+        # 检查缓存
+        cache_key = generate_cache_key(
+            "multi_isochrone",
+            request.lng,
+            request.lat,
+            request.directions
+        )
+        cached_result = cache_service.get(cache_key)
+        if cached_result:
+            return cached_result
+
+        engine = IsochroneEngine()
+        center = GeoPoint(lng=request.lng, lat=request.lat)
+
+        # 计算三个时间维度
+        time_periods = [300, 600, 900]  # 5分钟、10分钟、15分钟（秒）
+        layers = []
+
+        for time_period in time_periods:
+            result = await engine.calculate_isochrone(
+                center=center,
+                max_time=time_period,
+                directions=request.directions
+            )
+
+            area = engine.calculate_area(result.boundary_points)
+
+            layers.append({
+                "time": time_period,
+                "time_text": f"{time_period // 60}分钟",
+                "boundary_points": [
+                    {"lng": p.lng, "lat": p.lat}
+                    for p in result.boundary_points
+                ],
+                "polygon": result.polygon,
+                "area": area
+            })
+
+        response = {
+            "center": {"lng": center.lng, "lat": center.lat},
+            "layers": layers,
+            "selected_time": 15
+        }
+
+        # 缓存结果
+        cache_service.set(cache_key, response, ttl=3600)
+
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
