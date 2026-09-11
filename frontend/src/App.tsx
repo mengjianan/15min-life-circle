@@ -1,15 +1,50 @@
-import { useState, useEffect } from 'react';
-import MapView from './components/MapView';
-import Report from './components/Report';
-import RadarChart from './components/RadarChart';
-import TimeComparison from './components/TimeComparison';
-import AreaComparison from './components/AreaComparison';
-import FacilityAccessibility from './components/FacilityAccessibility';
-import CustomCenter from './components/CustomCenter';
-import CommunityComparison from './components/CommunityComparison';
+import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { SAMPLE_COMMUNITIES, Community } from './config';
 import { exportPDFReport } from './pdfExport';
 import type { AnalysisResult, MultiTimeData, IsochroneLayer } from './types';
+
+// 懒加载组件 - 实现代码分割
+const MapView = lazy(() => import('./components/MapView'));
+const Report = lazy(() => import('./components/Report'));
+const RadarChart = lazy(() => import('./components/RadarChart'));
+const TimeComparison = lazy(() => import('./components/TimeComparison'));
+const AreaComparison = lazy(() => import('./components/AreaComparison'));
+const FacilityAccessibility = lazy(() => import('./components/FacilityAccessibility'));
+const CustomCenter = lazy(() => import('./components/CustomCenter'));
+const CommunityComparison = lazy(() => import('./components/CommunityComparison'));
+
+// 加载占位组件
+const LoadingFallback = () => (
+  <div className="component-loading">
+    <div className="loading-spinner"></div>
+    <span>加载中...</span>
+  </div>
+);
+
+// 进度条组件
+interface ProgressBarProps {
+  progress: number;
+  loading: boolean;
+}
+
+const ProgressBar: React.FC<ProgressBarProps> = ({ progress, loading }) => {
+  if (!loading) return null;
+
+  return (
+    <div className="progress-container">
+      <div className="progress-bar">
+        <div
+          className="progress-fill"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <div className="progress-text">
+        <span className="progress-icon">⏳</span>
+        <span>分析中... {progress}%</span>
+      </div>
+    </div>
+  );
+};
 
 function App() {
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
@@ -18,7 +53,9 @@ function App() {
   const [multiTimeData, setMultiTimeData] = useState<MultiTimeData | null>(null);
   const [selectedTime, setSelectedTime] = useState(15);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisResult[]>([]);
   const [showCustomCenter, setShowCustomCenter] = useState(false);
 
@@ -29,20 +66,43 @@ function App() {
     }
   }, []);
 
+  // 模拟进度更新
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (loading) {
+      setProgress(0);
+      timer = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(timer);
+            return 90;
+          }
+          return prev + Math.random() * 15;
+        });
+      }, 500);
+    } else {
+      setProgress(0);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [loading]);
+
   // 获取当前中心点
-  const getCurrentCenter = () => {
+  const getCurrentCenter = useCallback(() => {
     if (customCenter) {
       return customCenter;
     }
     return selectedCommunity;
-  };
+  }, [customCenter, selectedCommunity]);
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = useCallback(async () => {
     const center = getCurrentCenter();
     if (!center) return;
 
     setLoading(true);
     setError(null);
+    setRetryCount(0);
 
     try {
       // 并行请求单时间分析和多时间分析
@@ -68,10 +128,12 @@ function App() {
       ]);
 
       if (!singleResponse.ok) {
-        throw new Error('分析请求失败');
+        const errorData = await singleResponse.json().catch(() => ({}));
+        throw new Error(errorData.detail || '分析请求失败');
       }
 
       const result = await singleResponse.json();
+      setProgress(100);
       setAnalysisResult(result);
 
       // 处理多时间数据
@@ -85,38 +147,45 @@ function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析过程中出现错误');
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 500);
     }
-  };
+  }, [getCurrentCenter]);
 
-  const handleTimeChange = (time: number) => {
+  // 重试机制
+  const handleRetry = useCallback(() => {
+    setError(null);
+    setRetryCount(prev => prev + 1);
+    handleAnalyze();
+  }, [handleAnalyze]);
+
+  const handleTimeChange = useCallback((time: number) => {
     setSelectedTime(time);
-  };
+  }, []);
 
-  const handleCenterSelect = (lng: number, lat: number) => {
+  const handleCenterSelect = useCallback((lng: number, lat: number) => {
     setCustomCenter({
       lng,
       lat,
       name: '自定义位置'
     });
     setSelectedCommunity(null);
-  };
+  }, []);
 
   // 获取当前选中时间的等时圈数据
-  const getCurrentIsochrone = () => {
+  const getCurrentIsochrone = useCallback(() => {
     if (multiTimeData && multiTimeData.layers) {
       const layer = multiTimeData.layers.find((l: IsochroneLayer) => l.time === selectedTime * 60);
       return layer || analysisResult?.isochrone;
     }
     return analysisResult?.isochrone;
-  };
+  }, [multiTimeData, selectedTime, analysisResult]);
 
-  const handleExportReport = () => {
+  const handleExportReport = useCallback(() => {
     if (!analysisResult) return;
 
     // 使用新的 PDF 导出功能
     exportPDFReport(analysisResult, multiTimeData);
-  };
+  }, [analysisResult, multiTimeData]);
 
   const currentCenter = getCurrentCenter();
 
@@ -194,9 +263,19 @@ function App() {
             )}
           </div>
 
+          {/* 进度条 */}
+          <ProgressBar progress={progress} loading={loading} />
+
+          {/* 错误信息和重试按钮 */}
           {error && (
             <div className="error-message">
-              <span>❌</span> {error}
+              <div className="error-content">
+                <span className="error-icon">❌</span>
+                <span className="error-text">{error}</span>
+              </div>
+              <button className="retry-button" onClick={handleRetry}>
+                🔄 重试 {retryCount > 0 && `(${retryCount})`}
+              </button>
             </div>
           )}
         </div>
@@ -204,25 +283,29 @@ function App() {
         <div className="content-area">
           <div className="map-section">
             {/* 自定义中心点面板 */}
-            {showCustomCenter && (
-              <CustomCenter
-                onCenterSelect={handleCenterSelect}
-                currentCenter={currentCenter}
-              />
-            )}
+            <Suspense fallback={<LoadingFallback />}>
+              {showCustomCenter && (
+                <CustomCenter
+                  onCenterSelect={handleCenterSelect}
+                  currentCenter={currentCenter}
+                />
+              )}
+            </Suspense>
 
-            <MapView
-              center={currentCenter}
-              isochrone={getCurrentIsochrone()}
-              poiCoverage={analysisResult?.poi_coverage}
-              blindSpots={analysisResult?.blind_spots}
-              loading={loading}
-            />
+            <Suspense fallback={<LoadingFallback />}>
+              <MapView
+                center={currentCenter}
+                isochrone={getCurrentIsochrone()}
+                poiCoverage={analysisResult?.poi_coverage}
+                blindSpots={analysisResult?.blind_spots}
+                loading={loading}
+              />
+            </Suspense>
           </div>
 
           <div className="report-section">
             {analysisResult ? (
-              <>
+              <Suspense fallback={<LoadingFallback />}>
                 {/* 时间维度选择 */}
                 {multiTimeData && (
                   <TimeComparison
@@ -264,7 +347,7 @@ function App() {
                 <RadarChart
                   categories={analysisResult.score.categories}
                 />
-              </>
+              </Suspense>
             ) : (
               <div className="placeholder">
                 <div className="placeholder-icon">🏘️</div>
@@ -295,7 +378,9 @@ function App() {
 
         {/* 社区对比功能 */}
         {analysisHistory.length > 1 && (
-          <CommunityComparison history={comparisonData} />
+          <Suspense fallback={<LoadingFallback />}>
+            <CommunityComparison history={comparisonData} />
+          </Suspense>
         )}
 
         {/* 分析历史 */}
