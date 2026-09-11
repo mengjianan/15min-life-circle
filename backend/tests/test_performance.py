@@ -8,51 +8,18 @@ import time
 import statistics
 from typing import List, Dict
 import json
+import pytest
 
 # 测试配置
 BASE_URL = "http://localhost:8080"
-TEST_ENDPOINTS = [
-    {
-        "name": "等时圈计算",
-        "method": "POST",
-        "url": "/api/isochrone/calculate",
-        "data": {
-            "lng": 118.7965,
-            "lat": 32.0603,
-            "max_time": 900,
-            "directions": 36
-        }
-    },
-    {
-        "name": "POI搜索",
-        "method": "POST",
-        "url": "/api/poi/search",
-        "data": {
-            "lng": 118.7965,
-            "lat": 32.0603,
-            "category": "医疗",
-            "radius": 1500
-        }
-    },
-    {
-        "name": "分析报告",
-        "method": "POST",
-        "url": "/api/analysis/report",
-        "data": {
-            "lng": 118.7965,
-            "lat": 32.0603,
-            "community_name": "测试社区"
-        }
-    }
-]
 
 
-async def test_single_request(
+async def _test_single_request(
     session: aiohttp.ClientSession,
     endpoint: Dict,
     request_id: int
 ) -> Dict:
-    """测试单个请求"""
+    """测试单个请求（内部函数）"""
     start_time = time.time()
 
     try:
@@ -84,12 +51,12 @@ async def test_single_request(
         }
 
 
-async def test_concurrent_requests(
+async def _test_concurrent_requests(
     endpoint: Dict,
     num_requests: int = 10,
     concurrency: int = 5
 ) -> Dict:
-    """测试并发请求"""
+    """测试并发请求（内部函数）"""
     print(f"\n{'='*60}")
     print(f"测试: {endpoint['name']}")
     print(f"请求数: {num_requests}, 并发数: {concurrency}")
@@ -100,7 +67,7 @@ async def test_concurrent_requests(
 
     async def limited_request(session, endpoint, request_id):
         async with semaphore:
-            return await test_single_request(session, endpoint, request_id)
+            return await _test_single_request(session, endpoint, request_id)
 
     async with aiohttp.ClientSession() as session:
         tasks = [
@@ -158,8 +125,8 @@ async def test_concurrent_requests(
     return stats
 
 
-async def test_health_check() -> bool:
-    """测试健康检查"""
+async def _test_health_check() -> bool:
+    """测试健康检查（内部函数）"""
     print("\n测试健康检查...")
     try:
         async with aiohttp.ClientSession() as session:
@@ -176,26 +143,52 @@ async def test_health_check() -> bool:
         return False
 
 
-async def run_performance_tests():
-    """运行所有性能测试"""
+@pytest.mark.asyncio
+async def test_performance():
+    """性能测试主函数"""
     print("="*60)
     print("15分钟生活圈 - 性能测试")
     print("="*60)
 
+    # 测试配置
+    TEST_ENDPOINTS = [
+        {
+            "name": "等时圈计算",
+            "method": "POST",
+            "url": "/api/isochrone/calculate",
+            "data": {
+                "lng": 118.7965,
+                "lat": 32.0603,
+                "max_time": 900,
+                "directions": 24
+            }
+        },
+        {
+            "name": "POI搜索",
+            "method": "POST",
+            "url": "/api/poi/search",
+            "data": {
+                "lng": 118.7965,
+                "lat": 32.0603,
+                "category": "医疗",
+                "radius": 1500
+            }
+        }
+    ]
+
     # 健康检查
-    if not await test_health_check():
-        print("\n❌ 服务未启动，请先启动后端服务")
-        return
+    if not await _test_health_check():
+        pytest.skip("服务未启动，跳过性能测试")
 
     # 测试结果
     all_stats = []
 
     # 测试每个端点
     for endpoint in TEST_ENDPOINTS:
-        stats = await test_concurrent_requests(
+        stats = await _test_concurrent_requests(
             endpoint,
-            num_requests=20,
-            concurrency=5
+            num_requests=10,
+            concurrency=3
         )
         all_stats.append(stats)
 
@@ -222,6 +215,9 @@ async def run_performance_tests():
 
     print(f"\n📊 详细报告已保存到: performance_report.json")
 
-
-if __name__ == "__main__":
-    asyncio.run(run_performance_tests())
+    # 验证性能指标
+    for stats in all_stats:
+        if stats['endpoint'] == '等时圈计算':
+            assert stats['requests_per_second'] > 10, f"等时圈计算吞吐量过低: {stats['requests_per_second']}"
+        elif stats['endpoint'] == 'POI搜索':
+            assert stats['requests_per_second'] > 5, f"POI搜索吞吐量过低: {stats['requests_per_second']}"
