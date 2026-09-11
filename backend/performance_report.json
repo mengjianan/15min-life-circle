@@ -1,44 +1,44 @@
 {
-  "test_time": "2026-09-11 09:47:20",
+  "test_time": "2026-09-11 09:57:09",
   "results": [
     {
       "endpoint": "等时圈计算",
       "total_requests": 20,
       "successful_requests": 20,
       "failed_requests": 0,
-      "total_time": 0.3971221446990967,
-      "requests_per_second": 50.36233880927037,
-      "avg_duration": 0.09878408908843994,
-      "min_duration": 0.0017986297607421875,
-      "max_duration": 0.38575005531311035,
-      "median_duration": 0.004595279693603516,
-      "p95_duration": 0.38575005531311035
+      "total_time": 0.3210568428039551,
+      "requests_per_second": 62.29426485767966,
+      "avg_duration": 0.07973207235336303,
+      "min_duration": 0.0023756027221679688,
+      "max_duration": 0.3081328868865967,
+      "median_duration": 0.004264473915100098,
+      "p95_duration": 0.3081328868865967
     },
     {
       "endpoint": "POI搜索",
       "total_requests": 20,
       "successful_requests": 20,
       "failed_requests": 0,
-      "total_time": 1.0455410480499268,
-      "requests_per_second": 19.12885203053736,
-      "avg_duration": 0.257727837562561,
-      "min_duration": 0.11816692352294922,
-      "max_duration": 0.37740349769592285,
-      "median_duration": 0.26328909397125244,
-      "p95_duration": 0.37740349769592285
+      "total_time": 1.0921833515167236,
+      "requests_per_second": 18.31194366058212,
+      "avg_duration": 0.2673822045326233,
+      "min_duration": 0.134918212890625,
+      "max_duration": 0.40540266036987305,
+      "median_duration": 0.29037976264953613,
+      "p95_duration": 0.40540266036987305
     },
     {
       "endpoint": "分析报告",
       "total_requests": 20,
       "successful_requests": 20,
       "failed_requests": 0,
-      "total_time": 72.83991360664368,
-      "requests_per_second": 0.2745747353299416,
-      "avg_duration": 17.32116827964783,
-      "min_duration": 14.605298280715942,
-      "max_duration": 21.61199975013733,
-      "median_duration": 17.53644847869873,
-      "p95_duration": 21.61199975013733
+      "total_time": 71.35980701446533,
+      "requests_per_second": 0.2802698162558904,
+      "avg_duration": 16.362828540802003,
+      "min_duration": 13.873013973236084,
+      "max_duration": 18.838433265686035,
+      "median_duration": 16.472690105438232,
+      "p95_duration": 18.838433265686035
     }
   ]
 }

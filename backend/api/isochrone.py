@@ -1,5 +1,6 @@
 """
-等时圈计算API
+等时圈计算API（优化版）
+支持快速模式和标准模式
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -17,8 +18,8 @@ class IsochroneRequest(BaseModel):
     lng: float
     lat: float
     max_time: Optional[int] = 900  # 默认15分钟（秒）
-    directions: Optional[int] = 36  # 采样方向数
-    multi_time: Optional[bool] = False  # 是否计算多时间维度
+    directions: Optional[int] = 24  # 采样方向数（优化：从36减少到24）
+    fast_mode: Optional[bool] = False  # 快速模式
 
 
 class IsochroneResponse(BaseModel):
@@ -55,7 +56,8 @@ async def calculate_isochrone(request: IsochroneRequest):
             request.lng,
             request.lat,
             request.max_time,
-            request.directions
+            request.directions,
+            request.fast_mode
         )
         cached_result = cache_service.get(cache_key)
         if cached_result:
@@ -67,7 +69,8 @@ async def calculate_isochrone(request: IsochroneRequest):
         result = await engine.calculate_isochrone(
             center=center,
             max_time=request.max_time,
-            directions=request.directions
+            directions=request.directions,
+            fast_mode=request.fast_mode
         )
 
         area = engine.calculate_area(result.boundary_points)
@@ -108,7 +111,8 @@ async def calculate_multi_time_isochrone(request: IsochroneRequest):
             "multi_isochrone",
             request.lng,
             request.lat,
-            request.directions
+            request.directions,
+            request.fast_mode
         )
         cached_result = cache_service.get(cache_key)
         if cached_result:
@@ -125,7 +129,8 @@ async def calculate_multi_time_isochrone(request: IsochroneRequest):
             result = await engine.calculate_isochrone(
                 center=center,
                 max_time=time_period,
-                directions=request.directions
+                directions=request.directions,
+                fast_mode=request.fast_mode
             )
 
             area = engine.calculate_area(result.boundary_points)

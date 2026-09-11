@@ -1,5 +1,5 @@
 """
-配置管理模块
+配置管理模块（优化版）
 """
 import os
 from pathlib import Path
@@ -19,12 +19,16 @@ PLACE_API = f"{BAIDU_MAP_API_BASE}/place/v1"
 GEOCODER_API = f"{BAIDU_MAP_API_BASE}/geocoder/v2"
 DISTANCE_MATRIX_API = f"{BAIDU_MAP_API_BASE}/routematrix/v1"
 
-# 等时圈计算配置
-ISOCHRONE_DIRECTIONS = 36  # 采样方向数（每10度一个）
+# 等时圈计算配置（优化版）
+ISOCHRONE_DIRECTIONS = 24  # 采样方向数（每15度一个，从36减少到24）
 ISOCHRONE_MAX_TIME = 15 * 60  # 15分钟（秒）
 ISOCHRONE_WALKING_SPEED = 1.2  # 步行速度（米/秒）
-BINARY_SEARCH_ITERATIONS = 8  # 二分搜索迭代次数
+BINARY_SEARCH_ITERATIONS = 6  # 二分搜索迭代次数（从8减少到6）
 MAX_SEARCH_RADIUS = 2000  # 最大搜索半径（米）
+
+# 快速模式配置（用于预览）
+FAST_MODE_DIRECTIONS = 12  # 快速模式方向数
+FAST_MODE_ITERATIONS = 4  # 快速模式迭代次数
 
 # POI配置
 POI_RADIUS = 1500  # POI检索半径（米）
