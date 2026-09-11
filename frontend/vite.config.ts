@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/15min-life-circle/',  // GitHub Pages base path
+  base: '/',  // Root path for GitHub Pages
   server: {
     port: 3000,
     proxy: {
