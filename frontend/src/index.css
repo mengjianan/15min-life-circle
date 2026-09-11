@@ -1342,3 +1342,50 @@ body {
     color: #999;
   }
 }
+/* 点击选位模式提示 */
+.click-mode-hint {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ff4d4f;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(255, 77, 79, 0.4);
+  animation: pulse 2s infinite;
+  z-index: 1000;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 4px 12px rgba(255, 77, 79, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(255, 77, 79, 0.6);
+  }
+  100% {
+    box-shadow: 0 4px 12px rgba(255, 77, 79, 0.4);
+  }
+}
+
+/* 图层控制按钮激活状态 */
+.layer-button.active {
+  background: #1890ff;
+  color: white;
+  border-color: #1890ff;
+}
+
+.layer-button.active:hover {
+  background: #40a9ff;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .click-mode-hint {
+    font-size: 12px;
+    padding: 8px 16px;
+  }
+}

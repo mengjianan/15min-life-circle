@@ -293,7 +293,7 @@ function App() {
             </Suspense>
 
             <Suspense fallback={<LoadingFallback />}>
-              <MapView
+              <MapView onCenterChange={handleCenterSelect}
                 center={currentCenter}
                 isochrone={getCurrentIsochrone()}
                 poiCoverage={analysisResult?.poi_coverage}

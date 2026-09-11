@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import GraphLayer from './GraphLayer';
 import POIMarker from './POIMarker';
 import LoadingOverlay from './LoadingOverlay';
@@ -9,14 +9,15 @@ interface MapViewProps {
   poiCoverage?: any;
   blindSpots?: any[];
   loading?: boolean;
+  onCenterChange?: (lng: number, lat: number) => void;
 }
 
 const MapView: React.FC<MapViewProps> = ({
   center,
   isochrone,
   poiCoverage,
-  blindSpots,
-  loading = false
+  loading = false,
+  onCenterChange
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -24,6 +25,7 @@ const MapView: React.FC<MapViewProps> = ({
   const [showGraph, setShowGraph] = useState(true);
   const [showPOI, setShowPOI] = useState(true);
   const [showBlindSpots, setShowBlindSpots] = useState(true);
+  const [clickMode, setClickMode] = useState(false);
 
   // 初始化百度地图
   useEffect(() => {
@@ -44,6 +46,9 @@ const MapView: React.FC<MapViewProps> = ({
         map.addControl(new BMap.ScaleControl());
         map.addControl(new BMap.OverviewMapControl());
 
+        // 添加点击事件监听
+        map.addEventListener('click', handleMapClick);
+
         mapInstanceRef.current = map;
         setMapReady(true);
       }
@@ -55,6 +60,72 @@ const MapView: React.FC<MapViewProps> = ({
       }
     };
   }, []);
+
+  // 处理地图点击事件
+  const handleMapClick = useCallback((e: any) => {
+    if (!clickMode) return;
+
+    const BMap = (window as any).BMap;
+    const map = mapInstanceRef.current;
+
+    if (!map || !BMap) return;
+
+    const point = e.point;
+
+    // 清除之前的点击标记
+    map.clearOverlays();
+
+    // 添加点击标记
+    const clickIcon = new BMap.Icon(
+      `data:image/svg+xml,${encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
+          <circle cx="15" cy="15" r="12" fill="#ff4d4f" stroke="white" stroke-width="2"/>
+          <text x="15" y="20" text-anchor="middle" fill="white" font-size="14">📍</text>
+        </svg>
+      `)}`,
+      new BMap.Size(30, 30),
+      {
+        anchor: new BMap.Size(15, 15)
+      }
+    );
+
+    const clickMarker = new BMap.Marker(point, { icon: clickIcon });
+    map.addOverlay(clickMarker);
+
+    // 添加信息窗口
+    const infoWindow = new BMap.InfoWindow(
+      `<div style="padding: 10px;">
+        <h4 style="margin: 0 0 8px 0; color: #ff4d4f;">📍 选中的位置</h4>
+        <p style="margin: 4px 0;"><strong>经度：</strong>${point.lng.toFixed(6)}</p>
+        <p style="margin: 4px 0;"><strong>纬度：</strong>${point.lat.toFixed(6)}</p>
+        <button onclick="window.confirmCenterSelection(${point.lng}, ${point.lat})" style="
+          margin-top: 8px;
+          padding: 6px 12px;
+          background: #1890ff;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        ">确认选择</button>
+      </div>`,
+      {
+        width: 220,
+        height: 120,
+        title: '位置信息'
+      }
+    );
+
+    map.openInfoWindow(infoWindow, point);
+
+    // 将确认函数挂载到window
+    (window as any).confirmCenterSelection = (lng: number, lat: number) => {
+      if (onCenterChange) {
+        onCenterChange(lng, lat);
+      }
+      setClickMode(false);
+      map.closeInfoWindow();
+    };
+  }, [clickMode, onCenterChange]);
 
   // 更新地图中心点和绘制等时圈
   useEffect(() => {
@@ -104,184 +175,120 @@ const MapView: React.FC<MapViewProps> = ({
     centerMarker.addEventListener('click', () => {
       map.openInfoWindow(centerInfoWindow, point);
     });
+  }, [center]);
 
-    // 绘制等时圈
-    if (isochrone?.boundary_points) {
-      const polygonPoints = isochrone.boundary_points.map(
-        (p: any) => new BMap.Point(p.lng, p.lat)
-      );
+  // 绘制等时圈
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isochrone) return;
 
-      // 等时圈多边形（半透明蓝色）
-      const polygon = new BMap.Polygon(polygonPoints, {
+    const map = mapInstanceRef.current;
+    const BMap = (window as any).BMap;
+
+    // 清除之前的等时圈
+    map.getOverlays().forEach((overlay: any) => {
+      if (overlay instanceof BMap.Polygon) {
+        map.removeOverlay(overlay);
+      }
+    });
+
+    // 绘制新的等时圈
+    if (isochrone.polygon && isochrone.polygon.geometry) {
+      const coordinates = isochrone.polygon.geometry.coordinates[0];
+      const points = coordinates.map((coord: number[]) => new BMap.Point(coord[0], coord[1]));
+
+      const polygon = new BMap.Polygon(points, {
         strokeColor: '#1890ff',
         strokeWeight: 2,
         strokeOpacity: 0.8,
         fillColor: '#1890ff',
-        fillOpacity: 0.15,
-        enableClicking: true
+        fillOpacity: 0.2
       });
 
       map.addOverlay(polygon);
-
-      // 点击等时圈显示信息
-      polygon.addEventListener('click', () => {
-        const area = isochrone.area ? `${(isochrone.area / 1000000).toFixed(2)} km²` : '计算中';
-        const infoWindow = new BMap.InfoWindow(
-          `<div style="padding: 10px;">
-            <h4 style="margin: 0 0 8px 0; color: #1890ff;">🕐 15分钟步行范围</h4>
-            <p style="margin: 4px 0;"><strong>面积：</strong>${area}</p>
-            <p style="margin: 4px 0;"><strong>最大步行时间：</strong>15分钟</p>
-            <p style="margin: 4px 0;"><strong>采样方向：</strong>${isochrone.boundary_points.length}个</p>
-          </div>`,
-          {
-            width: 220,
-            height: 100,
-            title: '等时圈信息'
-          }
-        );
-
-        const centerPoint = new BMap.Point(center.lng, center.lat);
-        map.openInfoWindow(infoWindow, centerPoint);
-      });
     }
-
-    // 绘制盲区
-    if (showBlindSpots && blindSpots && blindSpots.length > 0) {
-      blindSpots.forEach((spot: any) => {
-        if (spot.center) {
-          const spotPoint = new BMap.Point(spot.center.lng, spot.center.lat);
-          const radius = spot.radius || 200;
-
-          // 盲区圆形（红色半透明）
-          const circle = new BMap.Circle(spotPoint, radius, {
-            strokeColor: '#ff4d4f',
-            strokeWeight: 2,
-            strokeOpacity: 0.8,
-            fillColor: '#ff4d4f',
-            fillOpacity: 0.2,
-            enableClicking: true
-          });
-
-          map.addOverlay(circle);
-
-          // 点击盲区显示信息
-          circle.addEventListener('click', () => {
-            const infoWindow = new BMap.InfoWindow(
-              `<div style="padding: 10px;">
-                <h4 style="margin: 0 0 8px 0; color: #ff4d4f;">⚠️ 服务盲区</h4>
-                <p style="margin: 4px 0;"><strong>类别：</strong>${spot.category || '综合'}</p>
-                <p style="margin: 4px 0;"><strong>半径：</strong>${radius}米</p>
-                <p style="margin: 4px 0;"><strong>说明：</strong>${spot.description || '该区域服务设施覆盖不足'}</p>
-              </div>`,
-              {
-                width: 220,
-                height: 100,
-                title: '盲区详情'
-              }
-            );
-
-            map.openInfoWindow(infoWindow, spotPoint);
-          });
-
-          // 添加盲区标签
-          const label = new BMap.Label(
-            `<div style="
-              background: rgba(255, 77, 79, 0.9);
-              color: white;
-              padding: 4px 8px;
-              border-radius: 4px;
-              font-size: 12px;
-              white-space: nowrap;
-            ">
-              ⚠️ ${spot.category || '盲区'}
-            </div>`,
-            {
-              position: spotPoint,
-              offset: new BMap.Size(-20, -10)
-            }
-          );
-
-          label.setStyle({
-            backgroundColor: 'transparent',
-            border: 'none'
-          });
-
-          map.addOverlay(label);
-        }
-      });
-    }
-  }, [center, isochrone, blindSpots, showBlindSpots]);
+  }, [isochrone]);
 
   return (
     <div className="map-container">
+      {/* 地图容器 */}
       <div ref={mapRef} className="map-view" />
 
-      <LoadingOverlay loading={loading} message="正在计算15分钟生活圈..." />
+      {/* 加载遮罩 */}
+      {loading && <LoadingOverlay loading={true} />}
 
       {/* 图层控制面板 */}
       <div className="layer-controls">
-        <label className="layer-toggle">
-          <input
-            type="checkbox"
-            checked={showGraph}
-            onChange={(e) => setShowGraph(e.target.checked)}
-          />
-          <span>🛣️ 路网</span>
-        </label>
-        <label className="layer-toggle">
-          <input
-            type="checkbox"
-            checked={showPOI}
-            onChange={(e) => setShowPOI(e.target.checked)}
-          />
-          <span>📍 设施</span>
-        </label>
-        <label className="layer-toggle">
-          <input
-            type="checkbox"
-            checked={showBlindSpots}
-            onChange={(e) => setShowBlindSpots(e.target.checked)}
-          />
-          <span>⚠️ 盲区</span>
-        </label>
+        <h4>图层控制</h4>
+        <div className="layer-buttons">
+          <button
+            className={`layer-button ${showGraph ? 'active' : ''}`}
+            onClick={() => setShowGraph(!showGraph)}
+          >
+            🛣️ Graph路网
+          </button>
+          <button
+            className={`layer-button ${showPOI ? 'active' : ''}`}
+            onClick={() => setShowPOI(!showPOI)}
+          >
+            📍 POI设施
+          </button>
+          <button
+            className={`layer-button ${showBlindSpots ? 'active' : ''}`}
+            onClick={() => setShowBlindSpots(!showBlindSpots)}
+          >
+            ⚠️ 盲区
+          </button>
+          <button
+            className={`layer-button ${clickMode ? 'active' : ''}`}
+            onClick={() => setClickMode(!clickMode)}
+          >
+            🎯 点击选位
+          </button>
+        </div>
       </div>
 
       {/* 图例 */}
       <div className="map-legend">
-        <div className="legend-item">
-          <span className="legend-color" style={{ backgroundColor: '#1890ff', opacity: 0.2 }}></span>
-          <span>15分钟步行范围</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color" style={{ backgroundColor: '#ff4d4f', opacity: 0.3 }}></span>
-          <span>服务盲区</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-marker">📍</span>
-          <span>社区中心</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-line" style={{ backgroundColor: '#1890ff' }}></span>
-          <span>步行路线</span>
+        <h4>图例</h4>
+        <div className="legend-items">
+          <div className="legend-item">
+            <span className="legend-color" style={{ backgroundColor: '#1890ff' }}></span>
+            <span>15分钟步行范围</span>
+          </div>
+          <div className="legend-item">
+            <span className="legend-color" style={{ backgroundColor: '#52c41a' }}></span>
+            <span>POI设施</span>
+          </div>
+          <div className="legend-item">
+            <span className="legend-color" style={{ backgroundColor: '#ff4d4f' }}></span>
+            <span>服务盲区</span>
+          </div>
         </div>
       </div>
 
-      {/* Graph路网图层 */}
-      {mapReady && (
+      {/* Graph图层 */}
+      {showGraph && mapReady && center && (
         <GraphLayer
           map={mapInstanceRef.current}
-          center={center ? { lng: center.lng, lat: center.lat } : { lng: 0, lat: 0 }}
+          center={center}
           visible={showGraph}
         />
       )}
 
-      {/* POI标注图层 */}
-      {mapReady && (
+      {/* POI标记 */}
+      {showPOI && mapReady && poiCoverage && (
         <POIMarker
           map={mapInstanceRef.current}
-          poiData={poiCoverage || {}}
+          poiData={poiCoverage}
           visible={showPOI}
         />
+      )}
+
+      {/* 点击模式提示 */}
+      {clickMode && (
+        <div className="click-mode-hint">
+          <span>🎯 点击地图选择位置</span>
+        </div>
       )}
     </div>
   );
