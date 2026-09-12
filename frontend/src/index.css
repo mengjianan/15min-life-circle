@@ -520,6 +520,13 @@ body {
   border: 1px solid var(--border-light);
 }
 
+/* 导出PDF按钮 */
+.export-btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}
+
 .facility-summary h3 {
   font-size: 15px;
   font-weight: 600;
@@ -1551,7 +1558,7 @@ body {
   transition: width 0.6s ease;
 }
 
-.score-value {
+.accessibility-score .score-value {
   width: 35px;
   text-align: right;
   font-size: 14px;
@@ -1559,131 +1566,44 @@ body {
   color: var(--text-primary);
 }
 
-/* 分析进度组件 */
-.analysis-progress {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-}
-
-.progress-card {
-  background: white;
-  border-radius: var(--radius-xl);
-  padding: 32px;
-  width: 400px;
-  max-width: 90%;
-  box-shadow: var(--shadow-xl);
-}
-
-.progress-header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.progress-header h3 {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-}
-
-.progress-header p {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.progress-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.progress-step {
+/* 分析进度组件 - 内联样式 */
+.analysis-progress-inline {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
-  background: var(--bg-primary);
-  border-radius: var(--radius-md);
-  transition: all 0.3s ease;
-}
-
-.progress-step.active {
-  background: var(--primary-50);
-  border: 1px solid var(--primary-200);
-}
-
-.progress-step.completed {
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
-}
-
-.step-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-}
-
-.progress-step.active .step-icon {
-  background: var(--primary-500);
-  color: white;
-  animation: pulse 1.5s infinite;
-}
-
-.progress-step.completed .step-icon {
-  background: #52c41a;
-  color: white;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-}
-
-.step-text {
   flex: 1;
-  font-size: 14px;
-  color: var(--text-secondary);
+  min-width: 200px;
 }
 
-.progress-step.active .step-text {
+.progress-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.progress-step-name {
+  font-size: 13px;
   color: var(--primary-600);
   font-weight: 500;
 }
 
-.progress-step.completed .step-text {
-  color: #52c41a;
+.progress-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
-.progress-bar-container {
-  background: var(--bg-tertiary);
+.progress-bar-inline {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-full);
-  height: 8px;
   overflow: hidden;
 }
 
-.progress-bar {
+.progress-fill-inline {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  background: white;
   border-radius: var(--radius-full);
   transition: width 0.3s ease;
 }

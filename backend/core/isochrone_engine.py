@@ -87,14 +87,16 @@ class IsochroneEngine:
         self,
         center: GeoPoint,
         direction: float,
+        max_time: int = ISOCHRONE_MAX_TIME,
         max_iterations: int = BINARY_SEARCH_ITERATIONS
     ) -> GeoPoint:
         """
-        二分搜索某方向上的15分钟边界点
+        二分搜索某方向上的边界点
 
         Args:
             center: 中心点
             direction: 方向角（度）
+            max_time: 最大步行时间（秒）
             max_iterations: 最大迭代次数
 
         Returns:
@@ -118,7 +120,7 @@ class IsochroneEngine:
                 # API失败时使用估算
                 walk_time = mid / 1.2  # 假设步行速度1.2m/s
 
-            if walk_time < ISOCHRONE_MAX_TIME:
+            if walk_time < max_time:
                 best_point = target
                 low = mid
             else:
@@ -158,7 +160,7 @@ class IsochroneEngine:
 
         # 并发搜索各方向的边界点（使用asyncio.gather）
         tasks = [
-            self._search_boundary_point(center, angle, max_iterations)
+            self._search_boundary_point(center, angle, max_time, max_iterations)
             for angle in angles
         ]
 

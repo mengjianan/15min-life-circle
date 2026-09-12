@@ -264,12 +264,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* 分析进度提示 */}
-      <AnalysisProgress
-        steps={analysisSteps}
-        visible={showProgress}
-      />
-
       <header className="app-header">
         <div className="header-content">
           <div className="header-left">
@@ -328,6 +322,12 @@ function App() {
             )}
           </button>
 
+          {/* 分析进度 */}
+          <AnalysisProgress
+            steps={analysisSteps}
+            visible={showProgress}
+          />
+
           <button
             className="analyze-button secondary"
             onClick={() => setShowCustomCenter(!showCustomCenter)}
@@ -335,13 +335,6 @@ function App() {
             <Icons.MapPin />
             {showCustomCenter ? '隐藏自定义位置' : '自定义位置'}
           </button>
-
-          {analysisResult && (
-            <button className="analyze-button secondary" onClick={handleExportPDF}>
-              <Icons.Download />
-              导出PDF
-            </button>
-          )}
         </div>
 
         {/* 错误提示 */}
@@ -468,6 +461,12 @@ function App() {
                     </div>
                   </div>
                 )}
+
+                {/* 导出PDF按钮 */}
+                <button className="analyze-button secondary export-btn" onClick={handleExportPDF}>
+                  <Icons.Download />
+                  导出PDF报告
+                </button>
               </>
             ) : (
               /* 空状态提示 */

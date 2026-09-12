@@ -99,7 +99,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, [center, mapReady]);
 
   useEffect(() => {
-    if (mapReady && mapInstanceRef.current && isochrone) {
+    if (mapReady && mapInstanceRef.current) {
       const map = mapInstanceRef.current;
       const BMap = (window as any).BMap;
 
@@ -132,7 +132,7 @@ const MapView: React.FC<MapViewProps> = ({
             map.addOverlay(polygon);
           }
         });
-      } else if (isochrone.boundary_points && isochrone.boundary_points.length > 0) {
+      } else if (isochrone && isochrone.boundary_points && isochrone.boundary_points.length > 0) {
         // 如果没有多时间数据，只绘制单个等时圈
         const points = isochrone.boundary_points.map(
           (p: any) => new BMap.Point(p.lng, p.lat)
