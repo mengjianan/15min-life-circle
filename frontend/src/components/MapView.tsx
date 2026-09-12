@@ -6,6 +6,7 @@ interface MapViewProps {
   isochrone?: any;
   poiCoverage?: any;
   blindSpots?: any[];
+  multiTimeData?: any;
   loading?: boolean;
   onCenterChange?: (lng: number, lat: number) => void;
 }
@@ -15,6 +16,7 @@ const MapView: React.FC<MapViewProps> = ({
   isochrone,
   poiCoverage,
   blindSpots,
+  multiTimeData,
   loading = false,
   onCenterChange
 }) => {
@@ -103,7 +105,35 @@ const MapView: React.FC<MapViewProps> = ({
 
       map.clearOverlays();
 
-      if (isochrone.boundary_points && isochrone.boundary_points.length > 0) {
+      // 绘制多时间路线（如果有多时间数据）
+      if (multiTimeData && multiTimeData.layers) {
+        const timeColors: Record<number, string> = {
+          300: '#52c41a',   // 5分钟 - 绿色
+          600: '#faad14',   // 10分钟 - 橙色
+          900: '#1890ff'    // 15分钟 - 蓝色
+        };
+
+        multiTimeData.layers.forEach((layer: any) => {
+          if (layer.boundary_points && layer.boundary_points.length > 0) {
+            const points = layer.boundary_points.map(
+              (p: any) => new BMap.Point(p.lng, p.lat)
+            );
+
+            const color = timeColors[layer.time] || '#667eea';
+
+            const polygon = new BMap.Polygon(points, {
+              strokeColor: color,
+              strokeWeight: 3,
+              strokeOpacity: 0.8,
+              fillColor: color,
+              fillOpacity: 0.08,
+            });
+
+            map.addOverlay(polygon);
+          }
+        });
+      } else if (isochrone.boundary_points && isochrone.boundary_points.length > 0) {
+        // 如果没有多时间数据，只绘制单个等时圈
         const points = isochrone.boundary_points.map(
           (p: any) => new BMap.Point(p.lng, p.lat)
         );
@@ -222,7 +252,7 @@ const MapView: React.FC<MapViewProps> = ({
         });
       }
     }
-  }, [mapReady, isochrone, center, poiCoverage, blindSpots, showPOI, showBlindSpots]);
+  }, [mapReady, isochrone, center, poiCoverage, blindSpots, multiTimeData, showPOI, showBlindSpots]);
 
   const toggleClickMode = useCallback(() => {
     setClickMode(prev => !prev);

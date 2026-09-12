@@ -371,6 +371,7 @@ function App() {
               isochrone={getCurrentIsochrone()}
               poiCoverage={analysisResult?.poi_coverage}
               blindSpots={analysisResult?.blind_spots}
+              multiTimeData={multiTimeData}
               loading={loading}
             />
           </div>
