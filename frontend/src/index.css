@@ -283,10 +283,130 @@ body {
   min-height: 500px;
 }
 
+.map-panel .map-wrapper {
+  height: 100%;
+  min-height: 500px;
+  position: relative;
+}
+
 .map-panel .map-container {
   height: 100%;
   min-height: 500px;
-  border-radius: var(--radius-lg);
+}
+
+/* 地图错误状态 */
+.map-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 500px;
+  background: var(--bg-primary);
+  padding: 40px;
+  text-align: center;
+}
+
+.map-error-icon {
+  width: 64px;
+  height: 64px;
+  background: #fef2f2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.map-error-icon svg {
+  width: 32px;
+  height: 32px;
+  color: #ef4444;
+}
+
+.map-error p {
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.map-error button {
+  padding: 10px 20px;
+  background: var(--primary-500);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* 地图控制按钮 */
+.map-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-control-btn {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.map-control-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+.map-control-btn.active {
+  background: var(--primary-500);
+  border-color: var(--primary-500);
+}
+
+.map-control-btn.active svg {
+  color: white;
+}
+
+.map-control-btn svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+}
+
+/* 点击模式提示 */
+.click-mode-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 10px 20px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.click-mode-hint svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* 右侧数据面板 */

@@ -7,7 +7,7 @@ import AreaComparison from './components/AreaComparison';
 import FacilityAccessibility from './components/FacilityAccessibility';
 import CustomCenter from './components/CustomCenter';
 import CommunityComparison from './components/CommunityComparison';
-import { SAMPLE_COMMUNITIES, Community } from './config';
+import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
 import { exportPDFReport } from './pdfExport';
 import type { AnalysisResult, MultiTimeData } from './types';
 
@@ -129,7 +129,7 @@ function App() {
 
     try {
       const [singleResponse, multiResponse] = await Promise.all([
-        fetch('/api/analysis/report', {
+        fetch(`${API_BASE_URL}/analysis/report`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -138,7 +138,7 @@ function App() {
             community_name: center.name
           })
         }),
-        fetch('/api/isochrone/multi-time', {
+        fetch(`${API_BASE_URL}/isochrone/multi-time`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
