@@ -1107,19 +1107,20 @@ body {
 }
 
 /* 报告章节 */
-.report-section {
+/* 报告章节样式（用于Report组件内部） */
+.report-chapter {
   margin-bottom: 32px;
   padding-bottom: 24px;
   border-bottom: 1px solid var(--border-light);
 }
 
-.report-section:last-child {
+.report-chapter:last-child {
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 0;
 }
 
-.report-section > h3 {
+.report-chapter > h3 {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
@@ -1129,7 +1130,7 @@ body {
   gap: 8px;
 }
 
-.report-section > h3::before {
+.report-chapter > h3::before {
   content: '';
   width: 4px;
   height: 20px;
@@ -1137,7 +1138,7 @@ body {
   border-radius: 2px;
 }
 
-.report-section > h4 {
+.report-chapter > h4 {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);

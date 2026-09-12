@@ -71,7 +71,7 @@ const Report: React.FC<ReportProps> = ({
       <h2>{communityName}15分钟生活圈体检报告</h2>
 
       {/* 一、社区基础信息 */}
-      <div className="report-section">
+      <div className="report-chapter">
         <h3>一、社区基础信息</h3>
         <div className="report-table">
           <table>
@@ -104,7 +104,7 @@ const Report: React.FC<ReportProps> = ({
       </div>
 
       {/* 二、体检方法与口径说明 */}
-      <div className="report-section">
+      <div className="report-chapter">
         <h3>二、体检方法与口径说明</h3>
         <div className="report-content">
           <p><strong>体检范围：</strong>以社区中心点为起点，基于真实步行路网，计算15分钟步行可达范围，同时生成5分钟、10分钟、15分钟三层等时圈。</p>
@@ -114,7 +114,7 @@ const Report: React.FC<ReportProps> = ({
       </div>
 
       {/* 三、15分钟步行等时圈体检 */}
-      <div className="report-section">
+      <div className="report-chapter">
         <h3>三、15分钟步行等时圈体检</h3>
         <div className="report-table">
           <table>
@@ -145,7 +145,7 @@ const Report: React.FC<ReportProps> = ({
       </div>
 
       {/* 四、民生设施覆盖体检 */}
-      <div className="report-section">
+      <div className="report-chapter">
         <h3>四、民生设施覆盖体检</h3>
         <div className="report-table">
           <table>
@@ -199,7 +199,7 @@ const Report: React.FC<ReportProps> = ({
 
       {/* 五、服务盲区体检 */}
       {blindSpots.length > 0 && (
-        <div className="report-section">
+        <div className="report-chapter">
           <h3>五、服务盲区体检</h3>
           <div className="blind-spots-list">
             {blindSpots.map((spot, index) => (
@@ -218,7 +218,7 @@ const Report: React.FC<ReportProps> = ({
       )}
 
       {/* 六、社区生活圈综合评分 */}
-      <div className="report-section">
+      <div className="report-chapter">
         <h3>六、社区生活圈综合评分</h3>
         <div className="score-section">
           <div className="score-circle" style={{ borderColor: getScoreColor(score.level) }}>
@@ -260,7 +260,7 @@ const Report: React.FC<ReportProps> = ({
 
       {/* 七、问题诊断与规划建议 */}
       {suggestions.length > 0 && (
-        <div className="report-section">
+        <div className="report-chapter">
           <h3>七、问题诊断与规划建议</h3>
           <div className="suggestions-section">
             <h4>问题清单</h4>
@@ -278,7 +278,7 @@ const Report: React.FC<ReportProps> = ({
       )}
 
       {/* 八、报告结论 */}
-      <div className="report-section">
+      <div className="report-chapter">
         <h3>八、报告结论</h3>
         <div className="report-content conclusion">
           <p>
