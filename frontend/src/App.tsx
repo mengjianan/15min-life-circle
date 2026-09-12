@@ -82,6 +82,18 @@ const Icons = {
       <line x1="12" y1="15" x2="12" y2="3"></line>
     </svg>
   ),
+  Activity: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+    </svg>
+  ),
+  Layers: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+      <polyline points="2 17 12 22 22 17"></polyline>
+      <polyline points="2 12 12 17 22 12"></polyline>
+    </svg>
+  ),
 };
 
 function App() {
@@ -210,6 +222,7 @@ function App() {
       </header>
 
       <main className="app-main">
+        {/* 控制面板 */}
         <div className="controls-panel">
           <div className="control-group">
             <label>选择社区：</label>
@@ -249,45 +262,43 @@ function App() {
           </button>
 
           <button
-            className="analyze-button"
+            className="analyze-button secondary"
             onClick={() => setShowCustomCenter(!showCustomCenter)}
-            style={{ background: showCustomCenter ? '#6b7280' : undefined }}
           >
             <Icons.MapPin />
-            {showCustomCenter ? '隐藏自定义位置' : '显示自定义位置'}
+            {showCustomCenter ? '隐藏自定义位置' : '自定义位置'}
           </button>
 
           {analysisResult && (
-            <button className="analyze-button" onClick={handleExportPDF}>
+            <button className="analyze-button secondary" onClick={handleExportPDF}>
               <Icons.Download />
               导出PDF
             </button>
           )}
         </div>
 
+        {/* 错误提示 */}
         {error && (
-          <div className="error-container">
-            <div className="error-icon">
-              <Icons.AlertTriangle />
-            </div>
-            <h3 className="error-title">分析失败</h3>
-            <p className="error-message">{error}</p>
-            <button className="retry-button" onClick={handleAnalyze}>
+          <div className="error-banner">
+            <Icons.AlertTriangle />
+            <span>{error}</span>
+            <button onClick={handleAnalyze}>
               <Icons.Refresh />
               重试
             </button>
           </div>
         )}
 
-        <div className="content-area">
-          <div className="map-section">
+        {/* 主内容区域 - 左右分栏 */}
+        <div className="main-content">
+          {/* 左侧 - 地图区域 */}
+          <div className="map-panel">
             {showCustomCenter && (
               <CustomCenter
                 onCenterSelect={handleCenterSelect}
                 currentCenter={getCurrentCenter()}
               />
             )}
-
             <MapView
               center={getCurrentCenter()}
               isochrone={getCurrentIsochrone()}
@@ -297,78 +308,108 @@ function App() {
             />
           </div>
 
-          <div className="report-section">
+          {/* 右侧 - 数据面板 */}
+          <div className="data-panel">
             {analysisResult ? (
               <>
-                {multiTimeData && (
-                  <TimeComparison
-                    data={{
-                      time5: multiTimeData.layers.find(l => l.time === 300),
-                      time10: multiTimeData.layers.find(l => l.time === 600),
-                      time15: multiTimeData.layers.find(l => l.time === 900)
-                    }}
-                    onTimeChange={handleTimeChange}
-                  />
+                {/* 评分卡片 */}
+                <div className="score-card">
+                  <div className="score-header">
+                    <Icons.Activity />
+                    <span>综合评分</span>
+                  </div>
+                  <div className="score-value">{analysisResult.score.total}</div>
+                  <div className="score-level">{analysisResult.score.level}</div>
+                </div>
+
+                {/* 关键指标 - 两列布局 */}
+                <div className="metrics-grid">
+                  <div className="metric-card">
+                    <div className="metric-icon">
+                      <Icons.Map />
+                    </div>
+                    <div className="metric-info">
+                      <div className="metric-value">{analysisResult.isochrone.area.toFixed(2)} km²</div>
+                      <div className="metric-label">覆盖面积</div>
+                    </div>
+                  </div>
+
+                  <div className="metric-card">
+                    <div className="metric-icon">
+                      <Icons.Layers />
+                    </div>
+                    <div className="metric-info">
+                      <div className="metric-value">
+                        {analysisResult.poi_coverage
+                          ? Object.values(analysisResult.poi_coverage).reduce((sum, cat) => sum + cat.count, 0)
+                          : 0}
+                      </div>
+                      <div className="metric-label">周边设施</div>
+                    </div>
+                  </div>
+
+                  <div className="metric-card">
+                    <div className="metric-icon">
+                      <Icons.AlertTriangle />
+                    </div>
+                    <div className="metric-info">
+                      <div className="metric-value">{analysisResult.blind_spots?.length || 0}</div>
+                      <div className="metric-label">服务盲区</div>
+                    </div>
+                  </div>
+
+                  <div className="metric-card">
+                    <div className="metric-icon">
+                      <Icons.Clock />
+                    </div>
+                    <div className="metric-info">
+                      <div className="metric-value">{selectedTime / 60} 分钟</div>
+                      <div className="metric-label">步行时间</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 设施分类统计 */}
+                {analysisResult.poi_coverage?.categories && (
+                  <div className="facility-summary">
+                    <h3>
+                      <Icons.BarChart />
+                      设施分布
+                    </h3>
+                    <div className="facility-list">
+                      {Object.entries(analysisResult.poi_coverage.categories).map(([name, count]) => (
+                        <div key={name} className="facility-item">
+                          <span className="facility-name">{name}</span>
+                          <span className="facility-count">{count as number}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
-
-                {multiTimeData && (
-                  <AreaComparison
-                    data={{
-                      time5: multiTimeData.layers.find(l => l.time === 300),
-                      time10: multiTimeData.layers.find(l => l.time === 600),
-                      time15: multiTimeData.layers.find(l => l.time === 900)
-                    }}
-                  />
-                )}
-
-                <Report
-                  communityName={analysisResult.community_name}
-                  score={analysisResult.score}
-                  suggestions={analysisResult.suggestions}
-                  blindSpots={analysisResult.blind_spots}
-                />
-
-                {analysisResult.poi_coverage && getCurrentCenter() && (
-                  <FacilityAccessibility
-                    poiCoverage={analysisResult.poi_coverage}
-                    center={getCurrentCenter()!}
-                  />
-                )}
-
-                <RadarChart
-                  categories={analysisResult.score.categories}
-                />
               </>
             ) : (
-              <div className="placeholder">
-                <div className="placeholder-icon">
-                  <Icons.Home />
+              /* 空状态提示 */
+              <div className="empty-state">
+                <div className="empty-icon">
+                  <Icons.Map />
                 </div>
                 <h3>开始分析</h3>
                 <p>选择一个社区或自定义位置，点击"开始体检"按钮生成分析报告</p>
                 <div className="feature-list">
                   <div className="feature-item">
-                    <span className="feature-icon">
-                      <Icons.Clock />
-                    </span>
+                    <Icons.Clock />
                     <span>计算5/10/15分钟步行范围</span>
                   </div>
                   <div className="feature-item">
-                    <span className="feature-icon">
-                      <Icons.MapPin />
-                    </span>
+                    <Icons.MapPin />
                     <span>分析周边设施覆盖</span>
                   </div>
                   <div className="feature-item">
-                    <span className="feature-icon">
-                      <Icons.AlertTriangle />
-                    </span>
+                    <Icons.AlertTriangle />
                     <span>识别服务盲区</span>
                   </div>
                   <div className="feature-item">
-                    <span className="feature-icon">
-                      <Icons.BarChart />
-                    </span>
+                    <Icons.BarChart />
                     <span>生成体检报告</span>
                   </div>
                 </div>
@@ -377,10 +418,73 @@ function App() {
           </div>
         </div>
 
-        {analysisHistory.length > 1 && (
-          <CommunityComparison history={comparisonData} />
+        {/* 下方详细信息区域 */}
+        {analysisResult && (
+          <div className="detail-section">
+            {/* 时间维度对比 */}
+            {multiTimeData && (
+              <div className="detail-card">
+                <TimeComparison
+                  data={{
+                    time5: multiTimeData.layers.find(l => l.time === 300),
+                    time10: multiTimeData.layers.find(l => l.time === 600),
+                    time15: multiTimeData.layers.find(l => l.time === 900)
+                  }}
+                  onTimeChange={handleTimeChange}
+                />
+              </div>
+            )}
+
+            {/* 面积对比 */}
+            {multiTimeData && (
+              <div className="detail-card">
+                <AreaComparison
+                  data={{
+                    time5: multiTimeData.layers.find(l => l.time === 300),
+                    time10: multiTimeData.layers.find(l => l.time === 600),
+                    time15: multiTimeData.layers.find(l => l.time === 900)
+                  }}
+                />
+              </div>
+            )}
+
+            {/* 详细报告 */}
+            <div className="detail-card full-width">
+              <Report
+                communityName={analysisResult.community_name}
+                score={analysisResult.score}
+                suggestions={analysisResult.suggestions}
+                blindSpots={analysisResult.blind_spots}
+              />
+            </div>
+
+            {/* 设施可达性 */}
+            {analysisResult.poi_coverage && getCurrentCenter() && (
+              <div className="detail-card">
+                <FacilityAccessibility
+                  poiCoverage={analysisResult.poi_coverage}
+                  center={getCurrentCenter()!}
+                />
+              </div>
+            )}
+
+            {/* 雷达图 */}
+            <div className="detail-card">
+              <RadarChart
+                categories={analysisResult.score.categories}
+              />
+            </div>
+          </div>
         )}
 
+        {/* 社区对比 */}
+        {analysisHistory.length > 1 && (
+          <div className="comparison-section">
+            <CommunityComparison history={comparisonData} />
+          </div>
+        )}
+
+        {/* 分析历史 */}
         {analysisHistory.length > 1 && (
           <div className="history-section">
             <h3>
