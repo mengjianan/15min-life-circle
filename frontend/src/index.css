@@ -1133,7 +1133,7 @@ body {
 .score-level {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: white;
   margin-top: 4px;
 }
 
