@@ -273,6 +273,11 @@ body {
   margin-bottom: 24px;
 }
 
+/* 三栏布局：分析后 */
+.main-content.three-columns {
+  grid-template-columns: 2fr 1fr;
+}
+
 /* 左侧地图面板 */
 .map-panel {
   background: var(--bg-secondary);
@@ -416,6 +421,27 @@ body {
   gap: 16px;
 }
 
+/* 三栏布局右侧容器 */
+.right-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.right-panel .data-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 报告区域两栏布局 */
+.report-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+
 /* 评分卡片 */
 .score-card {
   background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
@@ -449,6 +475,7 @@ body {
 
 .score-level {
   font-size: 16px;
+  color: white;
   opacity: 0.9;
 }
 
@@ -1586,6 +1613,15 @@ body {
   font-size: 13px;
   color: var(--primary-600);
   font-weight: 500;
+}
+
+.progress-message {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 .progress-count {

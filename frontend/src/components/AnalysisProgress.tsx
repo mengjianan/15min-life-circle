@@ -4,6 +4,7 @@ interface AnalysisStep {
   id: string;
   label: string;
   status: 'pending' | 'active' | 'completed';
+  message?: string;
 }
 
 interface AnalysisProgressProps {
@@ -27,6 +28,9 @@ const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
         <span className="progress-step-name">
           {activeStep ? activeStep.label : '准备中...'}
         </span>
+        {activeStep?.message && (
+          <span className="progress-message">{activeStep.message}</span>
+        )}
         <span className="progress-count">{completedCount}/{steps.length}</span>
       </div>
       <div className="progress-bar-inline">

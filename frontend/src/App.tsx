@@ -17,6 +17,7 @@ interface AnalysisStep {
   id: string;
   label: string;
   status: 'pending' | 'active' | 'completed';
+  message?: string;
 }
 
 // SVG图标组件
@@ -137,9 +138,9 @@ function App() {
   };
 
   // 更新步骤状态
-  const updateStepStatus = (stepId: string, status: 'pending' | 'active' | 'completed') => {
+  const updateStepStatus = (stepId: string, status: 'pending' | 'active' | 'completed', message?: string) => {
     setAnalysisSteps(prev => prev.map(step =>
-      step.id === stepId ? { ...step, status } : step
+      step.id === stepId ? { ...step, status, message: message || step.message } : step
     ));
   };
 
@@ -155,11 +156,11 @@ function App() {
     setShowProgress(true);
 
     // 重置步骤状态
-    setAnalysisSteps(prev => prev.map(step => ({ ...step, status: 'pending' })));
+    setAnalysisSteps(prev => prev.map(step => ({ ...step, status: 'pending', message: undefined })));
 
     try {
       // 步骤1: 计算等时圈
-      updateStepStatus('isochrone', 'active');
+      updateStepStatus('isochrone', 'active', '计算5/10/15分钟步行范围...');
       const multiResponse = await fetch(`${API_BASE_URL}/isochrone/multi-time`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,19 +176,19 @@ function App() {
         multiResult = await multiResponse.json();
         setMultiTimeData(multiResult);
       }
-      updateStepStatus('isochrone', 'completed');
+      updateStepStatus('isochrone', 'completed', '等时圈计算完成');
       await delay(300);
 
       // 步骤2: 搜索POI
-      updateStepStatus('poi', 'active');
+      updateStepStatus('poi', 'active', '搜索周边设施...');
       await delay(500); // 模拟搜索过程
 
       // 步骤3: 识别盲区
-      updateStepStatus('blindspot', 'active');
+      updateStepStatus('blindspot', 'active', '识别服务盲区...');
       await delay(300);
 
       // 步骤4-5: 调用完整分析报告API
-      updateStepStatus('score', 'active');
+      updateStepStatus('score', 'active', '计算综合评分...');
       const singleResponse = await fetch(`${API_BASE_URL}/analysis/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -202,21 +203,24 @@ function App() {
         throw new Error('分析请求失败');
       }
 
-      const result = await singleResponse.json();
+      const result: AnalysisResult = await singleResponse.json();
 
-      // 更新POI和盲区步骤状态
-      updateStepStatus('poi', 'completed');
-      updateStepStatus('blindspot', 'completed');
+      // 更新POI和盲区步骤状态 - 显示设施信息
+      const poiCount = result.poi_coverage
+        ? Object.values(result.poi_coverage).reduce((sum: number, cat: any) => sum + cat.count, 0)
+        : 0;
+      updateStepStatus('poi', 'completed', `找到${poiCount}处设施`);
+      updateStepStatus('blindspot', 'completed', `识别到${result.blind_spots?.length || 0}个盲区`);
       await delay(300);
 
-      updateStepStatus('score', 'completed');
+      updateStepStatus('score', 'completed', `综合评分：${result.score.total}分`);
       await delay(300);
 
       // 步骤5: 生成报告
-      updateStepStatus('report', 'active');
+      updateStepStatus('report', 'active', '生成体检报告...');
       setAnalysisResult(result);
       await delay(500);
-      updateStepStatus('report', 'completed');
+      updateStepStatus('report', 'completed', '报告生成完成');
 
       setAnalysisHistory(prev => [result, ...prev.slice(0, 4)]);
 
@@ -349,30 +353,26 @@ function App() {
           </div>
         )}
 
-        {/* 主内容区域 - 左右分栏 */}
-        <div className="main-content">
-          {/* 左侧 - 地图区域 */}
-          <div className="map-panel">
-            {showCustomCenter && (
-              <CustomCenter
-                onCenterSelect={handleCenterSelect}
-                currentCenter={getCurrentCenter()}
+        {/* 主内容区域 */}
+        {analysisResult ? (
+          /* 分析后 - 三栏布局 */
+          <div className="main-content three-columns">
+            {/* 左侧 - 地图区域 */}
+            <div className="map-panel">
+              <MapView
+                center={getCurrentCenter()}
+                isochrone={getCurrentIsochrone()}
+                poiCoverage={analysisResult?.poi_coverage}
+                blindSpots={analysisResult?.blind_spots}
+                multiTimeData={multiTimeData}
+                loading={loading}
               />
-            )}
-            <MapView
-              center={getCurrentCenter()}
-              isochrone={getCurrentIsochrone()}
-              poiCoverage={analysisResult?.poi_coverage}
-              blindSpots={analysisResult?.blind_spots}
-              multiTimeData={multiTimeData}
-              loading={loading}
-            />
-          </div>
+            </div>
 
-          {/* 右侧 - 数据面板 */}
-          <div className="data-panel">
-            {analysisResult ? (
-              <>
+            {/* 右侧 - 双列布局 */}
+            <div className="right-panel">
+              {/* 第一列：综合数据 */}
+              <div className="data-column">
                 {/* 评分卡片 */}
                 <div className="score-card">
                   <div className="score-header">
@@ -383,7 +383,7 @@ function App() {
                   <div className="score-level">{analysisResult.score.level}</div>
                 </div>
 
-                {/* 时间维度对比 - 移到第一屏 */}
+                {/* 时间维度对比 */}
                 {multiTimeData && (
                   <div className="detail-card">
                     <TimeComparison
@@ -397,7 +397,7 @@ function App() {
                   </div>
                 )}
 
-                {/* 关键指标 - 两列布局 */}
+                {/* 关键指标 */}
                 <div className="metrics-grid">
                   <div className="metric-card">
                     <div className="metric-icon">
@@ -444,6 +444,15 @@ function App() {
                   </div>
                 </div>
 
+                {/* 导出PDF按钮 */}
+                <button className="analyze-button secondary export-btn" onClick={handleExportPDF}>
+                  <Icons.Download />
+                  导出PDF报告
+                </button>
+              </div>
+
+              {/* 第二列：图表 */}
+              <div className="data-column">
                 {/* 设施分类统计 */}
                 {analysisResult.poi_coverage?.categories && (
                   <div className="facility-summary">
@@ -462,14 +471,52 @@ function App() {
                   </div>
                 )}
 
-                {/* 导出PDF按钮 */}
-                <button className="analyze-button secondary export-btn" onClick={handleExportPDF}>
-                  <Icons.Download />
-                  导出PDF报告
-                </button>
-              </>
-            ) : (
-              /* 空状态提示 */
+                {/* 雷达图 */}
+                <div className="detail-card">
+                  <RadarChart
+                    categories={analysisResult.score.categories}
+                  />
+                </div>
+
+                {/* 面积对比 */}
+                {multiTimeData && (
+                  <div className="detail-card">
+                    <AreaComparison
+                      data={{
+                        time5: multiTimeData.layers.find(l => l.time === 300),
+                        time10: multiTimeData.layers.find(l => l.time === 600),
+                        time15: multiTimeData.layers.find(l => l.time === 900)
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* 分析前 - 两栏布局 */
+          <div className="main-content">
+            {/* 左侧 - 地图区域 */}
+            <div className="map-panel">
+              {showCustomCenter && (
+                <CustomCenter
+                  onCenterSelect={handleCenterSelect}
+                  currentCenter={getCurrentCenter()}
+                />
+              )}
+              <MapView
+                center={getCurrentCenter()}
+                isochrone={getCurrentIsochrone()}
+                poiCoverage={undefined}
+                blindSpots={undefined}
+                multiTimeData={multiTimeData}
+                loading={loading}
+              />
+            </div>
+
+            {/* 右侧 - 数据面板 */}
+            <div className="data-panel">
+              {/* 空状态提示 */}
               <div className="empty-state">
                 <div className="empty-icon">
                   <Icons.Map />
@@ -495,28 +542,15 @@ function App() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* 下方详细信息区域 */}
+        {/* 综合报告 - 两栏布局 */}
         {analysisResult && (
-          <div className="detail-section">
-            {/* 面积对比 */}
-            {multiTimeData && (
-              <div className="detail-card">
-                <AreaComparison
-                  data={{
-                    time5: multiTimeData.layers.find(l => l.time === 300),
-                    time10: multiTimeData.layers.find(l => l.time === 600),
-                    time15: multiTimeData.layers.find(l => l.time === 900)
-                  }}
-                />
-              </div>
-            )}
-
+          <div className="report-section">
             {/* 详细报告 */}
-            <div className="detail-card full-width">
+            <div className="detail-card">
               <Report
                 communityName={analysisResult.community_name}
                 score={analysisResult.score}
@@ -534,13 +568,6 @@ function App() {
                 />
               </div>
             )}
-
-            {/* 雷达图 */}
-            <div className="detail-card">
-              <RadarChart
-                categories={analysisResult.score.categories}
-              />
-            </div>
           </div>
         )}
 

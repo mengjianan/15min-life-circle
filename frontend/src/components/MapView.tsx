@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import LoadingOverlay from './LoadingOverlay';
+import { API_BASE_URL } from '../config';
 
 interface MapViewProps {
   center: { lng: number; lat: number; name: string } | null;
@@ -22,6 +23,7 @@ const MapView: React.FC<MapViewProps> = ({
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+  const routeOverlaysRef = useRef<any[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [showGraph, setShowGraph] = useState(true);
@@ -253,6 +255,125 @@ const MapView: React.FC<MapViewProps> = ({
       }
     }
   }, [mapReady, isochrone, center, poiCoverage, blindSpots, multiTimeData, showPOI, showBlindSpots]);
+
+  // 绘制路线图（Graph连线）
+  useEffect(() => {
+    if (!mapReady || !center || !showGraph) {
+      // 清除路线覆盖物
+      if (routeOverlaysRef.current.length > 0) {
+        const map = mapInstanceRef.current;
+        if (map) {
+          routeOverlaysRef.current.forEach(overlay => {
+            try {
+              map.removeOverlay(overlay);
+            } catch (e) {
+              // 忽略
+            }
+          });
+        }
+        routeOverlaysRef.current = [];
+      }
+      return;
+    }
+
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const BMap = (window as any).BMap;
+
+    // 获取路线数据
+    const fetchAndDrawRoutes = async () => {
+      try {
+        // 获取8个方向的路线
+        const directions = [0, 45, 90, 135, 180, 225, 270, 315];
+        const radius = 0.015; // 约1.5km
+
+        const routePromises = directions.map(async (angle) => {
+          const rad = (angle * Math.PI) / 180;
+          const destLng = center.lng + radius * Math.sin(rad);
+          const destLat = center.lat + radius * Math.cos(rad);
+
+          try {
+            const response = await fetch(`${API_BASE_URL}/graph/route`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                origin_lng: center.lng,
+                origin_lat: center.lat,
+                dest_lng: destLng,
+                dest_lat: destLat
+              })
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              return data.features || [];
+            }
+          } catch (e) {
+            console.error('获取路线失败:', e);
+          }
+          return [];
+        });
+
+        const results = await Promise.all(routePromises);
+        const allFeatures = results.flat();
+
+        // 绘制路线
+        allFeatures.forEach((feature: any) => {
+          const geometry = feature.geometry;
+          const properties = feature.properties;
+
+          if (geometry.type === 'LineString') {
+            const points = geometry.coordinates.map(
+              (coord: number[]) => new BMap.Point(coord[0], coord[1])
+            );
+
+            // 根据路况选择颜色
+            let color = '#1890ff'; // 默认蓝色
+            if (properties.traffic_status === '畅通') {
+              color = '#52c41a'; // 绿色
+            } else if (properties.traffic_status === '缓慢') {
+              color = '#faad14'; // 橙色
+            } else if (properties.traffic_status === '拥堵') {
+              color = '#ff4d4f'; // 红色
+            }
+
+            const polyline = new BMap.Polyline(points, {
+              strokeColor: color,
+              strokeWeight: 3,
+              strokeOpacity: 0.7,
+              enableClicking: true
+            });
+
+            map.addOverlay(polyline);
+            routeOverlaysRef.current.push(polyline);
+
+            // 点击显示信息
+            polyline.addEventListener('click', () => {
+              const midIndex = Math.floor(points.length / 2);
+              const midPoint = points[midIndex];
+
+              const infoWindow = new BMap.InfoWindow(
+                `<div style="padding: 10px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">
+                  <h4 style="margin: 0 0 8px 0; color: #1890ff;">路段信息</h4>
+                  <p style="margin: 4px 0;"><strong>距离：</strong>${properties.distance_text || '未知'}</p>
+                  <p style="margin: 4px 0;"><strong>时间：</strong>${properties.duration_text || '未知'}</p>
+                  <p style="margin: 4px 0;"><strong>道路：</strong>${properties.road_name || '未知'}</p>
+                </div>`,
+                { width: 200, height: 100 }
+              );
+
+              map.openInfoWindow(infoWindow, midPoint);
+            });
+          }
+        });
+      } catch (err) {
+        console.error('绘制路线失败:', err);
+      }
+    };
+
+    fetchAndDrawRoutes();
+  }, [mapReady, center, showGraph]);
 
   const toggleClickMode = useCallback(() => {
     setClickMode(prev => !prev);
