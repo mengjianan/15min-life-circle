@@ -87,6 +87,14 @@ body {
   font-weight: 700;
   margin-bottom: 6px;
   letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-left h1 svg {
+  width: 28px;
+  height: 28px;
 }
 
 .header-left p {
@@ -671,6 +679,59 @@ body {
     background: rgba(255, 255, 255, 0.9);
     color: var(--text-primary);
   }
+}
+
+/* 图标样式 */
+.header-left h1 svg {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.placeholder-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 24px;
+  background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-200) 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder-icon svg {
+  width: 40px;
+  height: 40px;
+  color: var(--primary-500);
+}
+
+.feature-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.feature-icon svg {
+  width: 20px;
+  height: 20px;
+  color: white;
+}
+
+.history-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-section h3 svg {
+  width: 22px;
+  height: 22px;
+  color: var(--primary-500);
 }
 
 /* 打印样式 */
