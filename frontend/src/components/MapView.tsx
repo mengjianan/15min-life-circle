@@ -253,6 +253,55 @@ const MapView: React.FC<MapViewProps> = ({
           }
         });
       }
+
+      // 绘制从中心点到各设施的连线
+      if (showPOI && center && poiCoverage) {
+        const centerPoint = new BMap.Point(center.lng, center.lat);
+
+        Object.entries(poiCoverage).forEach(([category, data]: [string, any]) => {
+          if (data.facilities && data.facilities.length > 0) {
+            data.facilities.forEach((facility: any) => {
+              if (facility.location) {
+                const facilityPoint = new BMap.Point(facility.location.lng, facility.location.lat);
+
+                // 绘制连线（蓝色虚线）
+                const polyline = new BMap.Polyline([centerPoint, facilityPoint], {
+                  strokeColor: '#1890ff',
+                  strokeWeight: 2,
+                  strokeStyle: 'dashed',
+                  strokeOpacity: 0.6,
+                  enableClicking: true
+                });
+
+                map.addOverlay(polyline);
+
+                // 点击连线显示信息
+                polyline.addEventListener('click', () => {
+                  const midLng = (center.lng + facility.location.lng) / 2;
+                  const midLat = (center.lat + facility.location.lat) / 2;
+                  const midPoint = new BMap.Point(midLng, midLat);
+
+                  const distance = facility.distance || '未知';
+                  const walkTime = facility.walkTime || '未知';
+
+                  const infoWindow = new BMap.InfoWindow(
+                    '<div style="padding: 10px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
+                      '<h4 style="margin: 0 0 8px 0; color: #1890ff;">路线信息</h4>' +
+                      '<p style="margin: 4px 0;"><strong>目的地：</strong>' + facility.name + '</p>' +
+                      '<p style="margin: 4px 0;"><strong>类别：</strong>' + category + '</p>' +
+                      '<p style="margin: 4px 0;"><strong>距离：</strong>' + distance + '米</p>' +
+                      '<p style="margin: 4px 0;"><strong>步行时间：</strong>' + walkTime + '分钟</p>' +
+                    '</div>',
+                    { width: 220, height: 120 }
+                  );
+
+                  map.openInfoWindow(infoWindow, midPoint);
+                });
+              }
+            });
+          }
+        });
+      }
     }
   }, [mapReady, isochrone, center, poiCoverage, blindSpots, multiTimeData, showPOI, showBlindSpots]);
 

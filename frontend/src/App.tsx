@@ -355,8 +355,8 @@ function App() {
 
         {/* 主内容区域 */}
         {analysisResult ? (
-          /* 分析后 - 三栏布局 */
-          <div className="main-content three-columns">
+          /* 分析后 - 6:4布局 */
+          <div className="main-content analyzed">
             {/* 左侧 - 地图区域 */}
             <div className="map-panel">
               <MapView
@@ -369,19 +369,17 @@ function App() {
               />
             </div>
 
-            {/* 右侧 - 双列布局 */}
-            <div className="right-panel">
-              {/* 第一列：综合数据 */}
-              <div className="data-column">
-                {/* 评分卡片 */}
-                <div className="score-card">
-                  <div className="score-header">
-                    <Icons.Activity />
-                    <span>综合评分</span>
-                  </div>
-                  <div className="score-value">{analysisResult.score.total}</div>
-                  <div className="score-level">{analysisResult.score.level}</div>
+            {/* 右侧 - 综合数据 */}
+            <div className="data-panel">
+              {/* 评分卡片 */}
+              <div className="score-card">
+                <div className="score-header">
+                  <Icons.Activity />
+                  <span>综合评分</span>
                 </div>
+                <div className="score-value">{analysisResult.score.total}</div>
+                <div className="score-level">{analysisResult.score.level}</div>
+              </div>
 
                 {/* 时间维度对比 */}
                 {multiTimeData && (
@@ -449,10 +447,7 @@ function App() {
                   <Icons.Download />
                   导出PDF报告
                 </button>
-              </div>
 
-              {/* 第二列：图表 */}
-              <div className="data-column">
                 {/* 设施分类统计 */}
                 {analysisResult.poi_coverage?.categories && (
                   <div className="facility-summary">
@@ -491,7 +486,6 @@ function App() {
                   </div>
                 )}
               </div>
-            </div>
           </div>
         ) : (
           /* 分析前 - 两栏布局 */

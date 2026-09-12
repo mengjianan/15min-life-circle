@@ -273,6 +273,13 @@ body {
   margin-bottom: 24px;
 }
 
+/* 分析后布局：地图60%，数据40% */
+.main-content.analyzed {
+  grid-template-columns: 3fr 2fr;
+  gap: 16px;
+  margin: 0 16px 16px;
+}
+
 /* 三栏布局：分析后 */
 .main-content.three-columns {
   grid-template-columns: 2fr 1fr;
@@ -438,8 +445,8 @@ body {
 .report-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-top: 24px;
+  gap: 16px;
+  margin: 0 16px 16px;
 }
 
 /* 评分卡片 */
@@ -1133,7 +1140,7 @@ body {
 .score-level {
   font-size: 14px;
   font-weight: 500;
-  color: white;
+  color: var(--text-secondary);
   margin-top: 4px;
 }
 
