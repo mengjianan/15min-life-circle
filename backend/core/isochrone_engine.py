@@ -109,7 +109,10 @@ class IsochroneEngine:
             target = self._calculate_destination(center, direction, mid)
 
             # 调用百度地图API获取步行时间
-            walk_time = await self.baidu_map.get_walking_time(center, target)
+            # 将GeoPoint转换为字典格式
+            origin_dict = {"lng": center.lng, "lat": center.lat}
+            target_dict = {"lng": target.lng, "lat": target.lat}
+            walk_time = await self.baidu_map.get_walking_time(origin_dict, target_dict)
 
             if walk_time is None:
                 # API失败时使用估算

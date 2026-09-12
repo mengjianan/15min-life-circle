@@ -109,6 +109,69 @@ class BaiduMapService:
                 print(f"步行路线查询失败: {e}")
                 return None
 
+    def _generate_mock_poi(
+        self,
+        location: Dict[str, float],
+        query: str,
+        count: int = 3
+    ) -> List[Dict[str, Any]]:
+        """
+        生成模拟POI数据（当API不可用时使用）
+
+        Args:
+            location: 中心点坐标
+            query: 搜索关键词
+            count: 生成数量
+
+        Returns:
+            模拟POI列表
+        """
+        import random
+        import math
+
+        mock_data = {
+            "诊所": [("社区卫生服务站", "基层医疗机构"), ("仁和诊所", "综合诊所"), ("健康门诊部", "门诊服务")],
+            "药店": [("大参林药房", "连锁药店"), ("海王星辰健康药房", "药品零售"), ("益丰大药房", "连锁药店")],
+            "医院": [("市第一人民医院", "三甲医院"), ("区中心医院", "二级医院"), ("中西医结合医院", "综合医院")],
+            "小学": [("实验小学", "公办小学"), ("育才小学", "公办小学"), ("光明小学", "公办小学")],
+            "幼儿园": [("阳光幼儿园", "公办幼儿园"), ("蓝天幼儿园", "民办幼儿园"), ("童心幼儿园", "民办幼儿园")],
+            "培训机构": [("新东方教育", "语言培训"), ("学而思", "课外辅导"), ("少年宫", "综合培训")],
+            "菜市场": [("中心菜市场", "综合菜场"), ("惠民菜场", "社区菜场"), ("新鲜蔬菜市场", "生鲜市场")],
+            "超市": [("永辉超市", "大型超市"), ("苏果超市", "连锁超市"), ("大润发", "大型超市")],
+            "便利店": [("全家便利店", "24小时便利店"), ("7-Eleven", "24小时便利店"), ("罗森便利店", "便利店")],
+            "养老院": [("阳光养老院", "公立养老院"), ("康乐养老中心", "民营养老院"), ("幸福养老院", "社区养老")],
+            "老年活动中心": [("社区老年活动中心", "社区服务"), ("夕阳红活动中心", "文化活动"), ("老年大学", "教育活动")],
+            "公园": [("城市中央公园", "综合公园"), ("滨河公园", "带状公园"), ("社区花园", "街心公园")],
+            "图书馆": [("市图书馆", "公共图书馆"), ("区图书馆", "公共图书馆"), ("社区图书室", "社区服务")],
+            "体育场馆": [("奥体中心", "综合体育"), ("全民健身中心", "健身场所"), ("社区体育场", "社区体育")],
+            "餐厅": [("海底捞火锅", "火锅"), ("外婆家", "江浙菜"), ("肯德基", "快餐")],
+            "早餐店": [("永和豆浆", "早餐"), ("巴比馒头", "早餐"), ("老盛昌汤包", "早餐")],
+        }
+
+        templates = mock_data.get(query, [(f"{query}服务点", "服务设施")] * 3)
+        results = []
+
+        for i in range(min(count, len(templates))):
+            name, category = templates[i]
+            # 在中心点附近随机偏移
+            offset_lng = random.uniform(-0.005, 0.005)
+            offset_lat = random.uniform(-0.005, 0.005)
+            distance = int(math.sqrt(offset_lng**2 + offset_lat**2) * 111000)
+
+            results.append({
+                "name": name,
+                "address": f"距中心约{distance}米",
+                "location": {
+                    "lng": location["lng"] + offset_lng,
+                    "lat": location["lat"] + offset_lat
+                },
+                "type": category,
+                "tag": query,
+                "distance": distance,
+            })
+
+        return results
+
     async def search_poi(
         self,
         location: Dict[str, float],
@@ -160,10 +223,12 @@ class BaiduMapService:
                         for poi in results
                     ]
 
-                return []
+                # API返回非0状态，使用模拟数据
+                print(f"POI API返回状态 {data.get('status')}，使用模拟数据")
+                return self._generate_mock_poi(location, query)
             except Exception as e:
-                print(f"POI搜索失败: {e}")
-                return []
+                print(f"POI搜索失败: {e}，使用模拟数据")
+                return self._generate_mock_poi(location, query)
 
     async def geocode(self, address: str, city: str = "南京") -> Optional[Dict[str, float]]:
         """

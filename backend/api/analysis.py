@@ -42,21 +42,23 @@ async def generate_analysis_report(request: AnalysisRequest):
     Returns:
         完整的体检报告
     """
+    # 初始化服务
+    engine = IsochroneEngine()
+    poi_analyzer = POIAnalyzer()
+    blind_detector = BlindSpotDetector()
+
     try:
         center = GeoPoint(lng=request.lng, lat=request.lat)
         location = {"lng": request.lng, "lat": request.lat}
 
         # 1. 计算等时圈
-        engine = IsochroneEngine()
         isochrone_result = await engine.calculate_isochrone(center)
         area = engine.calculate_area(isochrone_result.boundary_points)
 
         # 2. 分析POI覆盖
-        poi_analyzer = POIAnalyzer()
         coverage = await poi_analyzer.analyze_coverage(location)
 
         # 3. 识别盲区
-        blind_detector = BlindSpotDetector()
         blind_spots = await blind_detector.detect_blind_spots(
             center=location,
             polygon=isochrone_result.polygon
@@ -86,6 +88,11 @@ async def generate_analysis_report(request: AnalysisRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # 关闭HTTP客户端连接
+        await engine.baidu_map.close()
+        await poi_analyzer.baidu_map.close()
+        await blind_detector.baidu_map.close()
 
 
 def calculate_score(
@@ -108,24 +115,41 @@ def calculate_score(
     category_scores = {}
     for category, data in coverage.items():
         count = data.get("count", 0)
-        if count >= 5:
+        if count >= 8:
             category_scores[category] = 100
+        elif count >= 5:
+            category_scores[category] = 90
         elif count >= 3:
             category_scores[category] = 80
+        elif count >= 2:
+            category_scores[category] = 70
         elif count >= 1:
             category_scores[category] = 60
         else:
-            category_scores[category] = 30
+            category_scores[category] = 40
 
     # 综合评分
     if category_scores:
         total_score = sum(category_scores.values()) / len(category_scores)
     else:
-        total_score = 0
+        total_score = 50
 
-    # 盲区扣分
-    blind_penalty = min(len(blind_spots) * 5, 30)
-    total_score = max(0, total_score - blind_penalty)
+    # 面积加分（15分钟步行圈正常面积约1-3平方公里）
+    if area > 0:
+        area_km2 = area / 1000000  # 转换为平方公里
+        if area_km2 >= 2.0:
+            area_bonus = 5
+        elif area_km2 >= 1.0:
+            area_bonus = 3
+        elif area_km2 >= 0.5:
+            area_bonus = 1
+        else:
+            area_bonus = 0
+        total_score += area_bonus
+
+    # 盲区扣分（降低扣分力度）
+    blind_penalty = min(len(blind_spots) * 2, 15)
+    total_score = max(30, total_score - blind_penalty)
 
     # 等级评定
     if total_score >= 90:

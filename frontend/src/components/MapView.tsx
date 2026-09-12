@@ -14,6 +14,7 @@ const MapView: React.FC<MapViewProps> = ({
   center,
   isochrone,
   poiCoverage,
+  blindSpots,
   loading = false,
   onCenterChange
 }) => {
@@ -26,7 +27,6 @@ const MapView: React.FC<MapViewProps> = ({
   const [showBlindSpots, setShowBlindSpots] = useState(true);
   const [clickMode, setClickMode] = useState(false);
 
-  // 检查百度地图API是否加载完成
   const checkBaiduMapAPI = useCallback(() => {
     return new Promise<void>((resolve, reject) => {
       const check = () => {
@@ -38,12 +38,10 @@ const MapView: React.FC<MapViewProps> = ({
         }
       };
       check();
-      // 超时处理
       setTimeout(() => reject(new Error('百度地图API加载超时')), 10000);
     });
   }, []);
 
-  // 初始化百度地图
   useEffect(() => {
     let mounted = true;
 
@@ -56,19 +54,14 @@ const MapView: React.FC<MapViewProps> = ({
         const BMap = (window as any).BMap;
         const map = new BMap.Map(mapRef.current);
 
-        // 设置默认中心点（南京市中心）
         const defaultPoint = new BMap.Point(118.7969, 32.0603);
         map.centerAndZoom(defaultPoint, 14);
 
-        // 启用滚轮缩放
         map.enableScrollWheelZoom();
-
-        // 添加控件
         map.addControl(new BMap.NavigationControl());
         map.addControl(new BMap.ScaleControl());
         map.addControl(new BMap.OverviewMapControl());
 
-        // 添加点击事件监听
         map.addEventListener('click', (e: any) => {
           if (clickMode && onCenterChange) {
             onCenterChange(e.point.lng, e.point.lat);
@@ -94,7 +87,6 @@ const MapView: React.FC<MapViewProps> = ({
     };
   }, [checkBaiduMapAPI, clickMode, onCenterChange]);
 
-  // 更新地图中心点
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && center) {
       const BMap = (window as any).BMap;
@@ -104,16 +96,13 @@ const MapView: React.FC<MapViewProps> = ({
     }
   }, [center, mapReady]);
 
-  // 更新等时圈
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && isochrone) {
       const map = mapInstanceRef.current;
       const BMap = (window as any).BMap;
 
-      // 清除之前的覆盖物
       map.clearOverlays();
 
-      // 绘制等时圈多边形
       if (isochrone.boundary_points && isochrone.boundary_points.length > 0) {
         const points = isochrone.boundary_points.map(
           (p: any) => new BMap.Point(p.lng, p.lat)
@@ -124,62 +113,121 @@ const MapView: React.FC<MapViewProps> = ({
           strokeWeight: 2,
           strokeOpacity: 0.8,
           fillColor: '#667eea',
-          fillOpacity: 0.2,
+          fillOpacity: 0.15,
         });
 
         map.addOverlay(polygon);
       }
 
-      // 添加中心点标记
       if (center) {
         const centerPoint = new BMap.Point(center.lng, center.lat);
-        const marker = new BMap.Marker(centerPoint);
+
+        const centerIcon = new BMap.Icon(
+          'data:image/svg+xml,' + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#667eea" stroke="white" stroke-width="3"/><circle cx="16" cy="16" r="6" fill="white"/></svg>'
+          ),
+          new BMap.Size(32, 32),
+          { anchor: new BMap.Size(16, 16) }
+        );
+
+        const marker = new BMap.Marker(centerPoint, { icon: centerIcon });
         map.addOverlay(marker);
 
-        // 添加信息窗口
         const infoWindow = new BMap.InfoWindow(
-          `<div style="padding: 8px;">
-            <strong>${center.name}</strong>
-          </div>`,
-          { width: 200, height: 60 }
+          '<div style="padding: 8px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
+            '<div style="font-weight: 600; color: #333; margin-bottom: 4px;">' + center.name + '</div>' +
+            '<div style="font-size: 12px; color: #666;">经度: ' + center.lng.toFixed(4) + ', 纬度: ' + center.lat.toFixed(4) + '</div>' +
+          '</div>',
+          { width: 220, height: 60 }
         );
         marker.addEventListener('click', () => {
           map.openInfoWindow(infoWindow, centerPoint);
         });
       }
 
-      // 添加POI标记
       if (showPOI && poiCoverage) {
         Object.entries(poiCoverage).forEach(([category, data]: [string, any]) => {
-          if (data.facilities) {
-            data.facilities.forEach((facility: any) => {
-              const point = new BMap.Point(facility.location.lng, facility.location.lat);
-              const marker = new BMap.Marker(point);
-              map.addOverlay(marker);
+          if (data.facilities && data.facilities.length > 0) {
+            const categoryColors: Record<string, string> = {
+              '医疗': '#ff4d4f',
+              '教育': '#1890ff',
+              '购物': '#52c41a',
+              '养老': '#722ed1',
+              '文体': '#fa8c16',
+              '餐饮': '#eb2f96',
+            };
+            const color = categoryColors[category] || '#666';
 
-              const infoWindow = new BMap.InfoWindow(
-                `<div style="padding: 8px;">
-                  <strong>${facility.name}</strong><br/>
-                  <span style="color: #666;">${category}</span>
-                </div>`,
-                { width: 200, height: 60 }
-              );
-              marker.addEventListener('click', () => {
-                map.openInfoWindow(infoWindow, point);
-              });
+            data.facilities.forEach((facility: any) => {
+              if (facility.location) {
+                const point = new BMap.Point(facility.location.lng, facility.location.lat);
+
+                const icon = new BMap.Icon(
+                  'data:image/svg+xml,' + encodeURIComponent(
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="' + color + '" stroke="white" stroke-width="2"/></svg>'
+                  ),
+                  new BMap.Size(20, 20),
+                  { anchor: new BMap.Size(10, 10) }
+                );
+
+                const marker = new BMap.Marker(point, { icon });
+                map.addOverlay(marker);
+
+                const infoWindow = new BMap.InfoWindow(
+                  '<div style="padding: 8px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
+                    '<div style="font-weight: 600; color: #333;">' + facility.name + '</div>' +
+                    '<div style="font-size: 12px; color: ' + color + '; margin-top: 4px;">' + category + '</div>' +
+                    (facility.address ? '<div style="font-size: 11px; color: #999; margin-top: 2px;">' + facility.address + '</div>' : '') +
+                    (facility.distance ? '<div style="font-size: 11px; color: #666; margin-top: 2px;">距离: ' + facility.distance + '米</div>' : '') +
+                  '</div>',
+                  { width: 250, height: 80 }
+                );
+                marker.addEventListener('click', () => {
+                  map.openInfoWindow(infoWindow, point);
+                });
+              }
+            });
+          }
+        });
+      }
+
+      if (showBlindSpots && blindSpots && blindSpots.length > 0) {
+        blindSpots.forEach((spot: any, index: number) => {
+          if (spot.center) {
+            const point = new BMap.Point(spot.center.lng, spot.center.lat);
+
+            const icon = new BMap.Icon(
+              'data:image/svg+xml,' + encodeURIComponent(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z" fill="#ff4d4f" stroke="white" stroke-width="1.5"/><text x="12" y="18" text-anchor="middle" fill="white" font-size="14" font-weight="bold">!</text></svg>'
+              ),
+              new BMap.Size(24, 24),
+              { anchor: new BMap.Size(12, 24) }
+            );
+
+            const marker = new BMap.Marker(point, { icon });
+            map.addOverlay(marker);
+
+            const infoWindow = new BMap.InfoWindow(
+              '<div style="padding: 8px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
+                '<div style="font-weight: 600; color: #ff4d4f;">服务盲区 #' + (index + 1) + '</div>' +
+                '<div style="font-size: 12px; color: #333; margin-top: 4px;">类别: ' + (spot.category || '未知') + '</div>' +
+                '<div style="font-size: 11px; color: #666; margin-top: 2px;">' + (spot.description || '该区域缺少相关设施覆盖') + '</div>' +
+              '</div>',
+              { width: 250, height: 80 }
+            );
+            marker.addEventListener('click', () => {
+              map.openInfoWindow(infoWindow, point);
             });
           }
         });
       }
     }
-  }, [mapReady, isochrone, center, poiCoverage, showPOI]);
+  }, [mapReady, isochrone, center, poiCoverage, blindSpots, showPOI, showBlindSpots]);
 
-  // 切换点击模式
   const toggleClickMode = useCallback(() => {
     setClickMode(prev => !prev);
   }, []);
 
-  // 切换图层显示
   const toggleGraph = useCallback(() => {
     setShowGraph(prev => !prev);
   }, []);
@@ -235,12 +283,11 @@ const MapView: React.FC<MapViewProps> = ({
         <button
           className={`map-control-btn ${showPOI ? 'active' : ''}`}
           onClick={togglePOI}
-          title={showPOI ? '隐藏POI' : '显示POI'}
+          title={showPOI ? '隐藏设施' : '显示设施'}
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
           </svg>
         </button>
         <button
