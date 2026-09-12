@@ -151,6 +151,9 @@ def calculate_score(
     blind_penalty = min(len(blind_spots) * 2, 15)
     total_score = max(30, total_score - blind_penalty)
 
+    # 限制最高分为100
+    total_score = min(100, total_score)
+
     # 等级评定
     if total_score >= 90:
         level = "优秀"

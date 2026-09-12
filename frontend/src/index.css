@@ -268,8 +268,8 @@ body {
 /* 主内容区域 - 左右分栏 */
 .main-content {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 20px;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
   margin-bottom: 24px;
 }
 
@@ -647,6 +647,197 @@ body {
   grid-column: 1 / -1;
 }
 
+/* 时间对比组件 */
+.time-comparison {
+  padding: 24px;
+}
+
+.time-comparison h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-comparison h4 svg {
+  width: 20px;
+  height: 20px;
+  color: var(--primary-500);
+}
+
+.time-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.time-button {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.time-button:hover {
+  border-color: var(--primary-300);
+  background: var(--primary-50);
+}
+
+.time-button.active {
+  border-color: var(--primary-500);
+  background: var(--primary-50);
+  box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+.time-icon {
+  font-size: 20px;
+}
+
+.time-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.time-button.active .time-label {
+  color: var(--primary-600);
+  font-weight: 600;
+}
+
+.area-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.area-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+}
+
+.area-item.active {
+  border-color: var(--primary-400);
+  background: var(--primary-50);
+}
+
+.area-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.area-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.area-time {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.area-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.area-chart {
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chart-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-bar-label {
+  width: 60px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.chart-bar-track {
+  flex: 1;
+  height: 24px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.chart-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.6s ease;
+}
+
+.chart-bar-value {
+  width: 80px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 面积对比组件 */
+.area-comparison-container {
+  padding: 24px;
+}
+
+.area-comparison-container .area-chart {
+  height: 300px;
+}
+
+.growth-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--primary-50);
+  border-radius: var(--radius-md);
+}
+
+.growth-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.growth-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-600);
+}
+
 /* 社区对比 */
 .comparison-section {
   margin-bottom: 24px;
@@ -735,7 +926,8 @@ body {
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .main-content {
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
   }
 }
 

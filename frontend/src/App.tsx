@@ -322,6 +322,20 @@ function App() {
                   <div className="score-level">{analysisResult.score.level}</div>
                 </div>
 
+                {/* 时间维度对比 - 移到第一屏 */}
+                {multiTimeData && (
+                  <div className="detail-card">
+                    <TimeComparison
+                      data={{
+                        time5: multiTimeData.layers.find(l => l.time === 300),
+                        time10: multiTimeData.layers.find(l => l.time === 600),
+                        time15: multiTimeData.layers.find(l => l.time === 900)
+                      }}
+                      onTimeChange={handleTimeChange}
+                    />
+                  </div>
+                )}
+
                 {/* 关键指标 - 两列布局 */}
                 <div className="metrics-grid">
                   <div className="metric-card">
@@ -421,20 +435,6 @@ function App() {
         {/* 下方详细信息区域 */}
         {analysisResult && (
           <div className="detail-section">
-            {/* 时间维度对比 */}
-            {multiTimeData && (
-              <div className="detail-card">
-                <TimeComparison
-                  data={{
-                    time5: multiTimeData.layers.find(l => l.time === 300),
-                    time10: multiTimeData.layers.find(l => l.time === 600),
-                    time15: multiTimeData.layers.find(l => l.time === 900)
-                  }}
-                  onTimeChange={handleTimeChange}
-                />
-              </div>
-            )}
-
             {/* 面积对比 */}
             {multiTimeData && (
               <div className="detail-card">

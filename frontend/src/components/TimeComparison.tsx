@@ -20,9 +20,9 @@ const TimeComparison: React.FC<TimeComparisonProps> = ({ data, onTimeChange }) =
   const [selectedTime, setSelectedTime] = useState(15);
 
   const timeOptions = [
-    { value: 5, label: '5分钟', icon: '🚶', color: '#52c41a' },
-    { value: 10, label: '10分钟', icon: '🚶‍♂️', color: '#faad14' },
-    { value: 15, label: '15分钟', icon: '🚶‍♀️', color: '#1890ff' }
+    { value: 5, label: '5分钟', color: '#52c41a' },
+    { value: 10, label: '10分钟', color: '#faad14' },
+    { value: 15, label: '15分钟', color: '#1890ff' }
   ];
 
   const handleTimeSelect = (time: number) => {
@@ -30,7 +30,6 @@ const TimeComparison: React.FC<TimeComparisonProps> = ({ data, onTimeChange }) =
     onTimeChange(time);
   };
 
-  // 获取面积数据
   const getAreaData = () => {
     return timeOptions.map(option => {
       let area = 0;
@@ -50,19 +49,24 @@ const TimeComparison: React.FC<TimeComparisonProps> = ({ data, onTimeChange }) =
 
   return (
     <div className="time-comparison">
-      <h4>⏱️ 时间维度对比</h4>
+      <h4>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        时间维度对比
+      </h4>
 
       <div className="time-selector">
         {timeOptions.map(option => (
           <button
             key={option.value}
             className={`time-button ${selectedTime === option.value ? 'active' : ''}`}
-            style={{
-              '--color': option.color
-            } as React.CSSProperties}
             onClick={() => handleTimeSelect(option.value)}
           >
-            <span className="time-icon">{option.icon}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20, color: option.color }}>
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
             <span className="time-label">{option.label}</span>
           </button>
         ))}
