@@ -550,6 +550,8 @@ function App() {
                 score={analysisResult.score}
                 suggestions={analysisResult.suggestions}
                 blindSpots={analysisResult.blind_spots}
+                poiCoverage={analysisResult.poi_coverage}
+                isochrone={analysisResult.isochrone}
               />
             </div>
 
