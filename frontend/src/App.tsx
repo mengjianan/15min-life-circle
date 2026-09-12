@@ -7,9 +7,17 @@ import AreaComparison from './components/AreaComparison';
 import FacilityAccessibility from './components/FacilityAccessibility';
 import CustomCenter from './components/CustomCenter';
 import CommunityComparison from './components/CommunityComparison';
+import AnalysisProgress from './components/AnalysisProgress';
 import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
 import { exportPDFReport } from './pdfExport';
 import type { AnalysisResult, MultiTimeData } from './types';
+
+// 分析步骤类型
+interface AnalysisStep {
+  id: string;
+  label: string;
+  status: 'pending' | 'active' | 'completed';
+}
 
 // SVG图标组件
 const Icons = {
@@ -106,6 +114,14 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisResult[]>([]);
   const [showCustomCenter, setShowCustomCenter] = useState(false);
+  const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([
+    { id: 'isochrone', label: '计算等时圈范围', status: 'pending' },
+    { id: 'poi', label: '搜索周边设施', status: 'pending' },
+    { id: 'blindspot', label: '识别服务盲区', status: 'pending' },
+    { id: 'score', label: '计算综合评分', status: 'pending' },
+    { id: 'report', label: '生成体检报告', status: 'pending' }
+  ]);
+  const [showProgress, setShowProgress] = useState(false);
 
   useEffect(() => {
     if (SAMPLE_COMMUNITIES.length > 0) {
@@ -120,52 +136,97 @@ function App() {
     return selectedCommunity;
   };
 
+  // 更新步骤状态
+  const updateStepStatus = (stepId: string, status: 'pending' | 'active' | 'completed') => {
+    setAnalysisSteps(prev => prev.map(step =>
+      step.id === stepId ? { ...step, status } : step
+    ));
+  };
+
+  // 延迟函数
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   const handleAnalyze = async () => {
     const center = getCurrentCenter();
     if (!center) return;
 
     setLoading(true);
     setError(null);
+    setShowProgress(true);
+
+    // 重置步骤状态
+    setAnalysisSteps(prev => prev.map(step => ({ ...step, status: 'pending' })));
 
     try {
-      const [singleResponse, multiResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/analysis/report`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lng: center.lng,
-            lat: center.lat,
-            community_name: center.name
-          })
-        }),
-        fetch(`${API_BASE_URL}/isochrone/multi-time`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lng: center.lng,
-            lat: center.lat,
-            directions: 36
-          })
+      // 步骤1: 计算等时圈
+      updateStepStatus('isochrone', 'active');
+      const multiResponse = await fetch(`${API_BASE_URL}/isochrone/multi-time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lng: center.lng,
+          lat: center.lat,
+          directions: 36
         })
-      ]);
+      });
+
+      let multiResult = null;
+      if (multiResponse.ok) {
+        multiResult = await multiResponse.json();
+        setMultiTimeData(multiResult);
+      }
+      updateStepStatus('isochrone', 'completed');
+      await delay(300);
+
+      // 步骤2: 搜索POI
+      updateStepStatus('poi', 'active');
+      await delay(500); // 模拟搜索过程
+
+      // 步骤3: 识别盲区
+      updateStepStatus('blindspot', 'active');
+      await delay(300);
+
+      // 步骤4-5: 调用完整分析报告API
+      updateStepStatus('score', 'active');
+      const singleResponse = await fetch(`${API_BASE_URL}/analysis/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lng: center.lng,
+          lat: center.lat,
+          community_name: center.name
+        })
+      });
 
       if (!singleResponse.ok) {
         throw new Error('分析请求失败');
       }
 
       const result = await singleResponse.json();
-      setAnalysisResult(result);
 
-      if (multiResponse.ok) {
-        const multiResult = await multiResponse.json();
-        setMultiTimeData(multiResult);
-      }
+      // 更新POI和盲区步骤状态
+      updateStepStatus('poi', 'completed');
+      updateStepStatus('blindspot', 'completed');
+      await delay(300);
+
+      updateStepStatus('score', 'completed');
+      await delay(300);
+
+      // 步骤5: 生成报告
+      updateStepStatus('report', 'active');
+      setAnalysisResult(result);
+      await delay(500);
+      updateStepStatus('report', 'completed');
 
       setAnalysisHistory(prev => [result, ...prev.slice(0, 4)]);
+
+      // 等待一下让用户看到完成状态
+      await delay(800);
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析过程中出现错误');
     } finally {
       setLoading(false);
+      setShowProgress(false);
     }
   };
 
@@ -203,6 +264,12 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* 分析进度提示 */}
+      <AnalysisProgress
+        steps={analysisSteps}
+        visible={showProgress}
+      />
+
       <header className="app-header">
         <div className="header-content">
           <div className="header-left">
