@@ -1,4 +1,5 @@
 import React from 'react';
+import { FeatureIcons } from '../icons';
 
 interface ReportProps {
   communityName: string;
@@ -114,7 +115,9 @@ const Report: React.FC<ReportProps> = ({
           <div className="blind-spots-list">
             {blindSpots.map((spot, index) => (
               <div key={index} className="blind-spot-item">
-                <span className="blind-spot-icon">⚠️</span>
+                <span className="blind-spot-icon">
+                  <FeatureIcons.Warning size={18} />
+                </span>
                 <div className="blind-spot-info">
                   <span className="blind-spot-category">{spot.category}</span>
                   <span className="blind-spot-desc">{spot.description}</span>

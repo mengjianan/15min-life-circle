@@ -177,7 +177,14 @@ const CommunityComparison: React.FC<CommunityComparisonProps> = ({ history }) =>
   if (history.length < 2) {
     return (
       <div className="community-comparison">
-        <h4>📊 社区对比</h4>
+        <h4>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          社区对比
+        </h4>
         <p className="comparison-hint">分析至少2个社区后可进行对比</p>
       </div>
     );
@@ -185,7 +192,14 @@ const CommunityComparison: React.FC<CommunityComparisonProps> = ({ history }) =>
 
   return (
     <div className="community-comparison">
-      <h4>📊 社区对比</h4>
+      <h4>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        社区对比
+      </h4>
 
       <div className="metric-selector">
         <button

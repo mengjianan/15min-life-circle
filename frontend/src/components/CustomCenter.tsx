@@ -54,7 +54,13 @@ const CustomCenter: React.FC<CustomCenterProps> = ({
 
   return (
     <div className="custom-center">
-      <h4>📍 自定义中心点</h4>
+      <h4>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="10" r="3"></circle>
+          <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"></path>
+        </svg>
+        自定义中心点
+      </h4>
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
@@ -98,7 +104,15 @@ const CustomCenter: React.FC<CustomCenterProps> = ({
             className="location-button"
             onClick={handleGetCurrentLocation}
           >
-            📱 获取当前位置
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <circle cx="12" cy="12" r="4"></circle>
+              <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
+              <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
+              <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
+              <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
+            </svg>
+            获取当前位置
           </button>
         </div>
       </form>

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { FacilityIcons, getFacilityColor, getFacilityBgColor } from '../icons';
 
 interface POIMarkerProps {
   map: any;  // 百度地图实例
@@ -8,16 +9,6 @@ interface POIMarkerProps {
 
 const POIMarker: React.FC<POIMarkerProps> = ({ map, poiData, visible }) => {
   const overlaysRef = useRef<any[]>([]);
-
-  // 设施图标配置
-  const iconConfig: Record<string, { emoji: string; color: string }> = {
-    '医疗': { emoji: '🏥', color: '#ff4d4f' },
-    '教育': { emoji: '🏫', color: '#1890ff' },
-    '购物': { emoji: '🛒', color: '#52c41a' },
-    '养老': { emoji: '👴', color: '#722ed1' },
-    '文体': { emoji: '🏃', color: '#13c2c2' },
-    '餐饮': { emoji: '🍜', color: '#faad14' },
-  };
 
   // 清除覆盖物
   const clearOverlays = () => {
@@ -42,19 +33,19 @@ const POIMarker: React.FC<POIMarkerProps> = ({ map, poiData, visible }) => {
     const BMap = (window as any).BMap;
 
     Object.entries(poiData).forEach(([category, data]) => {
-      const config = iconConfig[category] || { emoji: '📍', color: '#666' };
+      const color = getFacilityColor(category);
       const facilities = data.facilities || [];
 
       facilities.forEach((poi: any) => {
         if (poi.location) {
           const point = new BMap.Point(poi.location.lng, poi.location.lat);
 
-          // 创建自定义图标
+          // 创建自定义图标 - 使用纯色圆形
           const icon = new BMap.Icon(
             `data:image/svg+xml,${encodeURIComponent(`
               <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
-                <circle cx="15" cy="15" r="14" fill="${config.color}" opacity="0.8"/>
-                <text x="15" y="20" text-anchor="middle" font-size="16">${config.emoji}</text>
+                <circle cx="15" cy="15" r="14" fill="${color}" opacity="0.9"/>
+                <circle cx="15" cy="15" r="6" fill="white"/>
               </svg>
             `)}`,
             new BMap.Size(30, 30),
@@ -71,8 +62,8 @@ const POIMarker: React.FC<POIMarkerProps> = ({ map, poiData, visible }) => {
           marker.addEventListener('click', () => {
             const infoWindow = new BMap.InfoWindow(
               `<div style="padding: 10px;">
-                <h4 style="margin: 0 0 8px 0; color: ${config.color};">
-                  ${config.emoji} ${poi.name}
+                <h4 style="margin: 0 0 8px 0; color: ${color};">
+                  ${poi.name}
                 </h4>
                 <p style="margin: 4px 0;"><strong>类别：</strong>${category}</p>
                 <p style="margin: 4px 0;"><strong>地址：</strong>${poi.address || '暂无'}</p>
@@ -116,13 +107,23 @@ const POIMarker: React.FC<POIMarkerProps> = ({ map, poiData, visible }) => {
 
   return (
     <div className="poi-info">
-      <h4>📍 周边设施</h4>
+      <h4>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="10" r="3"></circle>
+          <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"></path>
+        </svg>
+        周边设施
+      </h4>
       <div className="poi-stats">
         {stats.map(({ category, count, level }) => {
-          const config = iconConfig[category] || { emoji: '📍', color: '#666' };
+          const color = getFacilityColor(category);
+          const bgColor = getFacilityBgColor(category);
+          const IconComponent = FacilityIcons[category] || FacilityIcons['综合'];
           return (
             <div key={category} className="poi-stat-item">
-              <span className="poi-icon">{config.emoji}</span>
+              <span className="poi-icon" style={{ backgroundColor: bgColor, color }}>
+                <IconComponent size={16} />
+              </span>
               <span className="poi-category">{category}</span>
               <span className="poi-count">{count}个</span>
               <span className={`poi-level poi-level-${level}`}>

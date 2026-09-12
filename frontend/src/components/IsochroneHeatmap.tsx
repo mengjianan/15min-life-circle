@@ -72,7 +72,7 @@ const IsochroneHeatmap: React.FC<IsochroneHeatmapProps> = ({
             const infoWindow = new BMap.InfoWindow(
               `<div style="padding: 10px;">
                 <h4 style="margin: 0 0 8px 0; color: ${config.color};">
-                  🕐 ${config.label}步行范围
+                  ${config.label}步行范围
                 </h4>
                 <p style="margin: 4px 0;"><strong>面积：</strong>${area}</p>
                 <p style="margin: 4px 0;"><strong>步行时间：</strong>${config.time}分钟</p>
@@ -177,7 +177,13 @@ const IsochroneHeatmap: React.FC<IsochroneHeatmapProps> = ({
 
   return (
     <div className="heatmap-legend">
-      <h4>🕐 等时圈图例</h4>
+      <h4>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        等时圈图例
+      </h4>
       <div className="legend-items">
         <div className="legend-item">
           <span className="legend-color" style={{ backgroundColor: '#52c41a', opacity: 0.3 }}></span>
