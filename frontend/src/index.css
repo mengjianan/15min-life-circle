@@ -827,19 +827,6 @@ body {
   gap: 16px;
 }
 
-/* 三栏布局右侧容器 */
-.right-panel {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.right-panel .data-column {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
 /* 报告区域两栏布局 */
 .report-section {
   display: grid;
@@ -879,7 +866,7 @@ body {
   margin-bottom: 8px;
 }
 
-.score-level {
+.score-card .score-level {
   font-size: 16px;
   color: white;
   opacity: 0.9;
