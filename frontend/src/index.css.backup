@@ -58,7 +58,7 @@ body {
 .app-header {
   background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
   color: white;
-  padding: 20px 16px;
+  padding: 20px 32px;
   box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
   position: sticky;
   top: 0;
@@ -66,7 +66,7 @@ body {
 }
 
 .header-content {
-  max-width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
   display: flex;
@@ -127,8 +127,8 @@ body {
 /* 主内容区 */
 .app-main {
   flex: 1;
-  padding: 20px 16px;
-  max-width: 100%;
+  padding: 20px 32px;
+  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
 }
@@ -1087,12 +1087,12 @@ body {
 .app-footer {
   background: #1a1a2e;
   color: rgba(255, 255, 255, 0.7);
-  padding: 24px 16px;
+  padding: 24px 32px;
   margin-top: auto;
 }
 
 .footer-content {
-  max-width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
   text-align: center;
 }
