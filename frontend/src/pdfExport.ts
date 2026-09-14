@@ -1,6 +1,8 @@
 /**
  * PDF/打印报告导出工具
  */
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import type { AnalysisResult, MultiTimeData } from './types';
 
 /**
@@ -92,7 +94,7 @@ export function generatePrintableReport(
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft YaHei', sans-serif;
       line-height: 1.6;
       color: #333;
-      background: #f5f5f5;
+      background: #ffffff;
       padding: 20px;
     }
 
@@ -100,9 +102,6 @@ export function generatePrintableReport(
       max-width: 800px;
       margin: 0 auto;
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
     }
 
     .report-header {
@@ -376,28 +375,62 @@ export function generatePrintableReport(
 }
 
 /**
- * 导出PDF报告
+ * 导出PDF报告（直接下载）
  */
-export function exportPDFReport(
+export async function exportPDFReport(
   reportData: AnalysisResult,
   multiTimeData?: MultiTimeData | null
-): void {
-  const reportHTML = generatePrintableReport(reportData, multiTimeData);
+): Promise<void> {
+  // 创建临时容器
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.width = '800px';
+  container.innerHTML = generatePrintableReport(reportData, multiTimeData);
+  document.body.appendChild(container);
 
-  // 创建新窗口用于打印
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    alert('请允许弹出窗口以导出报告');
-    return;
+  try {
+    // 使用html2canvas生成canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+
+    // 计算PDF尺寸
+    const imgWidth = 210; // A4宽度(mm)
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const pageHeight = 297; // A4高度(mm)
+
+    // 创建PDF
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    let position = 0;
+    let heightLeft = imgHeight;
+
+    // 添加第一页
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    // 如果内容超过一页，添加更多页
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    // 下载PDF
+    const fileName = `${reportData.community_name}_15分钟生活圈体检报告.pdf`;
+    pdf.save(fileName);
+  } catch (error) {
+    console.error('PDF生成失败:', error);
+    alert('PDF生成失败，请重试');
+  } finally {
+    // 清理临时容器
+    document.body.removeChild(container);
   }
-
-  printWindow.document.write(reportHTML);
-  printWindow.document.close();
-
-  // 等待资源加载完成后触发打印
-  printWindow.onload = () => {
-    printWindow.print();
-  };
 }
 
 /**

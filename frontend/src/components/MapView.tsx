@@ -10,6 +10,8 @@ interface MapViewProps {
   multiTimeData?: any;
   loading?: boolean;
   onCenterChange?: (lng: number, lat: number) => void;
+  selectedFacility?: {name: string; category: string; location: {lng: number; lat: number}} | null;
+  onFacilityClose?: () => void;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -19,7 +21,9 @@ const MapView: React.FC<MapViewProps> = ({
   blindSpots,
   multiTimeData,
   loading = false,
-  onCenterChange
+  onCenterChange,
+  selectedFacility,
+  onFacilityClose
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -304,6 +308,174 @@ const MapView: React.FC<MapViewProps> = ({
       }
     }
   }, [mapReady, isochrone, center, poiCoverage, blindSpots, multiTimeData, showPOI, showBlindSpots]);
+
+  // 处理选中设施 - 高亮标记、画步行路线、弹出信息窗
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current || !selectedFacility || !center) return;
+
+    const map = mapInstanceRef.current;
+    const BMap = (window as any).BMap;
+
+    // 清除之前的路线覆盖物
+    routeOverlaysRef.current.forEach(overlay => {
+      try {
+        map.removeOverlay(overlay);
+      } catch (e) {
+        // 忽略
+      }
+    });
+    routeOverlaysRef.current = [];
+
+    const facilityPoint = new BMap.Point(selectedFacility.location.lng, selectedFacility.location.lat);
+    const centerPoint = new BMap.Point(center.lng, center.lat);
+
+    // 1. 高亮标记 - 大图标
+    const highlightIcon = new BMap.Icon(
+      'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#ff4d4f" stroke="white" stroke-width="3"/><circle cx="20" cy="20" r="8" fill="white"/></svg>'
+      ),
+      new BMap.Size(40, 40),
+      { anchor: new BMap.Size(20, 20) }
+    );
+
+    const highlightMarker = new BMap.Marker(facilityPoint, { icon: highlightIcon });
+    map.addOverlay(highlightMarker);
+    routeOverlaysRef.current.push(highlightMarker);
+
+    // 2. 画步行路线（调用后端API获取实际路线）
+    const drawWalkingRoute = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/graph/route`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            origin_lng: center.lng,
+            origin_lat: center.lat,
+            dest_lng: selectedFacility.location.lng,
+            dest_lat: selectedFacility.location.lat
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.features && data.features.length > 0) {
+            const feature = data.features[0];
+            if (feature.geometry.type === 'LineString') {
+              const points = feature.geometry.coordinates.map(
+                (coord: number[]) => new BMap.Point(coord[0], coord[1])
+              );
+
+              const polyline = new BMap.Polyline(points, {
+                strokeColor: '#ff4d4f',
+                strokeWeight: 4,
+                strokeOpacity: 0.8,
+                enableClicking: true
+              });
+
+              map.addOverlay(polyline);
+              routeOverlaysRef.current.push(polyline);
+
+              // 路线信息
+              const properties = feature.properties;
+              const distance = properties.distance_text || '未知';
+              const duration = properties.duration_text || '未知';
+
+              // 3. 弹出信息窗
+              const infoWindow = new BMap.InfoWindow(
+                `<div style="padding: 12px; font-family: PingFang SC, Microsoft YaHei, sans-serif; min-width: 200px;">
+                  <h4 style="margin: 0 0 10px 0; color: #ff4d4f; font-size: 16px;">${selectedFacility.name}</h4>
+                  <p style="margin: 6px 0; font-size: 13px;"><strong>类别：</strong>${selectedFacility.category}</p>
+                  <p style="margin: 6px 0; font-size: 13px;"><strong>步行距离：</strong>${distance}</p>
+                  <p style="margin: 6px 0; font-size: 13px;"><strong>预计时间：</strong>${duration}</p>
+                  <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; font-size: 11px; color: #999;">
+                    点击地图其他区域关闭此窗口
+                  </div>
+                </div>`,
+                { width: 280, height: 150 }
+              );
+
+              map.openInfoWindow(infoWindow, facilityPoint);
+
+              // 地图平移到设施位置
+              map.panTo(facilityPoint);
+            }
+          }
+        } else {
+          // API失败时显示简单连线
+          const polyline = new BMap.Polyline([centerPoint, facilityPoint], {
+            strokeColor: '#ff4d4f',
+            strokeWeight: 4,
+            strokeOpacity: 0.8,
+            strokeStyle: 'dashed'
+          });
+          map.addOverlay(polyline);
+          routeOverlaysRef.current.push(polyline);
+
+          // 计算直线距离
+          const distance = Math.round(BMap.getDistance(centerPoint, facilityPoint));
+
+          const infoWindow = new BMap.InfoWindow(
+            `<div style="padding: 12px; font-family: PingFang SC, Microsoft YaHei, sans-serif; min-width: 200px;">
+              <h4 style="margin: 0 0 10px 0; color: #ff4d4f; font-size: 16px;">${selectedFacility.name}</h4>
+              <p style="margin: 6px 0; font-size: 13px;"><strong>类别：</strong>${selectedFacility.category}</p>
+              <p style="margin: 6px 0; font-size: 13px;"><strong>直线距离：</strong>${distance}米</p>
+              <p style="margin: 6px 0; font-size: 13px;"><strong>预计步行：</strong>${Math.round(distance / 80)}分钟</p>
+            </div>`,
+            { width: 280, height: 130 }
+          );
+
+          map.openInfoWindow(infoWindow, facilityPoint);
+          map.panTo(facilityPoint);
+        }
+      } catch (e) {
+        console.error('获取步行路线失败:', e);
+        // 出错时显示简单连线
+        const polyline = new BMap.Polyline([centerPoint, facilityPoint], {
+          strokeColor: '#ff4d4f',
+          strokeWeight: 4,
+          strokeOpacity: 0.8,
+          strokeStyle: 'dashed'
+        });
+        map.addOverlay(polyline);
+        routeOverlaysRef.current.push(polyline);
+
+        const distance = Math.round(BMap.getDistance(centerPoint, facilityPoint));
+        const infoWindow = new BMap.InfoWindow(
+          `<div style="padding: 12px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">
+            <h4 style="margin: 0 0 10px 0; color: #ff4d4f;">${selectedFacility.name}</h4>
+            <p><strong>类别：</strong>${selectedFacility.category}</p>
+            <p><strong>距离：</strong>${distance}米</p>
+          </div>`,
+          { width: 250, height: 100 }
+        );
+        map.openInfoWindow(infoWindow, facilityPoint);
+        map.panTo(facilityPoint);
+      }
+    };
+
+    drawWalkingRoute();
+
+    // 监听地图点击事件，清除高亮
+    const clearHighlight = () => {
+      routeOverlaysRef.current.forEach(overlay => {
+        try {
+          map.removeOverlay(overlay);
+        } catch (e) {
+          // 忽略
+        }
+      });
+      routeOverlaysRef.current = [];
+      if (onFacilityClose) {
+        onFacilityClose();
+      }
+    };
+
+    map.addEventListener('click', clearHighlight);
+
+    return () => {
+      map.removeEventListener('click', clearHighlight);
+    };
+  }, [mapReady, center, selectedFacility, onFacilityClose]);
 
   // 绘制路线图（Graph连线）
   useEffect(() => {

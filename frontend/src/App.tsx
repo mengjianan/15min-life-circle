@@ -313,9 +313,9 @@ function App() {
     return layer ? { boundary_points: layer.boundary_points, polygon: layer.polygon } : analysisResult?.isochrone;
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (analysisResult) {
-      exportPDFReport(analysisResult);
+      await exportPDFReport(analysisResult);
     }
   };
 
@@ -400,6 +400,13 @@ function App() {
             <Icons.MapPin />
             {showCustomCenter ? '隐藏自定义位置' : '自定义位置'}
           </button>
+
+          {analysisResult && (
+            <button className="analyze-button secondary" onClick={handleExportPDF}>
+              <Icons.Download />
+              导出PDF报告
+            </button>
+          )}
         </div>
 
         {/* 错误提示 */}
@@ -505,11 +512,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* 导出PDF按钮 */}
-                <button className="analyze-button secondary export-btn" onClick={handleExportPDF}>
-                  <Icons.Download />
-                  导出PDF报告
-                </button>
 
                 {/* 雷达图 */}
                 <div className="detail-card">

@@ -383,8 +383,11 @@ body {
 }
 
 .facility-list-item:hover {
+.facility-list-item.selected {  background: var(--primary-100);  border-left: 3px solid var(--primary-500);}
   background: var(--primary-50);
+.facility-list-item.selected {  background: var(--primary-100);  border-left: 3px solid var(--primary-500);}
 }
+.facility-list-item.selected {  background: var(--primary-100);  border-left: 3px solid var(--primary-500);}
 
 .facility-list-item:last-child {
   border-bottom: none;
