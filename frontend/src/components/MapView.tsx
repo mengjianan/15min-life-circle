@@ -106,10 +106,34 @@ const MapView: React.FC<MapViewProps> = ({
     }
   }, [center, mapReady]);
 
+  // 根据出行方式获取速度倍率
+  const getSpeedMultiplier = (mode: string) => {
+    switch (mode) {
+      case 'cycling': return 2.9;
+      case 'ebike': return 4.2;
+      case 'driving': return 6.7;
+      default: return 1;
+    }
+  };
+
+  // 缩放等时圈边界点
+  const scaleBoundaryPoints = (points: any[], center: any, multiplier: number) => {
+    if (multiplier === 1) return points;
+    return points.map((p: any) => {
+      const dLng = p.lng - center.lng;
+      const dLat = p.lat - center.lat;
+      return {
+        lng: center.lng + dLng * multiplier,
+        lat: center.lat + dLat * multiplier
+      };
+    });
+  };
+
   useEffect(() => {
     if (mapReady && mapInstanceRef.current) {
       const map = mapInstanceRef.current;
       const BMap = (window as any).BMap;
+      const speedMultiplier = getSpeedMultiplier(travelMode);
 
       map.clearOverlays();
 
@@ -123,7 +147,12 @@ const MapView: React.FC<MapViewProps> = ({
 
         multiTimeData.layers.forEach((layer: any) => {
           if (layer.boundary_points && layer.boundary_points.length > 0) {
-            const points = layer.boundary_points.map(
+            // 根据出行方式缩放边界点
+            const scaledPoints = center
+              ? scaleBoundaryPoints(layer.boundary_points, center, speedMultiplier)
+              : layer.boundary_points;
+
+            const points = scaledPoints.map(
               (p: any) => new BMap.Point(p.lng, p.lat)
             );
 
@@ -142,7 +171,11 @@ const MapView: React.FC<MapViewProps> = ({
         });
       } else if (isochrone && isochrone.boundary_points && isochrone.boundary_points.length > 0) {
         // 如果没有多时间数据，只绘制单个等时圈
-        const points = isochrone.boundary_points.map(
+        const scaledPoints = center
+          ? scaleBoundaryPoints(isochrone.boundary_points, center, speedMultiplier)
+          : isochrone.boundary_points;
+
+        const points = scaledPoints.map(
           (p: any) => new BMap.Point(p.lng, p.lat)
         );
 
