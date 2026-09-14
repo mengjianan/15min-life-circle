@@ -455,7 +455,7 @@ const MapView: React.FC<MapViewProps> = ({
               <h4 style="margin: 0 0 10px 0; color: #ff4d4f; font-size: 16px;">${selectedFacility.name}</h4>
               <p style="margin: 6px 0; font-size: 13px;"><strong>类别：</strong>${selectedFacility.category}</p>
               <p style="margin: 6px 0; font-size: 13px;"><strong>直线距离：</strong>${distance}米</p>
-              <p style="margin: 6px 0; font-size: 13px;"><strong>预计步行：</strong>${Math.round(distance / 80)}分钟</p>
+              <p style="margin: 6px 0; font-size: 13px;"><strong>预计步行：</strong>${Math.round(distance / 72)}分钟</p>
             </div>`,
             { width: 280, height: 130 }
           );
