@@ -198,9 +198,9 @@ const Report: React.FC<ReportProps> = ({
       </div>
 
       {/* 五、服务盲区体检 */}
-      {blindSpots.length > 0 && (
-        <div className="report-chapter">
-          <h3>五、服务盲区体检</h3>
+      <div className="report-chapter">
+        <h3>五、服务盲区体检</h3>
+        {blindSpots.length > 0 ? (
           <div className="blind-spots-list">
             {blindSpots.map((spot, index) => (
               <div key={index} className="blind-spot-item">
@@ -214,8 +214,12 @@ const Report: React.FC<ReportProps> = ({
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="report-content">
+            <p style={{ color: '#52c41a', fontWeight: 500 }}>未发现明显服务盲区，生活圈覆盖良好。</p>
+          </div>
+        )}
+      </div>
 
       {/* 六、社区生活圈综合评分 */}
       <div className="report-chapter">
@@ -259,9 +263,9 @@ const Report: React.FC<ReportProps> = ({
       </div>
 
       {/* 七、问题诊断与规划建议 */}
-      {suggestions.length > 0 && (
-        <div className="report-chapter">
-          <h3>七、问题诊断与规划建议</h3>
+      <div className="report-chapter">
+        <h3>七、问题诊断与规划建议</h3>
+        {suggestions.length > 0 ? (
           <div className="suggestions-section">
             <h4>问题清单</h4>
             <ul className="suggestions-list">
@@ -274,8 +278,12 @@ const Report: React.FC<ReportProps> = ({
               ))}
             </ul>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="report-content">
+            <p style={{ color: '#52c41a', fontWeight: 500 }}>当前生活圈配置良好，暂无需要改善的问题。</p>
+          </div>
+        )}
+      </div>
 
       {/* 八、报告结论 */}
       <div className="report-chapter">

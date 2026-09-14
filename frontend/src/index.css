@@ -58,7 +58,7 @@ body {
 .app-header {
   background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
   color: white;
-  padding: 20px 16px;
+  padding: 20px 32px;
   box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
   position: sticky;
   top: 0;
@@ -66,7 +66,7 @@ body {
 }
 
 .header-content {
-  max-width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
   display: flex;
@@ -127,8 +127,8 @@ body {
 /* 主内容区 */
 .app-main {
   flex: 1;
-  padding: 20px 16px;
-  max-width: 100%;
+  padding: 20px 32px;
+  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
 }
@@ -309,8 +309,8 @@ body {
   border: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
-  /* height由grid行自动拉伸 */
-  overflow: hidden;
+  height: 100%;
+  min-height: 500px;
 }
 
 /* 设施筛选按钮 */
@@ -349,7 +349,6 @@ body {
 .facility-scroll-list {
   flex: 1;
   overflow-y: auto;
-  min-height: 0;
   padding: 12px;
 }
 
@@ -383,11 +382,8 @@ body {
 }
 
 .facility-list-item:hover {
-.facility-list-item.selected {  background: var(--primary-100);  border-left: 3px solid var(--primary-500);}
   background: var(--primary-50);
-.facility-list-item.selected {  background: var(--primary-100);  border-left: 3px solid var(--primary-500);}
 }
-.facility-list-item.selected {  background: var(--primary-100);  border-left: 3px solid var(--primary-500);}
 
 .facility-list-item:last-child {
   border-bottom: none;
@@ -566,6 +562,134 @@ body {
 .click-mode-hint svg {
   width: 16px;
   height: 16px;
+}
+
+/* 时间维度对比卡片 */
+.time-comparison-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.time-comparison-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.time-comparison-header h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.travel-mode-selector select {
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: var(--bg-card);
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.travel-mode-selector select:focus {
+  outline: none;
+  border-color: var(--primary-500);
+}
+
+.time-buttons-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.time-button-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.time-button-card:hover {
+  border-color: var(--primary-300);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.time-button-card.selected {
+  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  border-color: transparent;
+  color: white;
+}
+
+.time-button-card.selected .time-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.time-button-card.selected .time-area {
+  color: white;
+}
+
+.time-button-card.selected .time-travel {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.time-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.time-area {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.time-travel {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.time-detail-metrics {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.time-detail-metrics .metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.time-detail-metrics .metric-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.time-detail-metrics .metric-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.metric-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 4px 0;
 }
 
 /* 右侧数据面板 */
@@ -1091,12 +1215,12 @@ body {
 .app-footer {
   background: #1a1a2e;
   color: rgba(255, 255, 255, 0.7);
-  padding: 24px 16px;
+  padding: 24px 32px;
   margin-top: auto;
 }
 
 .footer-content {
-  max-width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
   text-align: center;
 }

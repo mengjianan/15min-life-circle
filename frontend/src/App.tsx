@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import MapView from './components/MapView';
 import Report from './components/Report';
 import RadarChart from './components/RadarChart';
-import TimeComparison from './components/TimeComparison';
 import AreaComparison from './components/AreaComparison';
 import FacilityAccessibility from './components/FacilityAccessibility';
 import CustomCenter from './components/CustomCenter';
@@ -297,8 +296,23 @@ function App() {
     }
   };
 
-  const handleTimeChange = (time: number) => {
-    setSelectedTime(time);
+  // 出行方式相关辅助函数
+  const getTravelSpeedMultiplier = () => {
+    switch (travelMode) {
+      case 'cycling': return 2.9;
+      case 'ebike': return 4.2;
+      case 'driving': return 6.7;
+      default: return 1;
+    }
+  };
+
+  const getTravelModeName = () => {
+    switch (travelMode) {
+      case 'cycling': return '骑行';
+      case 'ebike': return '电动车';
+      case 'driving': return '驾车';
+      default: return '步行';
+    }
   };
 
   const handleCenterSelect = (lng: number, lat: number) => {
@@ -377,10 +391,10 @@ function App() {
               value={travelMode}
               onChange={(e) => setTravelMode(e.target.value)}
             >
-              <option value="walking">🚶 步行</option>
-              <option value="cycling">🚲 骑自行车</option>
-              <option value="ebike">🛵 骑电动车</option>
-              <option value="driving">🚗 驾驶轿车</option>
+              <option value="walking">步行</option>
+              <option value="cycling">骑自行车</option>
+              <option value="ebike">骑电动车</option>
+              <option value="driving">驾驶轿车</option>
             </select>
           </div>
 
@@ -469,67 +483,86 @@ function App() {
                   <div className="score-level">{analysisResult.score.level}</div>
                 </div>
 
-                {/* 时间维度对比 */}
+                {/* 时间维度对比 - 新设计 */}
                 {multiTimeData && (
-                  <div className="detail-card">
-                    <TimeComparison
-                      data={{
-                        time5: multiTimeData.layers.find(l => l.time === 300),
-                        time10: multiTimeData.layers.find(l => l.time === 600),
-                        time15: multiTimeData.layers.find(l => l.time === 900)
-                      }}
-                      onTimeChange={handleTimeChange}
-                    />
+                  <div className="detail-card time-comparison-card">
+                    <div className="time-comparison-header">
+                      <h4>时间维度对比</h4>
+                      <div className="travel-mode-selector">
+                        <select
+                          value={travelMode}
+                          onChange={(e) => setTravelMode(e.target.value)}
+                        >
+                          <option value="walking">步行</option>
+                          <option value="cycling">骑行</option>
+                          <option value="ebike">电动车</option>
+                          <option value="driving">驾车</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* 时间按钮组 */}
+                    <div className="time-buttons-group">
+                      {[5, 10, 15].map(time => {
+                        const layer = multiTimeData.layers.find(l => l.time === time * 60);
+                        const isSelected = selectedTime === time * 60;
+                        const area = layer ? (layer.area / 1000000).toFixed(2) : '0.00';
+                        const travelTime = Math.round(time / getTravelSpeedMultiplier());
+
+                        return (
+                          <div
+                            key={time}
+                            className={`time-button-card ${isSelected ? 'selected' : ''}`}
+                            onClick={() => setSelectedTime(time * 60)}
+                          >
+                            <div className="time-label">{time}分钟</div>
+                            <div className="time-area">{area} km²</div>
+                            <div className="time-travel">{getTravelModeName()}{travelTime}min</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* 选中时间的详细指标 */}
+                    <div className="time-detail-metrics">
+                      <div className="metric-row">
+                        <span className="metric-label">覆盖面积</span>
+                        <span className="metric-value">
+                          {((multiTimeData.layers.find(l => l.time === selectedTime)?.area ?? 0) / 1000000).toFixed(2)} km²
+                        </span>
+                      </div>
+                      <div className="metric-row">
+                        <span className="metric-label">周边设施</span>
+                        <span className="metric-value">
+                          {analysisResult.poi_coverage
+                            ? Object.values(analysisResult.poi_coverage).reduce((sum, cat) => sum + cat.count, 0)
+                            : 0} 个
+                        </span>
+                      </div>
+                      <div className="metric-row">
+                        <span className="metric-label">服务盲区</span>
+                        <span className="metric-value">{analysisResult.blind_spots?.length || 0} 个</span>
+                      </div>
+                      <div className="metric-divider"></div>
+                      <div className="metric-row">
+                        <span className="metric-label">步行时间</span>
+                        <span className="metric-value">{selectedTime / 60} 分钟</span>
+                      </div>
+                      <div className="metric-row">
+                        <span className="metric-label">骑行时间</span>
+                        <span className="metric-value">{Math.round(selectedTime / 60 / 2.9)} 分钟</span>
+                      </div>
+                      <div className="metric-row">
+                        <span className="metric-label">电动车时间</span>
+                        <span className="metric-value">{Math.round(selectedTime / 60 / 4.2)} 分钟</span>
+                      </div>
+                      <div className="metric-row">
+                        <span className="metric-label">驾车时间</span>
+                        <span className="metric-value">{Math.round(selectedTime / 60 / 6.7)} 分钟</span>
+                      </div>
+                    </div>
                   </div>
                 )}
-
-                {/* 关键指标 */}
-                <div className="metrics-grid">
-                  <div className="metric-card">
-                    <div className="metric-icon">
-                      <Icons.Map />
-                    </div>
-                    <div className="metric-info">
-                      <div className="metric-value">{analysisResult.isochrone.area.toFixed(2)} km²</div>
-                      <div className="metric-label">覆盖面积</div>
-                    </div>
-                  </div>
-
-                  <div className="metric-card">
-                    <div className="metric-icon">
-                      <Icons.Layers />
-                    </div>
-                    <div className="metric-info">
-                      <div className="metric-value">
-                        {analysisResult.poi_coverage
-                          ? Object.values(analysisResult.poi_coverage).reduce((sum, cat) => sum + cat.count, 0)
-                          : 0}
-                      </div>
-                      <div className="metric-label">周边设施</div>
-                    </div>
-                  </div>
-
-                  <div className="metric-card">
-                    <div className="metric-icon">
-                      <Icons.AlertTriangle />
-                    </div>
-                    <div className="metric-info">
-                      <div className="metric-value">{analysisResult.blind_spots?.length || 0}</div>
-                      <div className="metric-label">服务盲区</div>
-                    </div>
-                  </div>
-
-                  <div className="metric-card">
-                    <div className="metric-icon">
-                      <Icons.Clock />
-                    </div>
-                    <div className="metric-info">
-                      <div className="metric-value">{selectedTime / 60} 分钟</div>
-                      <div className="metric-label">步行时间</div>
-                    </div>
-                  </div>
-                </div>
-
 
                 {/* 雷达图 */}
                 <div className="detail-card">
