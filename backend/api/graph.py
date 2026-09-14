@@ -17,6 +17,7 @@ class RouteRequest(BaseModel):
     origin_lat: float
     dest_lng: float
     dest_lat: float
+    travel_mode: str = "walking"  # walking, cycling, ebike, driving
 
 
 class GraphDataResponse(BaseModel):
@@ -33,7 +34,7 @@ async def get_route_graph(request: RouteRequest):
     获取两点之间的路线图数据
 
     Args:
-        request: 起点和终点坐标
+        request: 起点和终点坐标，以及出行方式
 
     Returns:
         GeoJSON格式的路线图数据，包含距离和时间标注
@@ -43,8 +44,17 @@ async def get_route_graph(request: RouteRequest):
         origin = {"lng": request.origin_lng, "lat": request.origin_lat}
         destination = {"lng": request.dest_lng, "lat": request.dest_lat}
 
-        # 获取路线详情
-        route = await baidu_map.get_walking_route(origin, destination)
+        # 根据出行方式获取路线
+        if request.travel_mode == "walking":
+            route = await baidu_map.get_walking_route(origin, destination)
+        elif request.travel_mode == "cycling":
+            route = await baidu_map.get_riding_route(origin, destination)
+        elif request.travel_mode == "ebike":
+            route = await baidu_map.get_riding_route(origin, destination)  # 电动车用骑行路线
+        elif request.travel_mode == "driving":
+            route = await baidu_map.get_driving_route(origin, destination)
+        else:
+            route = await baidu_map.get_walking_route(origin, destination)
 
         if not route:
             raise HTTPException(status_code=404, detail="无法找到路线")
@@ -58,6 +68,7 @@ async def get_route_graph(request: RouteRequest):
         graph_data["edge_count"] = builder.get_edge_count()
         graph_data["total_distance"] = route.get("distance", 0)
         graph_data["total_duration"] = route.get("duration", 0)
+        graph_data["travel_mode"] = request.travel_mode
 
         return graph_data
     except HTTPException:

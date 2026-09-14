@@ -116,6 +116,8 @@ function App() {
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisResult[]>([]);
   const [showCustomCenter, setShowCustomCenter] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [selectedFacility, setSelectedFacility] = useState<{name: string; category: string; location: {lng: number; lat: number}} | null>(null);
+  const [travelMode, setTravelMode] = useState('walking'); // walking, cycling, ebike, driving
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([
     { id: 'isochrone', label: '计算等时圈范围', status: 'pending' },
     { id: 'poi', label: '搜索周边设施', status: 'pending' },
@@ -369,6 +371,19 @@ function App() {
             </select>
           </div>
 
+          <div className="control-group">
+            <label>出行方式：</label>
+            <select
+              value={travelMode}
+              onChange={(e) => setTravelMode(e.target.value)}
+            >
+              <option value="walking">🚶 步行</option>
+              <option value="cycling">🚲 骑自行车</option>
+              <option value="ebike">🛵 骑电动车</option>
+              <option value="driving">🚗 驾驶轿车</option>
+            </select>
+          </div>
+
           <button
             className="analyze-button"
             onClick={handleAnalyze}
@@ -434,6 +449,9 @@ function App() {
                 blindSpots={analysisResult?.blind_spots}
                 multiTimeData={multiTimeData}
                 loading={loading}
+                selectedFacility={selectedFacility}
+                onFacilityClose={() => setSelectedFacility(null)}
+                travelMode={travelMode}
               />
             </div>
 
@@ -558,7 +576,19 @@ function App() {
                 {/* 设施列表（可滚动） */}
                 <div className="facility-scroll-list">
                   {getAllFacilities().map((facility, index) => (
-                    <div key={index} className="facility-list-item">
+                    <div
+                      key={index}
+                      className={`facility-list-item ${selectedFacility?.name === facility.name ? 'selected' : ''}`}
+                      onClick={() => {
+                        if (facility.location) {
+                          setSelectedFacility({
+                            name: facility.name,
+                            category: facility.category,
+                            location: facility.location
+                          });
+                        }
+                      }}
+                    >
                       <div
                         className="facility-item-icon"
                         style={{ backgroundColor: getCategoryColor(facility.category) }}

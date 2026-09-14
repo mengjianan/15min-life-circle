@@ -12,6 +12,7 @@ interface MapViewProps {
   onCenterChange?: (lng: number, lat: number) => void;
   selectedFacility?: {name: string; category: string; location: {lng: number; lat: number}} | null;
   onFacilityClose?: () => void;
+  travelMode?: string;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -23,7 +24,8 @@ const MapView: React.FC<MapViewProps> = ({
   loading = false,
   onCenterChange,
   selectedFacility,
-  onFacilityClose
+  onFacilityClose,
+  travelMode = 'walking'
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -342,7 +344,7 @@ const MapView: React.FC<MapViewProps> = ({
     map.addOverlay(highlightMarker);
     routeOverlaysRef.current.push(highlightMarker);
 
-    // 2. 画步行路线（调用后端API获取实际路线）
+    // 2. 画路线（调用后端API获取实际路线）
     const drawWalkingRoute = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/graph/route`, {
@@ -352,7 +354,8 @@ const MapView: React.FC<MapViewProps> = ({
             origin_lng: center.lng,
             origin_lat: center.lat,
             dest_lng: selectedFacility.location.lng,
-            dest_lat: selectedFacility.location.lat
+            dest_lat: selectedFacility.location.lat,
+            travel_mode: travelMode
           })
         });
 
@@ -475,7 +478,7 @@ const MapView: React.FC<MapViewProps> = ({
     return () => {
       map.removeEventListener('click', clearHighlight);
     };
-  }, [mapReady, center, selectedFacility, onFacilityClose]);
+  }, [mapReady, center, selectedFacility, onFacilityClose, travelMode]);
 
   // 绘制路线图（Graph连线）
   useEffect(() => {
@@ -522,7 +525,8 @@ const MapView: React.FC<MapViewProps> = ({
                 origin_lng: center.lng,
                 origin_lat: center.lat,
                 dest_lng: destLng,
-                dest_lat: destLat
+                dest_lat: destLat,
+                travel_mode: travelMode
               })
             });
 
@@ -594,7 +598,7 @@ const MapView: React.FC<MapViewProps> = ({
     };
 
     fetchAndDrawRoutes();
-  }, [mapReady, center, showGraph]);
+  }, [mapReady, center, showGraph, travelMode]);
 
   const toggleClickMode = useCallback(() => {
     setClickMode(prev => !prev);

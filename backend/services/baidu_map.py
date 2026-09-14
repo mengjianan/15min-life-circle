@@ -128,6 +128,100 @@ class BaiduMapService:
                 print(f"步行路线查询失败: {e}")
                 return None
 
+    async def get_riding_route(
+        self,
+        origin: Dict[str, float],
+        destination: Dict[str, float]
+    ) -> Optional[Dict[str, Any]]:
+        """获取骑行路线详情（自行车/电动车）"""
+        if not await self._check_api_once():
+            return None
+
+        async with self.semaphore:
+            try:
+                params = {
+                    "origin": f"{origin['lat']},{origin['lng']}",
+                    "destination": f"{destination['lat']},{destination['lng']}",
+                    "ak": self.ak,
+                    "output": "json"
+                }
+
+                response = await self.client.get(
+                    f"{DIRECTION_API}/riding",
+                    params=params
+                )
+                data = response.json()
+
+                if data.get("status") == 0:
+                    result = data.get("result", {})
+                    routes = result.get("routes", [])
+                    if routes:
+                        route = routes[0]
+                        return {
+                            "distance": route.get("distance", {}).get("value"),
+                            "duration": route.get("duration", {}).get("value"),
+                            "steps": route.get("steps", [])
+                        }
+
+                # 如果骑行API不可用，使用步行路线估算
+                walking_route = await self.get_walking_route(origin, destination)
+                if walking_route:
+                    # 骑行速度约为步行的3-4倍
+                    walking_route["duration"] = walking_route.get("duration", 0) // 3
+                    return walking_route
+
+                return None
+            except Exception as e:
+                print(f"骑行路线查询失败: {e}")
+                return None
+
+    async def get_driving_route(
+        self,
+        origin: Dict[str, float],
+        destination: Dict[str, float]
+    ) -> Optional[Dict[str, Any]]:
+        """获取驾车路线详情"""
+        if not await self._check_api_once():
+            return None
+
+        async with self.semaphore:
+            try:
+                params = {
+                    "origin": f"{origin['lat']},{origin['lng']}",
+                    "destination": f"{destination['lat']},{destination['lng']}",
+                    "ak": self.ak,
+                    "output": "json"
+                }
+
+                response = await self.client.get(
+                    f"{DIRECTION_API}/driving",
+                    params=params
+                )
+                data = response.json()
+
+                if data.get("status") == 0:
+                    result = data.get("result", {})
+                    routes = result.get("routes", [])
+                    if routes:
+                        route = routes[0]
+                        return {
+                            "distance": route.get("distance", {}).get("value"),
+                            "duration": route.get("duration", {}).get("value"),
+                            "steps": route.get("steps", [])
+                        }
+
+                # 如果驾车API不可用，使用步行路线估算
+                walking_route = await self.get_walking_route(origin, destination)
+                if walking_route:
+                    # 驾车速度约为步行的8-10倍
+                    walking_route["duration"] = walking_route.get("duration", 0) // 8
+                    return walking_route
+
+                return None
+            except Exception as e:
+                print(f"驾车路线查询失败: {e}")
+                return None
+
     def _generate_mock_poi(
         self,
         location: Dict[str, float],
