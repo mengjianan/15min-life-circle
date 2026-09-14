@@ -25,22 +25,43 @@ class BaiduMapService:
         self.ak = BAIDU_MAP_AK
         self.semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
         self.client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT)
+        self._api_available = None  # 缓存API可用性
+
+    async def _check_api_once(self) -> bool:
+        """检查API是否可用（仅检查一次）"""
+        if self._api_available is not None:
+            return self._api_available
+
+        try:
+            params = {
+                "query": "诊所",
+                "location": "32.0663,118.7784",
+                "radius": 1000,
+                "output": "json",
+                "ak": self.ak,
+                "page_num": 0,
+                "page_size": 1,
+                "scope": 2
+            }
+            response = await self.client.get(PLACE_API, params=params)
+            data = response.json()
+            self._api_available = data.get("status") == 0
+        except Exception:
+            self._api_available = False
+
+        if not self._api_available:
+            print("百度地图API不可用，将使用模拟数据")
+        return self._api_available
 
     async def get_walking_time(
         self,
         origin: Dict[str, float],
         destination: Dict[str, float]
     ) -> Optional[float]:
-        """
-        获取步行时间
+        """获取步行时间"""
+        if not await self._check_api_once():
+            return None
 
-        Args:
-            origin: 起点坐标 {"lng": x, "lat": y}
-            destination: 终点坐标
-
-        Returns:
-            步行时间（秒），失败返回None
-        """
         async with self.semaphore:
             try:
                 params = {
@@ -72,12 +93,10 @@ class BaiduMapService:
         origin: Dict[str, float],
         destination: Dict[str, float]
     ) -> Optional[Dict[str, Any]]:
-        """
-        获取步行路线详情（包含路径点）
+        """获取步行路线详情"""
+        if not await self._check_api_once():
+            return None
 
-        Returns:
-            路线详情，包含steps和距离信息
-        """
         async with self.semaphore:
             try:
                 params = {
@@ -115,17 +134,7 @@ class BaiduMapService:
         query: str,
         count: int = 3
     ) -> List[Dict[str, Any]]:
-        """
-        生成模拟POI数据（当API不可用时使用）
-
-        Args:
-            location: 中心点坐标
-            query: 搜索关键词
-            count: 生成数量
-
-        Returns:
-            模拟POI列表
-        """
+        """生成模拟POI数据"""
         import random
         import math
 
@@ -153,7 +162,6 @@ class BaiduMapService:
 
         for i in range(min(count, len(templates))):
             name, category = templates[i]
-            # 在中心点附近随机偏移
             offset_lng = random.uniform(-0.005, 0.005)
             offset_lat = random.uniform(-0.005, 0.005)
             distance = int(math.sqrt(offset_lng**2 + offset_lat**2) * 111000)
@@ -180,19 +188,11 @@ class BaiduMapService:
         page_num: int = 0,
         page_size: int = 20
     ) -> List[Dict[str, Any]]:
-        """
-        搜索周边POI
+        """搜索周边POI"""
+        # 如果API不可用，直接返回模拟数据
+        if not await self._check_api_once():
+            return self._generate_mock_poi(location, query)
 
-        Args:
-            location: 中心点坐标
-            query: 搜索关键词
-            radius: 搜索半径（米）
-            page_num: 页码
-            page_size: 每页数量
-
-        Returns:
-            POI列表
-        """
         async with self.semaphore:
             try:
                 params = {
@@ -203,7 +203,7 @@ class BaiduMapService:
                     "ak": self.ak,
                     "page_num": page_num,
                     "page_size": page_size,
-                    "scope": 2  # 返回详细信息
+                    "scope": 2
                 }
 
                 response = await self.client.get(PLACE_API, params=params)
@@ -223,7 +223,6 @@ class BaiduMapService:
                         for poi in results
                     ]
 
-                # API返回非0状态，使用模拟数据
                 print(f"POI API返回状态 {data.get('status')}，使用模拟数据")
                 return self._generate_mock_poi(location, query)
             except Exception as e:
@@ -231,16 +230,10 @@ class BaiduMapService:
                 return self._generate_mock_poi(location, query)
 
     async def geocode(self, address: str, city: str = "南京") -> Optional[Dict[str, float]]:
-        """
-        地理编码：地址转坐标
+        """地理编码：地址转坐标"""
+        if not await self._check_api_once():
+            return None
 
-        Args:
-            address: 地址
-            city: 城市
-
-        Returns:
-            坐标 {"lng": x, "lat": y}
-        """
         async with self.semaphore:
             try:
                 params = {
@@ -270,15 +263,10 @@ class BaiduMapService:
         self,
         location: Dict[str, float]
     ) -> Optional[str]:
-        """
-        逆地理编码：坐标转地址
+        """逆地理编码：坐标转地址"""
+        if not await self._check_api_once():
+            return None
 
-        Args:
-            location: 坐标
-
-        Returns:
-            地址字符串
-        """
         async with self.semaphore:
             try:
                 params = {
@@ -305,17 +293,10 @@ class BaiduMapService:
         destinations: List[Dict[str, float]],
         mode: str = "walking"
     ) -> Optional[List[List[int]]]:
-        """
-        批量距离矩阵计算
+        """批量距离矩阵计算"""
+        if not await self._check_api_once():
+            return None
 
-        Args:
-            origins: 起点列表
-            destinations: 终点列表
-            mode: 出行方式
-
-        Returns:
-            距离矩阵（米）
-        """
         async with self.semaphore:
             try:
                 origins_str = "|".join(
