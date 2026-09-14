@@ -115,6 +115,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisResult[]>([]);
   const [showCustomCenter, setShowCustomCenter] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('all');
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([
     { id: 'isochrone', label: '计算等时圈范围', status: 'pending' },
     { id: 'poi', label: '搜索周边设施', status: 'pending' },
@@ -129,6 +130,66 @@ function App() {
       setSelectedCommunity(SAMPLE_COMMUNITIES[0]);
     }
   }, []);
+
+  // 获取所有设施列表
+  const getAllFacilities = () => {
+    if (!analysisResult?.poi_coverage) return [];
+
+    const facilities: Array<{
+      name: string;
+      category: string;
+      address?: string;
+      distance?: number;
+      location?: { lng: number; lat: number };
+    }> = [];
+
+    Object.entries(analysisResult.poi_coverage).forEach(([category, data]: [string, any]) => {
+      if (selectedFilter === 'all' || selectedFilter === category) {
+        if (data.facilities) {
+          data.facilities.forEach((facility: any) => {
+            facilities.push({
+              name: facility.name,
+              category: category,
+              address: facility.address,
+              distance: facility.distance,
+              location: facility.location
+            });
+          });
+        }
+      }
+    });
+
+    // 按距离排序
+    return facilities.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+  };
+
+  // 获取分类颜色
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
+      '医疗': '#ff4d4f',
+      '教育': '#1890ff',
+      '购物': '#52c41a',
+      '养老': '#722ed1',
+      '文体': '#fa8c16',
+      '餐饮': '#eb2f96',
+      '交通': '#13c2c2'
+    };
+    return colors[category] || '#666';
+  };
+
+  // 获取分类图标
+  const getCategoryIcon = (category: string) => {
+    const icons: Record<string, string> = {
+      '医疗': '医',
+      '教育': '教',
+      '购物': '购',
+      '养老': '养',
+      '文体': '文',
+      '餐饮': '餐',
+      '交通': '交'
+    };
+    return icons[category] || '设';
+  };
 
   const getCurrentCenter = () => {
     if (customCenter) {
@@ -355,7 +416,7 @@ function App() {
 
         {/* 主内容区域 */}
         {analysisResult ? (
-          /* 分析后 - 6:4布局 */
+          /* 分析后 - 50/50布局 */
           <div className="main-content analyzed">
             {/* 左侧 - 地图区域 */}
             <div className="map-panel">
@@ -369,17 +430,19 @@ function App() {
               />
             </div>
 
-            {/* 右侧 - 综合数据 */}
-            <div className="data-panel">
-              {/* 评分卡片 */}
-              <div className="score-card">
-                <div className="score-header">
-                  <Icons.Activity />
-                  <span>综合评分</span>
+            {/* 右侧 - 双栏布局 */}
+            <div className="right-panel">
+              {/* 第一栏 - 综合数据 */}
+              <div className="data-column">
+                {/* 评分卡片 */}
+                <div className="score-card">
+                  <div className="score-header">
+                    <Icons.Activity />
+                    <span>综合评分</span>
+                  </div>
+                  <div className="score-value">{analysisResult.score.total}</div>
+                  <div className="score-level">{analysisResult.score.level}</div>
                 </div>
-                <div className="score-value">{analysisResult.score.total}</div>
-                <div className="score-level">{analysisResult.score.level}</div>
-              </div>
 
                 {/* 时间维度对比 */}
                 {multiTimeData && (
@@ -448,24 +511,6 @@ function App() {
                   导出PDF报告
                 </button>
 
-                {/* 设施分类统计 */}
-                {analysisResult.poi_coverage?.categories && (
-                  <div className="facility-summary">
-                    <h3>
-                      <Icons.BarChart />
-                      设施分布
-                    </h3>
-                    <div className="facility-list">
-                      {Object.entries(analysisResult.poi_coverage.categories).map(([name, count]) => (
-                        <div key={name} className="facility-item">
-                          <span className="facility-name">{name}</span>
-                          <span className="facility-count">{count as number}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* 雷达图 */}
                 <div className="detail-card">
                   <RadarChart
@@ -486,6 +531,50 @@ function App() {
                   </div>
                 )}
               </div>
+
+              {/* 第二栏 - 设施列表 */}
+              <div className="facility-list-container">
+                {/* 设施筛选按钮 */}
+                <div className="facility-filters">
+                  <button
+                    className={`filter-btn ${selectedFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setSelectedFilter('all')}
+                  >
+                    全部
+                  </button>
+                  {analysisResult.poi_coverage && Object.keys(analysisResult.poi_coverage).map(category => (
+                    <button
+                      key={category}
+                      className={`filter-btn ${selectedFilter === category ? 'active' : ''}`}
+                      onClick={() => setSelectedFilter(category)}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 设施列表（可滚动） */}
+                <div className="facility-scroll-list">
+                  {getAllFacilities().map((facility, index) => (
+                    <div key={index} className="facility-list-item">
+                      <div
+                        className="facility-item-icon"
+                        style={{ backgroundColor: getCategoryColor(facility.category) }}
+                      >
+                        {getCategoryIcon(facility.category)}
+                      </div>
+                      <div className="facility-item-info">
+                        <div className="facility-item-name">{facility.name}</div>
+                        <div className="facility-item-detail">{facility.category} · {facility.address || '暂无地址'}</div>
+                      </div>
+                      <div className="facility-item-distance">
+                        {facility.distance ? `${facility.distance}m` : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           /* 分析前 - 两栏布局 */
