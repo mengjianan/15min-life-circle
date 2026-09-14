@@ -577,14 +577,52 @@ const MapView: React.FC<MapViewProps> = ({
         const allFeatures = results.flat();
 
         // 绘制路线
+        // 生成贝塞尔曲线点（模拟道路曲线）
+        const generateBezierPoints = (start: any, end: any, numPoints: number = 10) => {
+          const points = [];
+          // 计算控制点（添加一些随机偏移使曲线更自然）
+          const midLng = (start.lng + end.lng) / 2;
+          const midLat = (start.lat + end.lat) / 2;
+          const dLng = end.lng - start.lng;
+          const dLat = end.lat - start.lat;
+
+          // 添加垂直于直线的偏移
+          const offsetScale = 0.15;
+          const controlLng = midLng + (-dLat * offsetScale);
+          const controlLat = midLat + (dLng * offsetScale);
+
+          for (let i = 0; i <= numPoints; i++) {
+            const t = i / numPoints;
+            const t2 = t * t;
+            const mt = 1 - t;
+            const mt2 = mt * mt;
+
+            // 二次贝塞尔曲线公式
+            const lng = mt2 * start.lng + 2 * mt * t * controlLng + t2 * end.lng;
+            const lat = mt2 * start.lat + 2 * mt * t * controlLat + t2 * end.lat;
+
+            points.push(new BMap.Point(lng, lat));
+          }
+          return points;
+        };
+
         allFeatures.forEach((feature: any) => {
           const geometry = feature.geometry;
           const properties = feature.properties;
 
           if (geometry.type === 'LineString') {
-            const points = geometry.coordinates.map(
-              (coord: number[]) => new BMap.Point(coord[0], coord[1])
-            );
+            let points;
+
+            // 如果只有2个点（直线），使用贝塞尔曲线生成平滑路径
+            if (geometry.coordinates.length === 2) {
+              const start = { lng: geometry.coordinates[0][0], lat: geometry.coordinates[0][1] };
+              const end = { lng: geometry.coordinates[1][0], lat: geometry.coordinates[1][1] };
+              points = generateBezierPoints(start, end, 15);
+            } else {
+              points = geometry.coordinates.map(
+                (coord: number[]) => new BMap.Point(coord[0], coord[1])
+              );
+            }
 
             // 根据路况选择颜色
             let color = '#1890ff'; // 默认蓝色
