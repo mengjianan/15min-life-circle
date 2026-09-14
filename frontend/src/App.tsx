@@ -392,9 +392,9 @@ function App() {
               onChange={(e) => setTravelMode(e.target.value)}
             >
               <option value="walking">步行</option>
-              <option value="cycling">骑自行车</option>
-              <option value="ebike">骑电动车</option>
-              <option value="driving">驾驶轿车</option>
+              <option value="cycling">骑行</option>
+              <option value="ebike">电动车</option>
+              <option value="driving">驾车</option>
             </select>
           </div>
 
@@ -488,17 +488,6 @@ function App() {
                   <div className="detail-card time-comparison-card">
                     <div className="time-comparison-header">
                       <h4>时间维度对比</h4>
-                      <div className="travel-mode-selector">
-                        <select
-                          value={travelMode}
-                          onChange={(e) => setTravelMode(e.target.value)}
-                        >
-                          <option value="walking">步行</option>
-                          <option value="cycling">骑行</option>
-                          <option value="ebike">电动车</option>
-                          <option value="driving">驾车</option>
-                        </select>
-                      </div>
                     </div>
 
                     {/* 时间按钮组 */}
