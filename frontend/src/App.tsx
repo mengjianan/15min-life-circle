@@ -124,8 +124,9 @@ function App() {
   const getCurrentTimeSlotData = () => {
     const modeData = getCurrentModeData();
     if (!modeData?.time_slots) return null;
-    const slots = modeData.time_slots as Record<number, any>;
-    return slots[activeTimeSlot] || null;
+    // 后端返回的键是字符串，需要转换
+    const slots = modeData.time_slots as Record<string, any>;
+    return slots[String(activeTimeSlot)] || null;
   };
 
   // 获取所有设施列表
@@ -429,8 +430,8 @@ function App() {
                   <div className="time-comparison-header">时间维度对比</div>
                   <div className="time-buttons">
                     {[300, 600, 900].map(time => {
-                      const slots = modeData.time_slots as Record<number, any>;
-                      const slot = slots[time];
+                      const slots = modeData.time_slots as Record<string, any>;
+                      const slot = slots[String(time)];
                       const isSelected = activeTimeSlot === time;
                       const area = slot ? (slot.area / 1000000).toFixed(2) : '0.00';
                       return (
