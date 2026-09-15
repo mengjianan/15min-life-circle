@@ -4,6 +4,7 @@ import App from './App'
 import './index.css'
 import './three-column.css'
 import './report-styles.css'
+import './header-styles.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -285,23 +285,10 @@ function App() {
               <Icons.Home />
               15分钟生活圈智能体检与规划助手
             </h1>
-            <p>基于百度地图的社区生活圈分析工具</p>
           </div>
-          <div className="header-right">
-            <a href="../" className="back-button">
-              <Icons.ArrowLeft />
-              返回首页
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <main className="app-main">
-        {/* 控制面板 */}
-        <div className="controls-panel">
-          <div className="control-group">
-            <label>选择社区：</label>
+          <div className="header-center">
             <select
+              className="community-select"
               value={selectedCommunity ? `${selectedCommunity.lng},${selectedCommunity.lat}` : ''}
               onChange={(e) => {
                 const [lng, lat] = e.target.value.split(',').map(Number);
@@ -316,47 +303,55 @@ function App() {
                 </option>
               ))}
             </select>
-          </div>
 
-          <button
-            className="analyze-button"
-            onClick={handleAnalyze}
-            disabled={loading || (!selectedCommunity && !customCenter)}
-          >
-            {loading ? (
-              <>
-                <Icons.Refresh />
-                分析中...
-              </>
-            ) : (
-              <>
-                <Icons.Play />
-                开始体检
-              </>
-            )}
-          </button>
-
-          {/* 分析进度 */}
-          <AnalysisProgress
-            steps={analysisSteps}
-            visible={showProgress}
-          />
-
-          <button
-            className="analyze-button secondary"
-            onClick={() => setShowCustomCenter(!showCustomCenter)}
-          >
-            <Icons.MapPin />
-            {showCustomCenter ? '隐藏自定义位置' : '自定义位置'}
-          </button>
-
-          {fullResult && (
-            <button className="analyze-button secondary" onClick={handleExportPDF}>
-              <Icons.Download />
-              导出PDF报告
+            <button
+              className="header-btn primary"
+              onClick={handleAnalyze}
+              disabled={loading || (!selectedCommunity && !customCenter)}
+            >
+              {loading ? (
+                <>
+                  <Icons.Refresh />
+                  分析中...
+                </>
+              ) : (
+                <>
+                  <Icons.Play />
+                  开始体检
+                </>
+              )}
             </button>
-          )}
+
+            <button
+              className="header-btn"
+              onClick={() => setShowCustomCenter(!showCustomCenter)}
+            >
+              <Icons.MapPin />
+              自定义位置
+            </button>
+
+            {fullResult && (
+              <button className="header-btn" onClick={handleExportPDF}>
+                <Icons.Download />
+                导出PDF
+              </button>
+            )}
+          </div>
+          <div className="header-right">
+            <a href="../" className="back-button">
+              <Icons.ArrowLeft />
+              返回首页
+            </a>
+          </div>
         </div>
+        {/* 分析进度 */}
+        <AnalysisProgress
+          steps={analysisSteps}
+          visible={showProgress}
+        />
+      </header>
+
+      <main className="app-main">
 
         {/* 错误提示 */}
         {error && (
