@@ -641,6 +641,8 @@ function App() {
                     boundary_points: timeSlotData.boundary_points,
                     area: timeSlotData.area,
                   } : undefined}
+                  fullModeData={fullResult.modes}
+                  comparison={fullResult.comparison}
                 />
               </div>
             )}
