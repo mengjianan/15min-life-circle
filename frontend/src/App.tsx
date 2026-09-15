@@ -291,12 +291,14 @@ function App() {
               className="community-select"
               value={selectedCommunity ? `${selectedCommunity.lng},${selectedCommunity.lat}` : ''}
               onChange={(e) => {
+                if (!e.target.value) return;
                 const [lng, lat] = e.target.value.split(',').map(Number);
                 const community = SAMPLE_COMMUNITIES.find(c => c.lng === lng && c.lat === lat);
                 setSelectedCommunity(community || null);
                 setCustomCenter(null);
               }}
             >
+              <option value="">选择社区</option>
               {SAMPLE_COMMUNITIES.map((community, index) => (
                 <option key={index} value={`${community.lng},${community.lat}`}>
                   {community.name}
