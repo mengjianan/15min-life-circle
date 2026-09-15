@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 
 from api import isochrone, poi, analysis, graph, full_analysis
+from services.api_protection import api_protection
 from models.database import init_db
 from config import BACKEND_HOST, BACKEND_PORT
 
@@ -56,6 +57,12 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/api/status")
+async def api_status():
+    """获取API使用状态"""
+    return api_protection.get_status()
 
 
 if __name__ == "__main__":

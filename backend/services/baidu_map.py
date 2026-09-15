@@ -7,6 +7,8 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from functools import lru_cache
 
+from services.api_protection import api_protection
+
 from config import (
     BAIDU_MAP_AK,
     DIRECTION_API,
@@ -335,6 +337,10 @@ class BaiduMapService:
         page_size: int = 20
     ) -> List[Dict[str, Any]]:
         """搜索周边POI"""
+        # 检查是否应该使用模拟数据（API保护）
+        if api_protection.should_use_mock():
+            return self._generate_mock_poi(location, query)
+
         # 如果API不可用，直接返回模拟数据
         if not await self._check_api_once():
             return self._generate_mock_poi(location, query)
@@ -351,6 +357,9 @@ class BaiduMapService:
                     "page_size": page_size,
                     "scope": 2
                 }
+
+                # 增加API调用计数
+                api_protection.increment_usage()
 
                 response = await self.client.get(PLACE_API, params=params)
                 data = response.json()
