@@ -110,7 +110,7 @@ const MapView: React.FC<MapViewProps> = ({
   const getSpeedMultiplier = (mode: string) => {
     switch (mode) {
       case 'cycling': return 2.9;
-      case 'ebike': return 4.2;
+      case 'transit': return 4.2;
       case 'driving': return 6.7;
       default: return 1;
     }

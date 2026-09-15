@@ -13,6 +13,17 @@ export interface Community extends GeoPoint {
   name: string;
 }
 
+// 出行方式类型
+export type TravelMode = 'walking' | 'cycling' | 'transit' | 'driving';
+
+// 出行方式配置
+export interface TravelModeConfig {
+  mode: TravelMode;
+  name: string;
+  speed: number;  // m/s
+  icon: string;
+}
+
 // 等时圈数据
 export interface IsochroneData {
   polygon: {
@@ -94,7 +105,55 @@ export interface Suggestion {
   message: string;
 }
 
-// 分析报告
+// 单个出行方式的分析数据
+export interface TravelModeData {
+  mode: TravelMode;
+  mode_name: string;
+  speed: number;
+  score: ScoreData;
+  time_slots: {
+    300: TimeSlotData;
+    600: TimeSlotData;
+    900: TimeSlotData;
+  };
+  suggestions: Suggestion[];
+}
+
+// 时段数据
+export interface TimeSlotData {
+  time: number;
+  area: number;
+  boundary_points: GeoPoint[];
+  polygon: any;
+  poi_coverage: POICoverage;
+  blind_spots: BlindSpot[];
+  routes: RouteFeature[];
+}
+
+// 面积对比数据
+export interface AreaComparison {
+  mode: string;
+  mode_name: string;
+  time_5: number;
+  time_10: number;
+  time_15: number;
+}
+
+// 完整体检结果
+export interface FullAnalysisResult {
+  community_name: string;
+  center: GeoPoint;
+  timestamp: number;
+  modes: {
+    walking: TravelModeData;
+    cycling: TravelModeData;
+    transit: TravelModeData;
+    driving: TravelModeData;
+  };
+  comparison: AreaComparison[];
+}
+
+// 分析报告（单出行方式，保持兼容）
 export interface AnalysisResult {
   community_name: string;
   center: GeoPoint;

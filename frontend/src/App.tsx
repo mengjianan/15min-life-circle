@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import MapView from './components/MapView';
 import Report from './components/Report';
-import RadarChart from './components/RadarChart';
-import AreaComparison from './components/AreaComparison';
-import FacilityAccessibility from './components/FacilityAccessibility';
 import CustomCenter from './components/CustomCenter';
-import CommunityComparison from './components/CommunityComparison';
 import AnalysisProgress from './components/AnalysisProgress';
 import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
-import { exportPDFReport } from './pdfExport';
-import type { AnalysisResult, MultiTimeData } from './types';
+import type { TravelMode, FullAnalysisResult, TravelModeData, POIItem, POICategoryData } from './types';
+
+// 出行方式配置
+const TRAVEL_MODES: { mode: TravelMode; name: string; speed: number }[] = [
+  { mode: 'walking', name: '步行', speed: 1.2 },
+  { mode: 'cycling', name: '骑行', speed: 3.5 },
+  { mode: 'transit', name: '公交', speed: 5.0 },
+  { mode: 'driving', name: '驾车', speed: 8.0 },
+];
 
 // 分析步骤类型
 interface AnalysisStep {
@@ -46,29 +49,9 @@ const Icons = {
       <line x1="12" y1="17" x2="12.01" y2="17"></line>
     </svg>
   ),
-  BarChart: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"></line>
-      <line x1="12" y1="20" x2="12" y2="4"></line>
-      <line x1="6" y1="20" x2="6" y2="14"></line>
-    </svg>
-  ),
   Play: () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="5 3 19 12 5 21 5 3"></polygon>
-    </svg>
-  ),
-  Map: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
-      <line x1="8" y1="2" x2="8" y2="18"></line>
-      <line x1="16" y1="6" x2="16" y2="22"></line>
-    </svg>
-  ),
-  History: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 4v6h6"></path>
-      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
     </svg>
   ),
   Refresh: () => (
@@ -90,16 +73,16 @@ const Icons = {
       <line x1="12" y1="15" x2="12" y2="3"></line>
     </svg>
   ),
-  Activity: () => (
+  Map: () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+      <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+      <line x1="8" y1="2" x2="8" y2="18"></line>
+      <line x1="16" y1="6" x2="16" y2="22"></line>
     </svg>
   ),
-  Layers: () => (
+  ChevronDown: () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-      <polyline points="2 17 12 22 22 17"></polyline>
-      <polyline points="2 12 12 17 22 12"></polyline>
+      <polyline points="6 9 12 15 18 9"></polyline>
     </svg>
   ),
 };
@@ -107,22 +90,21 @@ const Icons = {
 function App() {
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [customCenter, setCustomCenter] = useState<{ lng: number; lat: number; name: string } | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [multiTimeData, setMultiTimeData] = useState<MultiTimeData | null>(null);
-  const [selectedTime, setSelectedTime] = useState(15);
+  const [fullResult, setFullResult] = useState<FullAnalysisResult | null>(null);
+  const [activeMode, setActiveMode] = useState<TravelMode>('walking');
+  const [activeTimeSlot, setActiveTimeSlot] = useState(900);
+  const [activeCategory, setActiveCategory] = useState('全部');
+  const [selectedFacility, setSelectedFacility] = useState<POIItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [analysisHistory, setAnalysisHistory] = useState<AnalysisResult[]>([]);
   const [showCustomCenter, setShowCustomCenter] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [selectedFacility, setSelectedFacility] = useState<{name: string; category: string; location: {lng: number; lat: number}} | null>(null);
-  const [travelMode, setTravelMode] = useState('walking'); // walking, cycling, ebike, driving
+  const [reportExpanded, setReportExpanded] = useState(true);
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([
-    { id: 'isochrone', label: '计算等时圈范围', status: 'pending' },
-    { id: 'poi', label: '搜索周边设施', status: 'pending' },
-    { id: 'blindspot', label: '识别服务盲区', status: 'pending' },
-    { id: 'score', label: '计算综合评分', status: 'pending' },
-    { id: 'report', label: '生成体检报告', status: 'pending' }
+    { id: 'walking', label: '步行', status: 'pending' },
+    { id: 'cycling', label: '骑行', status: 'pending' },
+    { id: 'transit', label: '公交', status: 'pending' },
+    { id: 'driving', label: '驾车', status: 'pending' },
+    { id: 'report', label: '生成报告', status: 'pending' },
   ]);
   const [showProgress, setShowProgress] = useState(false);
 
@@ -132,35 +114,41 @@ function App() {
     }
   }, []);
 
+  // 获取当前出行方式数据
+  const getCurrentModeData = (): TravelModeData | null => {
+    if (!fullResult?.modes) return null;
+    return fullResult.modes[activeMode] || null;
+  };
+
+  // 获取当前时段数据
+  const getCurrentTimeSlotData = () => {
+    const modeData = getCurrentModeData();
+    if (!modeData?.time_slots) return null;
+    const slots = modeData.time_slots as Record<number, any>;
+    return slots[activeTimeSlot] || null;
+  };
+
   // 获取所有设施列表
-  const getAllFacilities = () => {
-    if (!analysisResult?.poi_coverage) return [];
+  const getAllFacilities = (): POIItem[] => {
+    const timeSlotData = getCurrentTimeSlotData();
+    if (!timeSlotData?.poi_coverage) return [];
 
-    const facilities: Array<{
-      name: string;
-      category: string;
-      address?: string;
-      distance?: number;
-      location?: { lng: number; lat: number };
-    }> = [];
+    const facilities: POIItem[] = [];
 
-    Object.entries(analysisResult.poi_coverage).forEach(([category, data]: [string, any]) => {
-      if (selectedFilter === 'all' || selectedFilter === category) {
+    const coverage = timeSlotData.poi_coverage as Record<string, POICategoryData>;
+    Object.entries(coverage).forEach(([category, data]) => {
+      if (activeCategory === '全部' || activeCategory === category) {
         if (data.facilities) {
-          data.facilities.forEach((facility: any) => {
+          data.facilities.forEach((facility: POIItem) => {
             facilities.push({
-              name: facility.name,
+              ...facility,
               category: category,
-              address: facility.address,
-              distance: facility.distance,
-              location: facility.location
             });
           });
         }
       }
     });
 
-    // 按距离排序
     return facilities.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
   };
 
@@ -173,7 +161,6 @@ function App() {
       '养老': '#722ed1',
       '文体': '#fa8c16',
       '餐饮': '#eb2f96',
-      '交通': '#13c2c2'
     };
     return colors[category] || '#666';
   };
@@ -187,15 +174,12 @@ function App() {
       '养老': '养',
       '文体': '文',
       '餐饮': '餐',
-      '交通': '交'
     };
     return icons[category] || '设';
   };
 
   const getCurrentCenter = () => {
-    if (customCenter) {
-      return customCenter;
-    }
+    if (customCenter) return customCenter;
     return selectedCommunity;
   };
 
@@ -221,72 +205,40 @@ function App() {
     setAnalysisSteps(prev => prev.map(step => ({ ...step, status: 'pending', message: undefined })));
 
     try {
-      // 步骤1: 计算等时圈
-      updateStepStatus('isochrone', 'active', '计算5/10/15分钟步行范围...');
-      const multiResponse = await fetch(`${API_BASE_URL}/isochrone/multi-time`, {
+      // 调用全出行方式分析API
+      updateStepStatus('walking', 'active', '分析步行范围...');
+
+      const response = await fetch(`${API_BASE_URL}/analysis/full-analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           lng: center.lng,
           lat: center.lat,
-          directions: 36
-        })
+          community_name: center.name,
+        }),
       });
 
-      let multiResult = null;
-      if (multiResponse.ok) {
-        multiResult = await multiResponse.json();
-        setMultiTimeData(multiResult);
-      }
-      updateStepStatus('isochrone', 'completed', '等时圈计算完成');
-      await delay(300);
-
-      // 步骤2: 搜索POI
-      updateStepStatus('poi', 'active', '搜索周边设施...');
-      await delay(500); // 模拟搜索过程
-
-      // 步骤3: 识别盲区
-      updateStepStatus('blindspot', 'active', '识别服务盲区...');
-      await delay(300);
-
-      // 步骤4-5: 调用完整分析报告API
-      updateStepStatus('score', 'active', '计算综合评分...');
-      const singleResponse = await fetch(`${API_BASE_URL}/analysis/report`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lng: center.lng,
-          lat: center.lat,
-          community_name: center.name
-        })
-      });
-
-      if (!singleResponse.ok) {
+      if (!response.ok) {
         throw new Error('分析请求失败');
       }
 
-      const result: AnalysisResult = await singleResponse.json();
+      const result: FullAnalysisResult = await response.json();
 
-      // 更新POI和盲区步骤状态 - 显示设施信息
-      const poiCount = result.poi_coverage
-        ? Object.values(result.poi_coverage).reduce((sum: number, cat: any) => sum + cat.count, 0)
-        : 0;
-      updateStepStatus('poi', 'completed', `找到${poiCount}处设施`);
-      updateStepStatus('blindspot', 'completed', `识别到${result.blind_spots?.length || 0}个盲区`);
-      await delay(300);
+      // 更新步骤状态
+      updateStepStatus('walking', 'completed', '步行分析完成');
+      await delay(200);
+      updateStepStatus('cycling', 'completed', '骑行分析完成');
+      await delay(200);
+      updateStepStatus('transit', 'completed', '公交分析完成');
+      await delay(200);
+      updateStepStatus('driving', 'completed', '驾车分析完成');
+      await delay(200);
+      updateStepStatus('report', 'active', '生成报告...');
 
-      updateStepStatus('score', 'completed', `综合评分：${result.score.total}分`);
-      await delay(300);
-
-      // 步骤5: 生成报告
-      updateStepStatus('report', 'active', '生成体检报告...');
-      setAnalysisResult(result);
+      setFullResult(result);
       await delay(500);
       updateStepStatus('report', 'completed', '报告生成完成');
 
-      setAnalysisHistory(prev => [result, ...prev.slice(0, 4)]);
-
-      // 等待一下让用户看到完成状态
       await delay(800);
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析过程中出现错误');
@@ -296,52 +248,32 @@ function App() {
     }
   };
 
-  // 出行方式相关辅助函数
-  const getTravelSpeedMultiplier = () => {
-    switch (travelMode) {
-      case 'cycling': return 2.9;
-      case 'ebike': return 4.2;
-      case 'driving': return 6.7;
-      default: return 1;
-    }
-  };
-
-  const getTravelModeName = () => {
-    switch (travelMode) {
-      case 'cycling': return '骑行';
-      case 'ebike': return '电动车';
-      case 'driving': return '驾车';
-      default: return '步行';
-    }
-  };
-
   const handleCenterSelect = (lng: number, lat: number) => {
     setCustomCenter({
       lng,
       lat,
-      name: '自定义位置'
+      name: '自定义位置',
     });
   };
 
-  const getCurrentIsochrone = () => {
-    if (!multiTimeData) return analysisResult?.isochrone;
-    const layer = multiTimeData.layers.find(l => l.time === selectedTime);
-    return layer ? { boundary_points: layer.boundary_points, polygon: layer.polygon } : analysisResult?.isochrone;
+  const handleExportPDF = async () => {
+    // TODO: 导出全出行方式PDF报告
+    console.log('导出PDF报告');
   };
 
-  const handleExportPDF = async () => {
-    if (analysisResult) {
-      await exportPDFReport(analysisResult);
+  // 获取等级颜色
+  const getLevelColor = (level: string) => {
+    switch (level) {
+      case '优秀': return '#52c41a';
+      case '良好': return '#1890ff';
+      case '一般': return '#faad14';
+      default: return '#ff4d4f';
     }
   };
 
-  const comparisonData = analysisHistory.slice(0, 5).map(item => ({
-    name: item.community_name,
-    score: item.score.total,
-    level: item.score.level,
-    categories: item.score.categories,
-    area: item.isochrone.area
-  }));
+  const modeData = getCurrentModeData();
+  const timeSlotData = getCurrentTimeSlotData();
+  const facilities = getAllFacilities();
 
   return (
     <div className="app-container">
@@ -385,19 +317,6 @@ function App() {
             </select>
           </div>
 
-          <div className="control-group">
-            <label>出行方式：</label>
-            <select
-              value={travelMode}
-              onChange={(e) => setTravelMode(e.target.value)}
-            >
-              <option value="walking">步行</option>
-              <option value="cycling">骑行</option>
-              <option value="ebike">电动车</option>
-              <option value="driving">驾车</option>
-            </select>
-          </div>
-
           <button
             className="analyze-button"
             onClick={handleAnalyze}
@@ -430,7 +349,7 @@ function App() {
             {showCustomCenter ? '隐藏自定义位置' : '自定义位置'}
           </button>
 
-          {analysisResult && (
+          {fullResult && (
             <button className="analyze-button secondary" onClick={handleExportPDF}>
               <Icons.Download />
               导出PDF报告
@@ -450,183 +369,208 @@ function App() {
           </div>
         )}
 
-        {/* 主内容区域 */}
-        {analysisResult ? (
-          /* 分析后 - 50/50布局 */
-          <div className="main-content analyzed">
-            {/* 左侧 - 地图区域 */}
+        {/* 主内容区域 - 三栏布局 */}
+        {fullResult ? (
+          <div className="main-content three-columns">
+            {/* 左侧 - 地图区域 (50%) */}
             <div className="map-panel">
+              {showCustomCenter && (
+                <CustomCenter
+                  onCenterSelect={handleCenterSelect}
+                  currentCenter={getCurrentCenter()}
+                />
+              )}
               <MapView
                 center={getCurrentCenter()}
-                isochrone={getCurrentIsochrone()}
-                poiCoverage={analysisResult?.poi_coverage}
-                blindSpots={analysisResult?.blind_spots}
-                multiTimeData={multiTimeData}
+                isochrone={timeSlotData?.polygon ? {
+                  boundary_points: timeSlotData.boundary_points,
+                  polygon: timeSlotData.polygon,
+                  area: timeSlotData.area,
+                  max_time: activeTimeSlot,
+                } : undefined}
+                poiCoverage={timeSlotData?.poi_coverage}
+                blindSpots={timeSlotData?.blind_spots}
                 loading={loading}
                 selectedFacility={selectedFacility}
                 onFacilityClose={() => setSelectedFacility(null)}
-                travelMode={travelMode}
+                travelMode={activeMode}
               />
             </div>
 
-            {/* 右侧 - 双栏布局 */}
-            <div className="right-panel">
-              {/* 第一栏 - 综合数据 */}
-              <div className="data-column">
-                {/* 评分卡片 */}
-                <div className="score-card">
-                  <div className="score-header">
-                    <Icons.Activity />
-                    <span>综合评分</span>
-                  </div>
-                  <div className="score-value">{analysisResult.score.total}</div>
-                  <div className="score-level">{analysisResult.score.level}</div>
-                </div>
-
-                {/* 时间维度对比 - 新设计 */}
-                {multiTimeData && (
-                  <div className="detail-card time-comparison-card">
-                    <div className="time-comparison-header">
-                      <h4>时间维度对比</h4>
-                    </div>
-
-                    {/* 时间按钮组 */}
-                    <div className="time-buttons-group">
-                      {[5, 10, 15].map(time => {
-                        const layer = multiTimeData.layers.find(l => l.time === time * 60);
-                        const isSelected = selectedTime === time * 60;
-                        const area = layer ? (layer.area / 1000000).toFixed(2) : '0.00';
-                        const travelTime = Math.round(time / getTravelSpeedMultiplier());
-
-                        return (
-                          <div
-                            key={time}
-                            className={`time-button-card ${isSelected ? 'selected' : ''}`}
-                            onClick={() => setSelectedTime(time * 60)}
-                          >
-                            <div className="time-label">{time}分钟</div>
-                            <div className="time-area">{area} km²</div>
-                            <div className="time-travel">{getTravelModeName()}{travelTime}min</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* 选中时间的详细指标 */}
-                    <div className="time-detail-metrics">
-                      <div className="metric-row">
-                        <span className="metric-label">覆盖面积</span>
-                        <span className="metric-value">
-                          {((multiTimeData.layers.find(l => l.time === selectedTime)?.area ?? 0) / 1000000).toFixed(2)} km²
-                        </span>
-                      </div>
-                      <div className="metric-row">
-                        <span className="metric-label">周边设施</span>
-                        <span className="metric-value">
-                          {analysisResult.poi_coverage
-                            ? Object.values(analysisResult.poi_coverage).reduce((sum, cat) => sum + cat.count, 0)
-                            : 0} 个
-                        </span>
-                      </div>
-                      <div className="metric-row">
-                        <span className="metric-label">服务盲区</span>
-                        <span className="metric-value">{analysisResult.blind_spots?.length || 0} 个</span>
-                      </div>
-                      <div className="metric-divider"></div>
-                      <div className="metric-row">
-                        <span className="metric-label">步行时间</span>
-                        <span className="metric-value">{selectedTime / 60} 分钟</span>
-                      </div>
-                      <div className="metric-row">
-                        <span className="metric-label">骑行时间</span>
-                        <span className="metric-value">{Math.round(selectedTime / 60 / 2.9)} 分钟</span>
-                      </div>
-                      <div className="metric-row">
-                        <span className="metric-label">电动车时间</span>
-                        <span className="metric-value">{Math.round(selectedTime / 60 / 4.2)} 分钟</span>
-                      </div>
-                      <div className="metric-row">
-                        <span className="metric-label">驾车时间</span>
-                        <span className="metric-value">{Math.round(selectedTime / 60 / 6.7)} 分钟</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 雷达图 */}
-                <div className="detail-card">
-                  <RadarChart
-                    categories={analysisResult.score.categories}
-                  />
-                </div>
-
-                {/* 面积对比 */}
-                {multiTimeData && (
-                  <div className="detail-card">
-                    <AreaComparison
-                      data={{
-                        time5: multiTimeData.layers.find(l => l.time === 300),
-                        time10: multiTimeData.layers.find(l => l.time === 600),
-                        time15: multiTimeData.layers.find(l => l.time === 900)
-                      }}
-                    />
-                  </div>
-                )}
+            {/* 中间 - 综合评分 (25%) */}
+            <div className="score-panel">
+              {/* 出行方式切换 */}
+              <div className="travel-mode-tabs">
+                {TRAVEL_MODES.map(({ mode, name }) => (
+                  <button
+                    key={mode}
+                    className={`mode-tab ${activeMode === mode ? 'active' : ''}`}
+                    onClick={() => setActiveMode(mode)}
+                  >
+                    {name}
+                  </button>
+                ))}
               </div>
 
-              {/* 第二栏 - 设施列表 */}
-              <div className="facility-list-container">
-                {/* 设施筛选按钮 */}
-                <div className="facility-filters">
-                  <button
-                    className={`filter-btn ${selectedFilter === 'all' ? 'active' : ''}`}
-                    onClick={() => setSelectedFilter('all')}
-                  >
-                    全部
-                  </button>
-                  {analysisResult.poi_coverage && Object.keys(analysisResult.poi_coverage).map(category => (
-                    <button
-                      key={category}
-                      className={`filter-btn ${selectedFilter === category ? 'active' : ''}`}
-                      onClick={() => setSelectedFilter(category)}
-                    >
-                      {category}
-                    </button>
-                  ))}
+              {/* 综合评分 */}
+              {modeData && (
+                <div className="score-card">
+                  <div className="score-header">综合评分</div>
+                  <div className="score-value">{modeData.score.total}</div>
+                  <div className="score-level" style={{ color: getLevelColor(modeData.score.level) }}>
+                    {modeData.score.level}
+                  </div>
                 </div>
+              )}
 
-                {/* 设施列表（可滚动） */}
-                <div className="facility-scroll-list">
-                  {getAllFacilities().map((facility, index) => (
-                    <div
-                      key={index}
-                      className={`facility-list-item ${selectedFacility?.name === facility.name ? 'selected' : ''}`}
-                      onClick={() => {
-                        if (facility.location) {
-                          setSelectedFacility({
-                            name: facility.name,
-                            category: facility.category,
-                            location: facility.location
-                          });
-                        }
-                      }}
-                    >
-                      <div
-                        className="facility-item-icon"
-                        style={{ backgroundColor: getCategoryColor(facility.category) }}
-                      >
-                        {getCategoryIcon(facility.category)}
+              {/* 时间维度对比 */}
+              {modeData && (
+                <div className="time-comparison">
+                  <div className="time-comparison-header">时间维度对比</div>
+                  <div className="time-buttons">
+                    {[300, 600, 900].map(time => {
+                      const slots = modeData.time_slots as Record<number, any>;
+                      const slot = slots[time];
+                      const isSelected = activeTimeSlot === time;
+                      const area = slot ? (slot.area / 1000000).toFixed(2) : '0.00';
+                      return (
+                        <div
+                          key={time}
+                          className={`time-button ${isSelected ? 'active' : ''}`}
+                          onClick={() => setActiveTimeSlot(time)}
+                        >
+                          <div className="time-label">{time / 60}min</div>
+                          <div className="time-area">{area} km2</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 关键指标 */}
+              {timeSlotData && (
+                <div className="key-metrics">
+                  <div className="metric-row">
+                    <span className="metric-label">覆盖面积</span>
+                    <span className="metric-value">{(timeSlotData.area / 1000000).toFixed(2)} km2</span>
+                  </div>
+                  <div className="metric-row">
+                    <span className="metric-label">周边设施</span>
+                    <span className="metric-value">
+                      {timeSlotData.poi_coverage
+                        ? Object.values(timeSlotData.poi_coverage).reduce((sum: number, cat: any) => sum + cat.count, 0)
+                        : 0} 个
+                    </span>
+                  </div>
+                  <div className="metric-row">
+                    <span className="metric-label">服务盲区</span>
+                    <span className="metric-value">{timeSlotData.blind_spots?.length || 0} 个</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 各类评分 */}
+              {modeData && modeData.score.categories && (
+                <div className="category-scores">
+                  <div className="category-scores-header">各类评分</div>
+                  {Object.entries(modeData.score.categories).map(([category, score]) => (
+                    <div key={category} className="category-score-row">
+                      <span className="category-name">{category}</span>
+                      <div className="score-bar">
+                        <div
+                          className="score-bar-fill"
+                          style={{
+                            width: `${score}%`,
+                            backgroundColor: getCategoryColor(category),
+                          }}
+                        />
                       </div>
-                      <div className="facility-item-info">
-                        <div className="facility-item-name">{facility.name}</div>
-                        <div className="facility-item-detail">{facility.category} · {facility.address || '暂无地址'}</div>
-                      </div>
-                      <div className="facility-item-distance">
-                        {facility.distance ? `${facility.distance}m` : ''}
-                      </div>
+                      <span className="category-score">{score}</span>
                     </div>
                   ))}
                 </div>
+              )}
+
+              {/* 出行方式对比 */}
+              {fullResult.comparison && (
+                <div className="mode-comparison">
+                  <div className="mode-comparison-header">出行方式对比</div>
+                  {fullResult.comparison.map(item => (
+                    <div key={item.mode} className="mode-comparison-row">
+                      <span className="mode-name">{item.mode_name}</span>
+                      <div className="comparison-bar">
+                        <div
+                          className="comparison-bar-fill"
+                          style={{
+                            width: `${(item.time_15 / 200) * 100}%`,
+                            backgroundColor: activeMode === item.mode ? '#667eea' : '#e8e8e8',
+                          }}
+                        />
+                      </div>
+                      <span className="comparison-value">{item.time_15} km2</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 右侧 - 设施列表 (25%) */}
+            <div className="facility-panel">
+              {/* 设施筛选标签 */}
+              <div className="facility-filter-tabs">
+                <button
+                  className={`filter-tab ${activeCategory === '全部' ? 'active' : ''}`}
+                  onClick={() => setActiveCategory('全部')}
+                >
+                  全部
+                </button>
+                {timeSlotData?.poi_coverage && Object.keys(timeSlotData.poi_coverage).map(category => (
+                  <button
+                    key={category}
+                    className={`filter-tab ${activeCategory === category ? 'active' : ''}`}
+                    onClick={() => setActiveCategory(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+
+              {/* 设施列表（竖向滑轨） */}
+              <div className="facility-list-container">
+                {facilities.map((facility, index) => (
+                  <div
+                    key={index}
+                    className={`facility-card ${selectedFacility?.name === facility.name ? 'selected' : ''}`}
+                    onClick={() => setSelectedFacility(facility)}
+                  >
+                    <div className="facility-card-header">
+                      <div
+                        className="facility-icon"
+                        style={{ backgroundColor: getCategoryColor(facility.category || '') }}
+                      >
+                        {getCategoryIcon(facility.category || '')}
+                      </div>
+                      <div className="facility-info">
+                        <div className="facility-name">{facility.name}</div>
+                        <div className="facility-category">{facility.category}</div>
+                      </div>
+                    </div>
+                    <div className="facility-details">
+                      {facility.distance && (
+                        <span className="facility-distance">{facility.distance}米</span>
+                      )}
+                      {facility.address && (
+                        <span className="facility-address">{facility.address}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {facilities.length === 0 && (
+                  <div className="empty-facilities">
+                    暂无设施数据
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -643,17 +587,12 @@ function App() {
               )}
               <MapView
                 center={getCurrentCenter()}
-                isochrone={getCurrentIsochrone()}
-                poiCoverage={undefined}
-                blindSpots={undefined}
-                multiTimeData={multiTimeData}
                 loading={loading}
               />
             </div>
 
             {/* 右侧 - 数据面板 */}
             <div className="data-panel">
-              {/* 空状态提示 */}
               <div className="empty-state">
                 <div className="empty-icon">
                   <Icons.Map />
@@ -673,73 +612,44 @@ function App() {
                     <Icons.AlertTriangle />
                     <span>识别服务盲区</span>
                   </div>
-                  <div className="feature-item">
-                    <Icons.BarChart />
-                    <span>生成体检报告</span>
-                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* 综合报告 - 两栏布局 */}
-        {analysisResult && (
+        {/* 综合报告区域 */}
+        {fullResult && (
           <div className="report-section">
-            {/* 详细报告 */}
-            <div className="detail-card">
-              <Report
-                communityName={analysisResult.community_name}
-                score={analysisResult.score}
-                suggestions={analysisResult.suggestions}
-                blindSpots={analysisResult.blind_spots}
-                poiCoverage={analysisResult.poi_coverage}
-                isochrone={analysisResult.isochrone}
-              />
+            <div
+              className="report-header"
+              onClick={() => setReportExpanded(!reportExpanded)}
+            >
+              <h3>15分钟生活圈体检报告</h3>
+              <Icons.ChevronDown />
             </div>
-
-            {/* 设施可达性 */}
-            {analysisResult.poi_coverage && getCurrentCenter() && (
-              <div className="detail-card">
-                <FacilityAccessibility
-                  poiCoverage={analysisResult.poi_coverage}
-                  center={getCurrentCenter()!}
+            {reportExpanded && (
+              <div className="report-content">
+                <Report
+                  communityName={fullResult.community_name}
+                  score={modeData?.score || { total: 0, level: '需改善', categories: {}, blind_spot_penalty: 0 }}
+                  suggestions={modeData?.suggestions || []}
+                  blindSpots={timeSlotData?.blind_spots || []}
+                  poiCoverage={timeSlotData?.poi_coverage || {}}
+                  isochrone={timeSlotData ? {
+                    boundary_points: timeSlotData.boundary_points,
+                    area: timeSlotData.area,
+                  } : undefined}
                 />
               </div>
             )}
-          </div>
-        )}
-
-        {/* 社区对比 */}
-        {analysisHistory.length > 1 && (
-          <div className="comparison-section">
-            <CommunityComparison history={comparisonData} />
-          </div>
-        )}
-
-        {/* 分析历史 */}
-        {analysisHistory.length > 1 && (
-          <div className="history-section">
-            <h3>
-              <Icons.History />
-              分析历史
-            </h3>
-            <div className="history-list">
-              {analysisHistory.slice(1).map((item, index) => (
-                <div key={index} className="history-item">
-                  <span className="history-name">{item.community_name}</span>
-                  <span className="history-score">{item.score.total}分</span>
-                  <span className="history-level">{item.score.level}</span>
-                </div>
-              ))}
-            </div>
           </div>
         )}
       </main>
 
       <footer className="app-footer">
         <div className="footer-content">
-          <p>15分钟生活圈智能体检与规划助手 © 2025</p>
+          <p>15分钟生活圈智能体检与规划助手</p>
           <p className="footer-tech">
             技术栈：React + FastAPI + 百度地图API + NetworkX
           </p>

@@ -227,6 +227,53 @@ class BaiduMapService:
                 print(f"驾车路线查询失败: {e}")
                 return None
 
+    async def get_transit_route(
+        self,
+        origin: Dict[str, float],
+        destination: Dict[str, float]
+    ) -> Optional[Dict[str, Any]]:
+        """获取公交路线详情"""
+        if not await self._check_api_once():
+            return None
+
+        async with self.semaphore:
+            try:
+                params = {
+                    "origin": f"{origin['lat']},{origin['lng']}",
+                    "destination": f"{destination['lat']},{destination['lng']}",
+                    "ak": self.ak,
+                    "output": "json"
+                }
+
+                response = await self.client.get(
+                    f"{DIRECTION_API}/transit",
+                    params=params
+                )
+                data = response.json()
+
+                if data.get("status") == 0:
+                    result = data.get("result", {})
+                    routes = result.get("routes", [])
+                    if routes:
+                        route = routes[0]
+                        return {
+                            "distance": route.get("distance", {}).get("value"),
+                            "duration": route.get("duration", {}).get("value"),
+                            "steps": route.get("steps", [])
+                        }
+
+                # 如果公交API不可用，使用步行路线估算
+                walking_route = await self.get_walking_route(origin, destination)
+                if walking_route:
+                    # 公交速度约为步行的4-5倍
+                    walking_route["duration"] = walking_route.get("duration", 0) // 4
+                    return walking_route
+
+                return None
+            except Exception as e:
+                print(f"公交路线查询失败: {e}")
+                return None
+
     def _generate_mock_poi(
         self,
         location: Dict[str, float],

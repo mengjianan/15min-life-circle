@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uvicorn
 
-from api import isochrone, poi, analysis, graph
+from api import isochrone, poi, analysis, graph, full_analysis
 from models.database import init_db
 from config import BACKEND_HOST, BACKEND_PORT
 
@@ -41,6 +41,7 @@ app.include_router(isochrone.router, prefix="/api/isochrone", tags=["等时圈"]
 app.include_router(poi.router, prefix="/api/poi", tags=["POI检索"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["分析报告"])
 app.include_router(graph.router, prefix="/api/graph", tags=["路网图"])
+app.include_router(full_analysis.router, prefix="/api/analysis", tags=["全出行方式分析"])
 
 
 @app.get("/")
