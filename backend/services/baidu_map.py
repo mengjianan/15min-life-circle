@@ -46,11 +46,16 @@ class BaiduMapService:
             response = await self.client.get(PLACE_API, params=params)
             data = response.json()
             self._api_available = data.get("status") == 0
-        except Exception:
+            if not self._api_available:
+                print(f"百度地图API检查失败: status={data.get('status')}, message={data.get('message')}")
+        except Exception as e:
             self._api_available = False
+            print(f"百度地图API检查异常: {e}")
 
         if not self._api_available:
             print("百度地图API不可用，将使用模拟数据")
+        else:
+            print("百度地图API可用，将使用真实数据")
         return self._api_available
 
     async def get_walking_time(
