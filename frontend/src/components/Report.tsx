@@ -78,186 +78,251 @@ const Report: React.FC<ReportProps> = ({
     );
   };
 
+  // 计算总设施数
+  const totalFacilities = Object.values(poiCoverage || {}).reduce((sum: number, cat: any) => sum + (cat.count || 0), 0);
+
   return (
     <div className="report-container">
       {/* 报告标题 */}
-      <div className="report-title">
-        <h3>15分钟生活圈体检报告</h3>
-        <span className="report-community">{communityName}</span>
+      <div className="report-main-title">
+        <h2>15分钟生活圈体检报告</h2>
+        <div className="report-meta">
+          <span className="meta-item">社区：{communityName}</span>
+          <span className="meta-item">时间：{new Date().toLocaleDateString('zh-CN')}</span>
+        </div>
       </div>
 
       {/* 左右两页布局 */}
       <div className="report-two-pages">
-        {/* 左页：概览与数据 */}
-        <div className="report-left-page">
-          {/* 评分概览卡片 */}
-          <div className="report-card score-card">
-            <div className="card-header">综合评分</div>
-            <div className="score-display">
-              <div className="score-circle" style={{ borderColor: getScoreColor(score.level) }}>
-                <span className="score-num">{score.total}</span>
-                <span className="score-text">分</span>
+        {/* 左页 */}
+        <div className="report-page left-page">
+          {/* 评分概览 */}
+          <div className="report-section-card">
+            <div className="section-title">
+              <span className="section-icon" style={{ backgroundColor: '#667eea' }}>1</span>
+              综合评分概览
+            </div>
+            <div className="score-overview">
+              <div className="score-big-circle" style={{ borderColor: getScoreColor(score.level) }}>
+                <span className="score-number">{score.total}</span>
+                <span className="score-unit">分</span>
               </div>
-              <div className="score-level" style={{ color: getScoreColor(score.level) }}>
-                {score.level}
+              <div className="score-info">
+                <div className="score-level" style={{ color: getScoreColor(score.level) }}>
+                  {score.level}
+                </div>
+                <div className="score-desc">
+                  {score.total >= 90 ? '生活圈配置优秀，设施完善' :
+                   score.total >= 75 ? '生活圈配置良好，基本满足需求' :
+                   score.total >= 60 ? '生活圈配置一般，有待改善' :
+                   '生活圈配置不足，需要重点改善'}
+                </div>
               </div>
             </div>
           </div>
 
           {/* 关键指标 */}
-          <div className="report-card">
-            <div className="card-header">关键指标</div>
-            <div className="metrics-grid">
-              <div className="metric-item">
-                <span className="metric-icon">...</span>
-                <span className="metric-val">{isochrone?.area ? (isochrone.area / 1000000).toFixed(2) : '0'} km²</span>
-                <span className="metric-label">覆盖面积</span>
+          <div className="report-section-card">
+            <div className="section-title">
+              <span className="section-icon" style={{ backgroundColor: '#1890ff' }}>2</span>
+              关键指标
+            </div>
+            <div className="metrics-row">
+              <div className="metric-box">
+                <div className="metric-value">{isochrone?.area ? (isochrone.area / 1000000).toFixed(2) : '0'}</div>
+                <div className="metric-name">覆盖面积(km²)</div>
+                <div className="metric-bar">
+                  <div className="metric-bar-fill" style={{ width: '75%', backgroundColor: '#667eea' }}></div>
+                </div>
               </div>
-              <div className="metric-item">
-                <span className="metric-icon">...</span>
-                <span className="metric-val">
-                  {Object.values(poiCoverage || {}).reduce((sum: number, cat: any) => sum + (cat.count || 0), 0)}
-                </span>
-                <span className="metric-label">周边设施</span>
+              <div className="metric-box">
+                <div className="metric-value">{totalFacilities}</div>
+                <div className="metric-name">周边设施(个)</div>
+                <div className="metric-bar">
+                  <div className="metric-bar-fill" style={{ width: '85%', backgroundColor: '#52c41a' }}></div>
+                </div>
               </div>
-              <div className="metric-item">
-                <span className="metric-icon">...</span>
-                <span className="metric-val">{blindSpots.length}</span>
-                <span className="metric-label">服务盲区</span>
-              </div>
-              <div className="metric-item">
-                <span className="metric-icon">...</span>
-                <span className="metric-val">{Object.keys(score.categories).length}</span>
-                <span className="metric-label">评估维度</span>
+              <div className="metric-box">
+                <div className="metric-value">{blindSpots.length}</div>
+                <div className="metric-name">服务盲区(个)</div>
+                <div className="metric-bar">
+                  <div className="metric-bar-fill" style={{ width: `${Math.max(10, 100 - blindSpots.length * 20)}%`, backgroundColor: blindSpots.length > 0 ? '#faad14' : '#52c41a' }}></div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* 各类设施评分 */}
-          <div className="report-card">
-            <div className="card-header">各类设施评分</div>
-            <div className="category-scores-list">
+          <div className="report-section-card">
+            <div className="section-title">
+              <span className="section-icon" style={{ backgroundColor: '#52c41a' }}>3</span>
+              各类设施评分
+            </div>
+            <div className="category-chart">
               {Object.entries(score.categories).map(([category, categoryScore]) => (
-                <div key={category} className="category-score-item">
-                  <span className="category-name">{category}</span>
-                  <div className="score-bar">
+                <div key={category} className="category-row">
+                  <span className="category-label">{category}</span>
+                  <div className="category-bar-bg">
                     <div
-                      className="score-bar-fill"
+                      className="category-bar-fill"
                       style={{
                         width: `${categoryScore}%`,
                         backgroundColor: getCategoryScoreColor(categoryScore as number)
                       }}
-                    />
+                    ></div>
                   </div>
-                  <span className="category-score" style={{ color: getCategoryScoreColor(categoryScore as number) }}>
+                  <span className="category-value" style={{ color: getCategoryScoreColor(categoryScore as number) }}>
                     {categoryScore}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="chart-note">
+              <span className="note-dot" style={{ backgroundColor: '#52c41a' }}></span> 优秀(90+)
+              <span className="note-dot" style={{ backgroundColor: '#1890ff' }}></span> 良好(75-89)
+              <span className="note-dot" style={{ backgroundColor: '#faad14' }}></span> 一般(60-74)
+              <span className="note-dot" style={{ backgroundColor: '#ff4d4f' }}></span> 需改善(&lt;60)
+            </div>
+          </div>
+        </div>
+
+        {/* 右页 */}
+        <div className="report-page right-page">
+          {/* 出行方式覆盖面积对比 */}
+          <div className="report-section-card">
+            <div className="section-title">
+              <span className="section-icon" style={{ backgroundColor: '#722ed1' }}>4</span>
+              出行方式覆盖面积对比
+            </div>
+            <div className="area-comparison">
+              {/* 表头 */}
+              <div className="area-header">
+                <span className="area-mode">出行方式</span>
+                <span className="area-time">5min</span>
+                <span className="area-time">10min</span>
+                <span className="area-time">15min</span>
+              </div>
+              {/* 数据行 */}
+              {comparison?.map(item => (
+                <div key={item.mode} className="area-row">
+                  <span className="area-mode">{item.mode_name}</span>
+                  <div className="area-bar-cell">
+                    <div className="mini-bar">
+                      <div className="mini-bar-fill" style={{ width: `${(item.time_5 / 100) * 100}%`, backgroundColor: '#95de64' }}></div>
+                    </div>
+                    <span className="area-num">{item.time_5}</span>
+                  </div>
+                  <div className="area-bar-cell">
+                    <div className="mini-bar">
+                      <div className="mini-bar-fill" style={{ width: `${(item.time_10 / 200) * 100}%`, backgroundColor: '#69b1ff' }}></div>
+                    </div>
+                    <span className="area-num">{item.time_10}</span>
+                  </div>
+                  <div className="area-bar-cell">
+                    <div className="mini-bar">
+                      <div className="mini-bar-fill" style={{ width: `${(item.time_15 / 200) * 100}%`, backgroundColor: '#667eea' }}></div>
+                    </div>
+                    <span className="area-num">{item.time_15}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="area-unit">单位：km²</div>
+            </div>
+          </div>
+
+          {/* 盲区分析 */}
+          <div className="report-section-card">
+            <div className="section-title">
+              <span className="section-icon" style={{ backgroundColor: '#faad14' }}>5</span>
+              服务盲区分析
+            </div>
+            {blindSpots.length > 0 ? (
+              <div className="blind-spots">
+                {blindSpots.map((spot, index) => (
+                  <div key={index} className="blind-spot-card">
+                    <div className="spot-badge">{index + 1}</div>
+                    <div className="spot-content">
+                      <div className="spot-category">{spot.category}</div>
+                      <div className="spot-desc">{spot.description || `该区域${spot.category}设施覆盖不足`}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="no-blind-spots">
+                <span className="check-icon">✓</span>
+                未发现明显服务盲区，覆盖良好
+              </div>
+            )}
+          </div>
+
+          {/* 规划建议 */}
+          <div className="report-section-card">
+            <div className="section-title">
+              <span className="section-icon" style={{ backgroundColor: '#eb2f96' }}>6</span>
+              规划建议
+            </div>
+            <div className="suggestions">
+              {suggestions.length > 0 ? (
+                suggestions.map((suggestion, index) => (
+                  <div key={index} className="suggestion-item">
+                    <div className="suggestion-header">
+                      {getPriorityTag(suggestion.priority)}
+                      <span className="suggestion-cat">{suggestion.category}</span>
+                    </div>
+                    <div className="suggestion-text">{suggestion.message}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="no-suggestions">
+                  <span className="check-icon">✓</span>
+                  当前配置良好，暂无改善建议
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 出行方式评分对比 */}
+          <div className="report-section-card">
+            <div className="section-title">
+              <span className="section-icon" style={{ backgroundColor: '#13c2c2' }}>7</span>
+              出行方式评分对比
+            </div>
+            <div className="mode-comparison">
+              {fullModeData && Object.entries(fullModeData).map(([mode, data]: [string, any]) => (
+                <div key={mode} className="mode-row">
+                  <span className="mode-label">{data.mode_name}</span>
+                  <div className="mode-bar-bg">
+                    <div
+                      className="mode-bar-fill"
+                      style={{
+                        width: `${data.score?.total || 0}%`,
+                        backgroundColor: getScoreColor(data.score?.level)
+                      }}
+                    ></div>
+                  </div>
+                  <span className="mode-score" style={{ color: getScoreColor(data.score?.level) }}>
+                    {data.score?.total || 0}
+                  </span>
+                  <span className="mode-level" style={{ backgroundColor: getScoreColor(data.score?.level) }}>
+                    {data.score?.level}
                   </span>
                 </div>
               ))}
             </div>
           </div>
         </div>
+      </div>
 
-        {/* 右页：分析与建议 */}
-        <div className="report-right-page">
-          {/* 出行方式对比 */}
-          <div className="report-card">
-            <div className="card-header">出行方式覆盖面积对比</div>
-            <div className="area-comparison-chart">
-              {comparison?.map(item => (
-                <div key={item.mode} className="area-row">
-                  <span className="area-label">{item.mode_name}</span>
-                  <div className="area-bars-container">
-                    <div className="area-bar-item">
-                      <div className="area-bar-track">
-                        <div className="area-bar-fill" style={{ width: `${(item.time_5 / 200) * 100}%`, backgroundColor: '#95de64' }} />
-                      </div>
-                      <span className="area-val">{item.time_5} km²</span>
-                    </div>
-                    <div className="area-bar-item">
-                      <div className="area-bar-track">
-                        <div className="area-bar-fill" style={{ width: `${(item.time_10 / 200) * 100}%`, backgroundColor: '#69b1ff' }} />
-                      </div>
-                      <span className="area-val">{item.time_10} km²</span>
-                    </div>
-                    <div className="area-bar-item">
-                      <div className="area-bar-track">
-                        <div className="area-bar-fill" style={{ width: `${(item.time_15 / 200) * 100}%`, backgroundColor: '#667eea' }} />
-                      </div>
-                      <span className="area-val">{item.time_15} km²</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div className="chart-legend">
-                <span><i style={{ backgroundColor: '#95de64' }}></i>5min</span>
-                <span><i style={{ backgroundColor: '#69b1ff' }}></i>10min</span>
-                <span><i style={{ backgroundColor: '#667eea' }}></i>15min</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 盲区分析 */}
-          <div className="report-card">
-            <div className="card-header">服务盲区分析</div>
-            {blindSpots.length > 0 ? (
-              <div className="blind-spots-list">
-                {blindSpots.map((spot, index) => (
-                  <div key={index} className="blind-spot-item">
-                    <span className="spot-icon">!</span>
-                    <div className="spot-info">
-                      <span className="spot-cat">{spot.category}</span>
-                      <span className="spot-desc">{spot.description || `该区域${spot.category}设施覆盖不足`}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="no-data">未发现明显服务盲区</div>
-            )}
-          </div>
-
-          {/* 规划建议 */}
-          <div className="report-card">
-            <div className="card-header">规划建议</div>
-            {suggestions.length > 0 ? (
-              <div className="suggestions-list">
-                {suggestions.map((suggestion, index) => (
-                  <div key={index} className="suggestion-item">
-                    {getPriorityTag(suggestion.priority)}
-                    <span className="suggestion-cat">[{suggestion.category}]</span>
-                    <span className="suggestion-text">{suggestion.message}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="no-data">当前配置良好，暂无改善建议</div>
-            )}
-          </div>
-
-          {/* 出行方式评分 */}
-          <div className="report-card">
-            <div className="card-header">出行方式评分对比</div>
-            <div className="mode-scores">
-              {fullModeData && Object.entries(fullModeData).map(([mode, data]: [string, any]) => (
-                <div key={mode} className="mode-score-item">
-                  <span className="mode-name">{data.mode_name}</span>
-                  <div className="mode-score-bar">
-                    <div
-                      className="mode-score-fill"
-                      style={{
-                        width: `${data.score?.total || 0}%`,
-                        backgroundColor: getScoreColor(data.score?.level)
-                      }}
-                    />
-                  </div>
-                  <span className="mode-score-val" style={{ color: getScoreColor(data.score?.level) }}>
-                    {data.score?.total || 0}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* 结论 */}
+      <div className="report-conclusion">
+        <div className="conclusion-title">总结</div>
+        <div className="conclusion-text">
+          {communityName}15分钟生活圈综合评分为<strong>{score.total}分</strong>，处于<strong style={{ color: getScoreColor(score.level) }}>{score.level}</strong>水平。
+          步行15分钟覆盖面积{isochrone?.area ? (isochrone.area / 1000000).toFixed(2) : '0'}平方公里，
+          周边共有{totalFacilities}处设施。
+          {blindSpots.length > 0 && `发现${blindSpots.length}个服务盲区，建议优先完善相关设施。`}
+          {blindSpots.length === 0 && '未发现明显服务盲区，生活圈配置良好。'}
         </div>
       </div>
     </div>

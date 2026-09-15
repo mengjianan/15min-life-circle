@@ -619,12 +619,17 @@ function App() {
         {/* 综合报告区域 */}
         {fullResult && (
           <div className="report-section">
-            <div
-              className="report-header"
-              onClick={() => setReportExpanded(!reportExpanded)}
-            >
-              <h3>15分钟生活圈体检报告</h3>
-              <Icons.ChevronDown />
+            {/* 整条下拉框 */}
+            <div className="report-dropdown-bar">
+              <span className="report-dropdown-label">分析内容概览</span>
+              <select
+                className="report-dropdown-select"
+                value={reportExpanded ? 'expanded' : 'collapsed'}
+                onChange={(e) => setReportExpanded(e.target.value === 'expanded')}
+              >
+                <option value="expanded">展开报告</option>
+                <option value="collapsed">收起报告</option>
+              </select>
             </div>
             {reportExpanded && (
               <div className="report-content">
