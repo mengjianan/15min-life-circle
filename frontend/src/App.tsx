@@ -392,6 +392,13 @@ function App() {
                 loading={loading}
                 selectedFacility={selectedFacility}
                 activeTimeSlot={activeTimeSlot}
+                multiTimeData={modeData?.time_slots ? {
+                  layers: Object.entries(modeData.time_slots).map(([key, slot]: [string, any]) => ({
+                    time: Number(key),
+                    boundary_points: slot.boundary_points,
+                    area: slot.area
+                  }))
+                } : undefined}
               />
             </div>
 

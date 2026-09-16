@@ -44,18 +44,8 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
             time_seconds = time_minutes * 60
             isochrone_result = await engine.calculate_isochrone(center, max_time=time_seconds)
 
-            if speed_multiplier != 1.0:
-                scaled_points = []
-                for p in isochrone_result.boundary_points:
-                    dlng = p.lng - center.lng
-                    dlat = p.lat - center.lat
-                    scaled_points.append(GeoPoint(
-                        lng=center.lng + dlng * speed_multiplier,
-                        lat=center.lat + dlat * speed_multiplier
-                    ))
-                boundary_points = scaled_points
-            else:
-                boundary_points = isochrone_result.boundary_points
+            # 直接使用后端计算的实际边界点，不进行缩放
+            boundary_points = isochrone_result.boundary_points
 
             area = engine.calculate_area(boundary_points)
             search_radius = int(1500 * speed_multiplier)
