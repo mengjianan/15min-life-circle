@@ -9,6 +9,14 @@ interface ReportProps {
     categories: Record<string, number>;
     blind_spot_penalty: number;
   };
+  fengshuiScore?: {
+    total: number;
+    level: string;
+    terrain: number;
+    water: number;
+    environment: number;
+    orientation: number;
+  };
   suggestions: Array<{
     category: string;
     priority: string;
@@ -44,6 +52,7 @@ interface ReportProps {
 const Report: React.FC<ReportProps> = ({
   communityName,
   score,
+  fengshuiScore,
   suggestions,
   blindSpots,
   poiCoverage,
@@ -55,13 +64,13 @@ const Report: React.FC<ReportProps> = ({
 }) => {
   // 根据出行方式和时间维度获取动态评分
   const getDynamicCategories = () => {
+    let categories: Record<string, number> = {};
+    
     if (fullModeData && activeMode && activeTimeSlot) {
       const modeData = (fullModeData as any)[activeMode];
       if (modeData && modeData.time_slots) {
         const slotData = modeData.time_slots[String(activeTimeSlot)];
         if (slotData && slotData.poi_coverage) {
-          // 根据poi_coverage计算各分类评分
-          const categories: Record<string, number> = {};
           Object.entries(slotData.poi_coverage).forEach(([category, data]: [string, any]) => {
             const count = data.count || 0;
             if (count >= 8) categories[category] = 100;
@@ -71,11 +80,23 @@ const Report: React.FC<ReportProps> = ({
             else if (count >= 1) categories[category] = 60;
             else categories[category] = 40;
           });
-          return categories;
         }
       }
     }
-    return score.categories; // 默认返回
+    
+    if (Object.keys(categories).length === 0) {
+      categories = score.categories;
+    }
+    
+    // 添加风水评分维度
+    if (fengshuiScore) {
+      categories['地形'] = fengshuiScore.terrain;
+      categories['水系'] = fengshuiScore.water;
+      categories['环境'] = fengshuiScore.environment;
+      categories['方位'] = fengshuiScore.orientation;
+    }
+    
+    return categories;
   };
 
   const dynamicCategories = getDynamicCategories();

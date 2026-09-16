@@ -8,10 +8,15 @@ import os
 from datetime import datetime, date
 import json
 import sqlite3
+from pathlib import Path
+from dotenv import load_dotenv
+
+# 加载.env文件
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 # 配置
-USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "true").lower() == "true"  # 默认使用模拟数据
-DAILY_API_LIMIT = int(os.getenv("DAILY_API_LIMIT", "1000"))  # 每日API调用限制
+USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "false").lower() == "true"  # 默认不使用模拟数据
+DAILY_API_LIMIT = int(os.getenv("DAILY_API_LIMIT", "50000"))  # 每日API调用限制
 DB_PATH = os.getenv("DATABASE_URL", "sqlite:///./data/cache.db").replace("sqlite:///", "")
 
 
@@ -23,57 +28,48 @@ class APIProtection:
 
     def _init_db(self):
         """初始化数据库"""
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS api_usage (
-                date TEXT PRIMARY KEY,
-                count INTEGER DEFAULT 0
-            )
-        """)
-        conn.commit()
-        conn.close()
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS api_usage (
+                    date TEXT PRIMARY KEY,
+                    count INTEGER DEFAULT 0
+                )
+            """)
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"初始化数据库失败: {e}")
 
     def get_today_usage(self) -> int:
-        """获取今日API调用次数"""
-        today = date.today().isoformat()
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT count FROM api_usage WHERE date = ?", (today,))
-        row = cursor.fetchone()
-        conn.close()
-        return row[0] if row else 0
-
-    def increment_usage(self) -> bool:
-        """
-        增加API调用计数
-
-        Returns:
-            True if within limit, False if exceeded
-        """
-        today = date.today().isoformat()
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        # 获取当前计数
-        cursor.execute("SELECT count FROM api_usage WHERE date = ?", (today,))
-        row = cursor.fetchone()
-        current_count = row[0] if row else 0
-
-        # 检查是否超过限制
-        if current_count >= DAILY_API_LIMIT:
+        """获取今日API使用量"""
+        try:
+            today = date.today().isoformat()
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT count FROM api_usage WHERE date = ?", (today,))
+            result = cursor.fetchone()
             conn.close()
-            return False
+            return result[0] if result else 0
+        except Exception as e:
+            print(f"获取使用量失败: {e}")
+            return 0
 
-        # 更新计数
-        cursor.execute("""
-            INSERT INTO api_usage (date, count) VALUES (?, 1)
-            ON CONFLICT(date) DO UPDATE SET count = count + 1
-        """, (today,))
-
-        conn.commit()
-        conn.close()
-        return True
+    def increment_usage(self):
+        """增加今日使用量"""
+        try:
+            today = date.today().isoformat()
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO api_usage (date, count) VALUES (?, 1)
+                ON CONFLICT(date) DO UPDATE SET count = count + 1
+            """, (today,))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"更新使用量失败: {e}")
 
     def should_use_mock(self) -> bool:
         """
@@ -84,13 +80,16 @@ class APIProtection:
         """
         # 如果配置为使用模拟数据
         if USE_MOCK_DATA:
+            print("配置为使用模拟数据")
             return True
 
         # 如果超过每日限制
-        if self.get_today_usage() >= DAILY_API_LIMIT:
+        usage = self.get_today_usage()
+        if usage >= DAILY_API_LIMIT:
             print(f"API调用已达每日限制({DAILY_API_LIMIT})，使用模拟数据")
             return True
 
+        print(f"使用真实API数据 (今日已用: {usage}/{DAILY_API_LIMIT})")
         return False
 
     def get_status(self) -> dict:
@@ -105,21 +104,3 @@ class APIProtection:
 
 # 全局实例
 api_protection = APIProtection()
-
-
-# 在baidu_map.py中使用示例：
-"""
-from api_protection import api_protection
-
-async def search_poi(self, location, query, radius=1500):
-    # 检查是否使用模拟数据
-    if api_protection.should_use_mock():
-        return self._generate_mock_poi(location, query)
-
-    # 检查API额度
-    if not api_protection.increment_usage():
-        return self._generate_mock_poi(location, query)
-
-    # 调用真实API
-    ...
-"""

@@ -40,3 +40,4 @@ backend/data/
 # Logs
 *.log
 logs/
+.env

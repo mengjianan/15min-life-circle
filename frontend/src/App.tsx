@@ -107,6 +107,7 @@ function App() {
     { id: 'report', label: '生成报告', status: 'pending' },
   ]);
   const [showProgress, setShowProgress] = useState(false);
+  const [fengshuiScore, setFengshuiScore] = useState<any>(null);
 
   useEffect(() => {
     if (SAMPLE_COMMUNITIES.length > 0) {
@@ -194,6 +195,22 @@ function App() {
   // 延迟函数
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+  const fetchFengshuiScore = async (lng: number, lat: number) => {
+    try {
+      const response = await fetch('/api/fengshui/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lng, lat }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setFengshuiScore(data);
+      }
+    } catch (err) {
+      console.error('获取风水评分失败:', err);
+    }
+  };
+
   const handleAnalyze = async () => {
     const center = getCurrentCenter();
     if (!center) return;
@@ -246,6 +263,8 @@ function App() {
     } finally {
       setLoading(false);
       setShowProgress(false);
+      // 获取风水评分
+      fetchFengshuiScore(center.lng, center.lat);
     }
   };
 
@@ -641,6 +660,7 @@ function App() {
                 <Report
                   communityName={fullResult.community_name}
                   score={modeData?.score || { total: 0, level: '需改善', categories: {}, blind_spot_penalty: 0 }}
+                  fengshuiScore={fengshuiScore}
                   suggestions={modeData?.suggestions || []}
                   blindSpots={timeSlotData?.blind_spots || []}
                   poiCoverage={timeSlotData?.poi_coverage || {}}
