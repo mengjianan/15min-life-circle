@@ -390,8 +390,6 @@ function App() {
                 blindSpots={timeSlotData?.blind_spots}
                 loading={loading}
                 selectedFacility={selectedFacility}
-                onFacilityClose={() => setSelectedFacility(null)}
-                travelMode={activeMode}
               />
             </div>
 
