@@ -2452,3 +2452,80 @@ body {
   color: white;
   border-color: #667eea;
 }
+
+/* ==================== Chart Components ==================== */
+.chart-container { padding: 16px; }
+.chart-title { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 16px; text-align: center; }
+.mode-scores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
+.mode-score-item { text-align: center; padding: 12px 8px; border-radius: 8px; background: #f5f5f5; cursor: pointer; transition: all 0.3s; }
+.mode-score-item:hover { background: #e6f7ff; }
+.mode-score-item.active { background: #e6f7ff; border: 2px solid #1890ff; }
+.mode-score-name { font-size: 12px; color: #666; margin-bottom: 8px; }
+.mode-score-value { font-size: 24px; font-weight: 700; }
+.mode-score-level { display: inline-block; padding: 2px 8px; border-radius: 4px; color: white; font-size: 12px; margin-top: 8px; }
+.fengshui-radar-container { padding: 16px; }
+.fengshui-details { margin-top: 16px; }
+.fengshui-total { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; padding: 12px; background: #f9f0ff; border-radius: 8px; }
+.total-label { font-size: 14px; color: #666; }
+.total-value { font-size: 28px; font-weight: 700; }
+.total-level { padding: 4px 12px; border-radius: 4px; color: white; font-size: 14px; }
+.fengshui-dimensions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.dimension-item { display: flex; align-items: center; gap: 8px; }
+.dimension-name { width: 40px; font-size: 12px; color: #666; }
+.dimension-bar-bg { flex: 1; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+.dimension-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.dimension-score { width: 30px; text-align: right; font-size: 12px; font-weight: 600; }
+.pie-chart-wrapper { display: flex; flex-direction: column; align-items: center; }
+.facility-legend { width: 100%; margin-top: 16px; }
+.legend-item { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+.legend-dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+.legend-name { flex: 1; font-size: 13px; color: #333; }
+.legend-count { font-size: 13px; color: #666; margin-right: 12px; }
+.legend-percent { font-size: 13px; color: #999; width: 50px; text-align: right; }
+.legend-total { display: flex; justify-content: space-between; padding: 8px 0; font-weight: 600; color: #333; border-top: 2px solid #333; margin-top: 8px; }
+.total-count { font-size: 16px; }
+.time-slot-details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+.time-detail-item { text-align: center; padding: 12px; border-radius: 8px; background: #f5f5f5; cursor: pointer; transition: all 0.3s; }
+.time-detail-item:hover { background: #e6f7ff; }
+.time-detail-item.active { background: #e6f7ff; border: 2px solid #1890ff; }
+.detail-time { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px; }
+.detail-stats { display: flex; flex-direction: column; gap: 4px; }
+.stat-item { font-size: 12px; color: #666; }
+.stat-icon { margin-right: 4px; }
+.empty-chart { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; }
+.no-data { color: #999; font-size: 14px; }
+.report-charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
+.chart-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 20px; }
+.chart-card.score-summary-card { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.score-summary { text-align: center; margin-bottom: 20px; }
+.score-big-number { font-size: 64px; font-weight: 700; line-height: 1; }
+.score-unit { font-size: 18px; color: #666; margin-top: 4px; }
+.score-level-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; color: white; font-size: 16px; margin-top: 12px; }
+.key-metrics-summary { width: 100%; }
+.metric-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+.metric-item:last-child { border-bottom: none; }
+.metric-icon { font-size: 18px; margin-right: 12px; }
+.metric-label { flex: 1; font-size: 14px; color: #666; }
+.metric-value { font-size: 16px; font-weight: 600; color: #333; }
+.radar-legend { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 16px; }
+.radar-legend-item { display: flex; justify-content: space-between; padding: 6px 12px; background: #f5f5f5; border-radius: 4px; }
+.blind-spots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.blind-spot-card { display: flex; align-items: flex-start; gap: 12px; padding: 16px; background: #fff7e6; border: 1px solid #ffd591; border-radius: 8px; }
+.spot-number { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: #faad14; color: white; border-radius: 50%; font-size: 14px; font-weight: 600; flex-shrink: 0; }
+.spot-content { flex: 1; }
+.spot-category { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 4px; }
+.spot-desc { font-size: 13px; color: #666; }
+.suggestions-list { display: flex; flex-direction: column; gap: 12px; }
+.suggestion-item { padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #1890ff; }
+.suggestion-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.priority-tag { padding: 2px 8px; border-radius: 4px; color: white; font-size: 12px; }
+.suggestion-cat { font-size: 14px; font-weight: 600; color: #333; }
+.suggestion-text { font-size: 14px; color: #666; line-height: 1.6; }
+.no-blind-spots, .no-suggestions { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 24px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 8px; color: #52c41a; font-size: 14px; }
+.check-icon { font-size: 18px; }
+.report-conclusion { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 24px; color: white; margin-top: 16px; }
+.conclusion-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+.conclusion-text { font-size: 14px; line-height: 1.8; }
+.conclusion-text p { margin-bottom: 8px; }
+.conclusion-text p:last-child { margin-bottom: 0; }
+.conclusion-text strong { font-weight: 600; }
