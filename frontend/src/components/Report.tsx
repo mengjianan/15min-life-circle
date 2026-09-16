@@ -198,6 +198,25 @@ const Report: React.FC<ReportProps> = ({
             <div className="radar-chart-wrapper">
               <RadarChart categories={score.categories} />
             </div>
+            <div className="radar-summary">
+              <div className="radar-summary-title">设施覆盖分析</div>
+              <div className="radar-summary-content">
+                {Object.entries(score.categories).map(([category, categoryScore]) => (
+                  <div key={category} className="radar-summary-item">
+                    <span className="radar-category-name">{category}:</span>
+                    <span className="radar-category-score" style={{ color: getCategoryScoreColor(categoryScore as number) }}>{categoryScore}分</span>
+                    <span className="radar-category-level">
+                      {(categoryScore as number) >= 90 ? '优秀' : 
+                       (categoryScore as number) >= 75 ? '良好' : 
+                       (categoryScore as number) >= 60 ? '一般' : '需改善'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="radar-overall">
+                综合评分: <strong style={{ color: getScoreColor(score.level) }}>{score.total}分</strong> - {score.level}
+              </div>
+            </div>
           </div>
 
           {/* 盲区分析 */}

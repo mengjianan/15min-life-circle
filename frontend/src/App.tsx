@@ -623,7 +623,10 @@ function App() {
             {/* 点击展开/收起按钮 */}
             <div className="report-dropdown-bar" onClick={() => setReportExpanded(!reportExpanded)}>
               <span className="report-dropdown-label">15分钟生活圈体检报告</span>
-              <span className="report-toggle-btn">{reportExpanded ? "收起报告" : "展开报告"}</span>
+              <span className="report-toggle-btn">
+                <span className="toggle-text">{reportExpanded ? "收起报告" : "展开报告"}</span>
+                <span className="toggle-arrow">{reportExpanded ? "▲" : "▼"}</span>
+              </span>
             </div>
             {reportExpanded && (
               <div className="report-content">

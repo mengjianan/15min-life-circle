@@ -178,7 +178,7 @@
 }
 
 .metric-value {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: #1a1a2e;
 }
@@ -523,4 +523,82 @@
   .metrics-row {
     grid-template-columns: 1fr;
   }
+}
+/* 报告切换按钮样式 */
+.report-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.report-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.toggle-arrow {
+  font-size: 12px;
+  transition: transform 0.3s;
+}
+
+/* 雷达图摘要样式 */
+.radar-summary {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.radar-summary-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.radar-summary-content {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.radar-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.radar-category-name {
+  color: #666;
+  min-width: 40px;
+}
+
+.radar-category-score {
+  font-weight: 600;
+  min-width: 35px;
+}
+
+.radar-category-level {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #e8e8e8;
+  color: #666;
+}
+
+.radar-overall {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e8e8e8;
+  font-size: 14px;
+  color: #333;
+  text-align: center;
 }
