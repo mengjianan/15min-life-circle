@@ -1,4 +1,5 @@
 import React from 'react';
+import RadarChart from './RadarChart';
 
 interface ReportProps {
   communityName: string;
@@ -46,7 +47,7 @@ const Report: React.FC<ReportProps> = ({
   poiCoverage,
   isochrone,
   fullModeData,
-  comparison
+  // comparison
 }) => {
   const getScoreColor = (level: string) => {
     switch (level) {
@@ -188,45 +189,14 @@ const Report: React.FC<ReportProps> = ({
 
         {/* 右页 */}
         <div className="report-page right-page">
-          {/* 出行方式覆盖面积对比 */}
+          {/* 设施覆盖雷达图 */}
           <div className="report-section-card">
             <div className="section-title">
               <span className="section-icon" style={{ backgroundColor: '#722ed1' }}>4</span>
-              出行方式覆盖面积对比
+              设施覆盖雷达图
             </div>
-            <div className="area-comparison">
-              {/* 表头 */}
-              <div className="area-header">
-                <span className="area-mode">出行方式</span>
-                <span className="area-time">5min</span>
-                <span className="area-time">10min</span>
-                <span className="area-time">15min</span>
-              </div>
-              {/* 数据行 */}
-              {comparison?.map(item => (
-                <div key={item.mode} className="area-row">
-                  <span className="area-mode">{item.mode_name}</span>
-                  <div className="area-bar-cell">
-                    <div className="mini-bar">
-                      <div className="mini-bar-fill" style={{ width: `${(item.time_5 / 100) * 100}%`, backgroundColor: '#95de64' }}></div>
-                    </div>
-                    <span className="area-num">{item.time_5}</span>
-                  </div>
-                  <div className="area-bar-cell">
-                    <div className="mini-bar">
-                      <div className="mini-bar-fill" style={{ width: `${(item.time_10 / 200) * 100}%`, backgroundColor: '#69b1ff' }}></div>
-                    </div>
-                    <span className="area-num">{item.time_10}</span>
-                  </div>
-                  <div className="area-bar-cell">
-                    <div className="mini-bar">
-                      <div className="mini-bar-fill" style={{ width: `${(item.time_15 / 200) * 100}%`, backgroundColor: '#667eea' }}></div>
-                    </div>
-                    <span className="area-num">{item.time_15}</span>
-                  </div>
-                </div>
-              ))}
-              <div className="area-unit">单位：km²</div>
+            <div className="radar-chart-wrapper">
+              <RadarChart categories={score.categories} />
             </div>
           </div>
 

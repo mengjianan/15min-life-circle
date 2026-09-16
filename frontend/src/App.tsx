@@ -618,16 +618,10 @@ function App() {
         {fullResult && (
           <div className="report-section">
             {/* 整条下拉框 */}
-            <div className="report-dropdown-bar">
-              <span className="report-dropdown-label">分析内容概览</span>
-              <select
-                className="report-dropdown-select"
-                value={reportExpanded ? 'expanded' : 'collapsed'}
-                onChange={(e) => setReportExpanded(e.target.value === 'expanded')}
-              >
-                <option value="expanded">展开报告</option>
-                <option value="collapsed">收起报告</option>
-              </select>
+            {/* 点击展开/收起按钮 */}
+            <div className="report-dropdown-bar" onClick={() => setReportExpanded(!reportExpanded)}>
+              <span className="report-dropdown-label">15分钟生活圈体检报告</span>
+              <span className="report-toggle-btn">{reportExpanded ? "收起报告" : "展开报告"}</span>
             </div>
             {reportExpanded && (
               <div className="report-content">
