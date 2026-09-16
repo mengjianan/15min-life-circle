@@ -654,3 +654,54 @@
   color: #666;
   line-height: 1.5;
 }
+
+/* 设施分布统计样式 */
+.facility-distribution {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.distribution-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.distribution-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 80px;
+}
+
+.distribution-category {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.distribution-count {
+  font-size: 12px;
+  color: #666;
+}
+
+.distribution-bar-bg {
+  flex: 1;
+  height: 12px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.distribution-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.distribution-percentage {
+  font-size: 12px;
+  color: #666;
+  min-width: 35px;
+  text-align: right;
+}

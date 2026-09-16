@@ -202,12 +202,15 @@ const MapView: React.FC<MapViewProps> = ({
         });
       }
 
-      // 绘制POI设施
+      // 绘制POI设施（累积显示：15分钟包含10分钟和5分钟的所有设施）
       if (showPOI && poiCoverage) {
-        // 获取当前选中的等时圈边界点
+        // 获取当前选中时间及更小时间的等时圈边界点
         let currentPolygon: {lng: number, lat: number}[] = [];
         if (multiTimeData && multiTimeData.layers) {
-          const selectedLayer = multiTimeData.layers.find((l: any) => l.time === activeTimeSlot);
+          // 获取所有小于等于当前选中时间的层
+          const validLayers = multiTimeData.layers.filter((l: any) => l.time <= activeTimeSlot);
+          // 使用最大的时间层作为过滤边界（这样15分钟会包含所有设施）
+          const selectedLayer = validLayers.sort((a: any, b: any) => b.time - a.time)[0];
           if (selectedLayer && selectedLayer.boundary_points) {
             currentPolygon = selectedLayer.boundary_points;
           }

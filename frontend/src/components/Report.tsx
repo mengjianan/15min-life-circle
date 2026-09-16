@@ -37,6 +37,8 @@ interface ReportProps {
     time_10: number;
     time_15: number;
   }>;
+  activeMode?: string;
+  activeTimeSlot?: number;
 }
 
 const Report: React.FC<ReportProps> = ({
@@ -47,8 +49,37 @@ const Report: React.FC<ReportProps> = ({
   poiCoverage,
   isochrone,
   fullModeData,
-  // comparison
+  // comparison,
+  activeMode = 'walking',
+  activeTimeSlot = 900
 }) => {
+  // 根据出行方式和时间维度获取动态评分
+  const getDynamicCategories = () => {
+    if (fullModeData && activeMode && activeTimeSlot) {
+      const modeData = (fullModeData as any)[activeMode];
+      if (modeData && modeData.time_slots) {
+        const slotData = modeData.time_slots[String(activeTimeSlot)];
+        if (slotData && slotData.poi_coverage) {
+          // 根据poi_coverage计算各分类评分
+          const categories: Record<string, number> = {};
+          Object.entries(slotData.poi_coverage).forEach(([category, data]: [string, any]) => {
+            const count = data.count || 0;
+            if (count >= 8) categories[category] = 100;
+            else if (count >= 5) categories[category] = 90;
+            else if (count >= 3) categories[category] = 80;
+            else if (count >= 2) categories[category] = 70;
+            else if (count >= 1) categories[category] = 60;
+            else categories[category] = 40;
+          });
+          return categories;
+        }
+      }
+    }
+    return score.categories; // 默认返回
+  };
+
+  const dynamicCategories = getDynamicCategories();
+
   const getScoreColor = (level: string) => {
     switch (level) {
       case '优秀': return '#52c41a';
@@ -196,12 +227,12 @@ const Report: React.FC<ReportProps> = ({
               设施覆盖雷达图
             </div>
             <div className="radar-chart-wrapper">
-              <RadarChart categories={score.categories} />
+              <RadarChart categories={dynamicCategories} />
             </div>
             <div className="radar-summary">
               <div className="radar-summary-title">设施覆盖分析</div>
               <div className="radar-summary-content">
-                {Object.entries(score.categories).map(([category, categoryScore]) => (
+                {Object.entries(dynamicCategories).map(([category, categoryScore]) => (
                   <div key={category} className="radar-summary-item">
                     <span className="radar-category-name">{category}:</span>
                     <span className="radar-category-score" style={{ color: getCategoryScoreColor(categoryScore as number) }}>{categoryScore}分</span>
@@ -219,7 +250,7 @@ const Report: React.FC<ReportProps> = ({
             </div>
             <div className="radar-detail">
               <div className="radar-detail-title">各设施详细分析</div>
-              {Object.entries(score.categories).map(([category, categoryScore]) => {
+              {Object.entries(dynamicCategories).map(([category, categoryScore]) => {
                 const scoreValue = categoryScore as number;
                 const level = scoreValue >= 90 ? '优秀' : scoreValue >= 75 ? '良好' : scoreValue >= 60 ? '一般' : '需改善';
                 const description = scoreValue >= 90 
@@ -324,6 +355,45 @@ const Report: React.FC<ReportProps> = ({
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* 设施分布饼图 */}
+      <div className="report-section-card">
+        <div className="section-title">
+          <span className="section-icon" style={{ backgroundColor: '#722ed1' }}>8</span>
+          设施分布统计
+        </div>
+        <div className="facility-distribution">
+          {Object.entries(poiCoverage || {}).map(([category, data]: [string, any]) => {
+            const count = data.count || 0;
+            const total = Object.values(poiCoverage || {}).reduce((sum: number, d: any) => sum + (d.count || 0), 0);
+            const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+            const colors: Record<string, string> = {
+              '医疗': '#ff4d4f',
+              '教育': '#1890ff',
+              '购物': '#52c41a',
+              '养老': '#722ed1',
+              '文体': '#fa8c16',
+              '餐饮': '#eb2f96',
+            };
+            const color = colors[category] || '#666';
+            return (
+              <div key={category} className="distribution-item">
+                <div className="distribution-header">
+                  <span className="distribution-category" style={{ color }}>{category}</span>
+                  <span className="distribution-count">{count}个</span>
+                </div>
+                <div className="distribution-bar-bg">
+                  <div 
+                    className="distribution-bar-fill" 
+                    style={{ width: `${percentage}%`, backgroundColor: color }}
+                  ></div>
+                </div>
+                <span className="distribution-percentage">{percentage}%</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

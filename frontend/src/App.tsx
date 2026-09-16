@@ -650,6 +650,8 @@ function App() {
                   } : undefined}
                   fullModeData={fullResult.modes}
                   comparison={fullResult.comparison}
+                  activeMode={activeMode}
+                  activeTimeSlot={activeTimeSlot}
                 />
               </div>
             )}
