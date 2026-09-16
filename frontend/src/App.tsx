@@ -391,6 +391,7 @@ function App() {
                 blindSpots={timeSlotData?.blind_spots}
                 loading={loading}
                 selectedFacility={selectedFacility}
+                activeTimeSlot={activeTimeSlot}
               />
             </div>
 

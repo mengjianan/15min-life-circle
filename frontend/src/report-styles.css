@@ -602,3 +602,55 @@
   color: #333;
   text-align: center;
 }
+
+/* 雷达图详细分析样式 */
+.radar-detail {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.radar-detail-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.radar-detail-item {
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.detail-category {
+  font-weight: 600;
+  color: #333;
+  min-width: 40px;
+}
+
+.detail-score {
+  font-weight: 600;
+  min-width: 35px;
+}
+
+.detail-level {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: white;
+}
+
+.detail-desc {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}

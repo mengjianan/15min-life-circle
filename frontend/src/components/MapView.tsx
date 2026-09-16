@@ -1,6 +1,24 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import LoadingOverlay from './LoadingOverlay';
 
+// 判断点是否在多边形内
+const isPointInPolygon = (point: {lng: number, lat: number}, polygon: {lng: number, lat: number}[]) => {
+  const x = point.lng;
+  const y = point.lat;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lng;
+    const yi = polygon[i].lat;
+    const xj = polygon[j].lng;
+    const yj = polygon[j].lat;
+    const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+};
+
+
+
 interface MapViewProps {
   center: { lng: number; lat: number; name: string } | null;
   isochrone?: any;
@@ -10,6 +28,7 @@ interface MapViewProps {
   loading?: boolean;
   onCenterChange?: (lng: number, lat: number) => void;
   selectedFacility?: {name: string; category: string; location: {lng: number; lat: number}} | null;
+  activeTimeSlot?: number;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -20,7 +39,8 @@ const MapView: React.FC<MapViewProps> = ({
   multiTimeData,
   loading = false,
   onCenterChange,
-  selectedFacility
+  selectedFacility,
+  activeTimeSlot = 900
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -184,6 +204,15 @@ const MapView: React.FC<MapViewProps> = ({
 
       // 绘制POI设施
       if (showPOI && poiCoverage) {
+        // 获取当前选中的等时圈边界点
+        let currentPolygon: {lng: number, lat: number}[] = [];
+        if (multiTimeData && multiTimeData.layers) {
+          const selectedLayer = multiTimeData.layers.find((l: any) => l.time === activeTimeSlot);
+          if (selectedLayer && selectedLayer.boundary_points) {
+            currentPolygon = selectedLayer.boundary_points;
+          }
+        }
+        
         Object.entries(poiCoverage).forEach(([category, data]: [string, any]) => {
           if (data.facilities && data.facilities.length > 0) {
             const categoryColors: Record<string, string> = {
@@ -198,6 +227,10 @@ const MapView: React.FC<MapViewProps> = ({
 
             data.facilities.forEach((facility: any) => {
               if (facility.location) {
+                // 如果有等时圈，只显示在等时圈内的设施
+                if (currentPolygon.length > 0 && !isPointInPolygon(facility.location, currentPolygon)) {
+                  return; // 跳过不在等时圈内的设施
+                }
                 const point = new BMap.Point(facility.location.lng, facility.location.lat);
 
                 const icon = new BMap.Icon(

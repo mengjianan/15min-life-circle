@@ -217,6 +217,30 @@ const Report: React.FC<ReportProps> = ({
                 综合评分: <strong style={{ color: getScoreColor(score.level) }}>{score.total}分</strong> - {score.level}
               </div>
             </div>
+            <div className="radar-detail">
+              <div className="radar-detail-title">各设施详细分析</div>
+              {Object.entries(score.categories).map(([category, categoryScore]) => {
+                const scoreValue = categoryScore as number;
+                const level = scoreValue >= 90 ? '优秀' : scoreValue >= 75 ? '良好' : scoreValue >= 60 ? '一般' : '需改善';
+                const description = scoreValue >= 90 
+                  ? `${category}设施配置完善，覆盖全面，居民可便捷获取`
+                  : scoreValue >= 75 
+                  ? `${category}设施配置良好，基本满足居民日常需求`
+                  : scoreValue >= 60 
+                  ? `${category}设施配置一般，部分区域覆盖不足`
+                  : `${category}设施配置不足，需要重点加强建设`;
+                return (
+                  <div key={category} className="radar-detail-item">
+                    <div className="detail-header">
+                      <span className="detail-category">{category}</span>
+                      <span className="detail-score" style={{ color: getCategoryScoreColor(scoreValue) }}>{scoreValue}分</span>
+                      <span className="detail-level" style={{ backgroundColor: getCategoryScoreColor(scoreValue) }}>{level}</span>
+                    </div>
+                    <div className="detail-desc">{description}</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* 盲区分析 */}
