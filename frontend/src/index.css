@@ -267,6 +267,8 @@ body {
 
 /* 主内容区域 - 左右分栏 */
 .main-content {
+  height: calc(100vh - 200px);
+  min-height: 600px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
@@ -1353,6 +1355,8 @@ body {
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .main-content {
+  height: calc(100vh - 200px);
+  min-height: 600px;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
   }
@@ -1360,6 +1364,8 @@ body {
 
 @media (max-width: 1024px) {
   .main-content {
+  height: calc(100vh - 200px);
+  min-height: 600px;
     grid-template-columns: 1fr;
   }
 
@@ -2156,6 +2162,8 @@ body {
   }
 
   .main-content {
+  height: calc(100vh - 200px);
+  min-height: 600px;
     grid-template-columns: 1fr;
   }
 
