@@ -376,6 +376,7 @@ function App() {
                 <CustomCenter
                   onCenterSelect={handleCenterSelect}
                   currentCenter={getCurrentCenter()}
+                  onClose={() => setShowCustomCenter(false)}
                 />
               )}
               <MapView
@@ -579,6 +580,7 @@ function App() {
                 <CustomCenter
                   onCenterSelect={handleCenterSelect}
                   currentCenter={getCurrentCenter()}
+                  onClose={() => setShowCustomCenter(false)}
                 />
               )}
               <MapView
