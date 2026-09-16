@@ -828,7 +828,7 @@ body {
 }
 
 /* 报告区域两栏布局 */
-.report-section {
+.report-section-old {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
