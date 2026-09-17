@@ -1,6 +1,7 @@
 """
-全出行方式分析API
+全出行方式分析API（优化版）
 支持步行、骑行、公交、驾车4种出行方式并行分析
+优化：只查询15分钟POI，其他时间按距离过滤
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -22,7 +23,7 @@ class FullAnalysisRequest(BaseModel):
     community_name: Optional[str] = "示例社区"
 
 
-# 出行方式配置（速度倍率用于缩放等时圈范围）
+# 出行方式配置
 TRAVEL_MODES = {
     "walking": {"name": "步行", "speed": 1.2, "speed_multiplier": 1.0},
     "cycling": {"name": "骑行", "speed": 3.5, "speed_multiplier": 1.8},
@@ -30,8 +31,16 @@ TRAVEL_MODES = {
     "driving": {"name": "驾车", "speed": 8.0, "speed_multiplier": 2.8},
 }
 
+# 时间点对应的最大距离（米）
+TIME_DISTANCE_MAP = {
+    300: 600,   # 5分钟步行约600米
+    600: 1200,  # 10分钟步行约1200米
+    900: 1800,  # 15分钟步行约1800米
+}
+
 
 async def analyze_single_mode(mode, mode_config, center, location, community_name):
+    """分析单种出行方式（优化版：只查询15分钟POI）"""
     engine = IsochroneEngine()
     poi_analyzer = POIAnalyzer()
     blind_detector = BlindSpotDetector()
@@ -39,10 +48,28 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
     try:
         speed_multiplier = mode_config["speed_multiplier"]
         time_slots = {}
+        blind_spots_15min = []
+
+        # 只查询15分钟的POI数据（最大的范围）
+        search_radius = int(1800 * speed_multiplier)
+        coverage_15min = await poi_analyzer.analyze_coverage(location, radius=search_radius)
+
+        # 计算15分钟等时圈（用于盲区检测）
+        isochrone_15min = await engine.calculate_isochrone(center, max_time=900)
+
+        # 盲区检测（只做一次）
+        blind_spots_15min = await blind_detector.detect_blind_spots(
+            center=location, polygon=isochrone_15min.polygon
+        )
 
         for time_minutes in [5, 10, 15]:
             time_seconds = time_minutes * 60
-            isochrone_result = await engine.calculate_isochrone(center, max_time=time_seconds)
+
+            # 计算等时圈
+            if time_minutes == 15:
+                isochrone_result = isochrone_15min
+            else:
+                isochrone_result = await engine.calculate_isochrone(center, max_time=time_seconds)
 
             # 根据出行方式缩放等时圈范围
             if speed_multiplier != 1.0:
@@ -59,11 +86,21 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
                 boundary_points = isochrone_result.boundary_points
 
             area = engine.calculate_area(boundary_points)
-            search_radius = int(1500 * speed_multiplier)
-            coverage = await poi_analyzer.analyze_coverage(location, radius=search_radius)
-            blind_spots = await blind_detector.detect_blind_spots(
-                center=location, polygon=isochrone_result.polygon
-            )
+
+            # 根据时间点过滤设施（而不是重新查询）
+            if time_minutes == 15:
+                coverage = coverage_15min
+                blind_spots = blind_spots_15min
+            else:
+                # 根据距离过滤
+                max_distance = TIME_DISTANCE_MAP.get(time_seconds, 1800) * speed_multiplier
+                coverage = poi_analyzer.filter_coverage_by_distance(coverage_15min, max_distance)
+
+                # 过滤盲区
+                blind_spots = [
+                    spot for spot in blind_spots_15min
+                    if spot.get("distance", 0) <= max_distance
+                ]
 
             time_slots[str(time_seconds)] = {
                 "time": time_seconds,
@@ -201,6 +238,8 @@ async def generate_full_analysis(request: FullAnalysisRequest):
         center = GeoPoint(lng=request.lng, lat=request.lat)
         location = {"lng": request.lng, "lat": request.lat}
 
+        print(f"[分析开始] 位置: {request.lng}, {request.lat}, 社区: {request.community_name}")
+
         tasks = [
             analyze_single_mode(mode, config, center, location, request.community_name)
             for mode, config in TRAVEL_MODES.items()
@@ -230,6 +269,8 @@ async def generate_full_analysis(request: FullAnalysisRequest):
                     "time_5": round(time_5, 2), "time_10": round(time_10, 2), "time_15": round(time_15, 2)
                 })
 
+        print(f"[分析完成] 成功分析 {len([r for r in results if not isinstance(r, Exception)])} 种出行方式")
+
         return {
             "community_name": request.community_name,
             "center": {"lng": center.lng, "lat": center.lat},
@@ -238,4 +279,5 @@ async def generate_full_analysis(request: FullAnalysisRequest):
             "comparison": comparison
         }
     except Exception as e:
+        print(f"[分析失败] {e}")
         raise HTTPException(status_code=500, detail=str(e))

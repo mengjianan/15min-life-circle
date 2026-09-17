@@ -20,10 +20,10 @@ GEOCODER_API = f"{BAIDU_MAP_API_BASE}/geocoder/v2"
 DISTANCE_MATRIX_API = f"{BAIDU_MAP_API_BASE}/routematrix/v1"
 
 # 等时圈计算配置（优化版）
-ISOCHRONE_DIRECTIONS = 24  # 采样方向数（每15度一个，从36减少到24）
+ISOCHRONE_DIRECTIONS = 16  # 采样方向数（每15度一个，从36减少到24）
 ISOCHRONE_MAX_TIME = 15 * 60  # 15分钟（秒）
 ISOCHRONE_WALKING_SPEED = 1.2  # 步行速度（米/秒）
-BINARY_SEARCH_ITERATIONS = 6  # 二分搜索迭代次数（从8减少到6）
+BINARY_SEARCH_ITERATIONS = 4  # 二分搜索迭代次数（从8减少到6）
 MAX_SEARCH_RADIUS = 2000  # 最大搜索半径（米）
 
 # 快速模式配置（用于预览）

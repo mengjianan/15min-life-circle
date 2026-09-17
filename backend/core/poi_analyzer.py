@@ -1,17 +1,34 @@
 """
-POI分析器
-分析社区周边设施覆盖情况
+POI分析器（优化版）
+分析社区周边设施覆盖情况，支持缓存
 """
 from typing import Dict, List, Any
 from services.baidu_map import BaiduMapService
+from services.cache import cache_service, generate_cache_key
 from config import POI_TYPES, POI_RADIUS
 
 
 class POIAnalyzer:
-    """POI分析器"""
+    """POI分析器（带缓存）"""
 
     def __init__(self):
         self.baidu_map = BaiduMapService()
+        self.cache = cache_service
+
+    def _get_location_key(self, location: Dict[str, float], precision: int = 3) -> str:
+        """
+        生成位置缓存键（精度到小数点后3位，约110米范围）
+
+        Args:
+            location: 坐标
+            precision: 精度
+
+        Returns:
+            位置键
+        """
+        lng = round(location["lng"], precision)
+        lat = round(location["lat"], precision)
+        return f"{lng},{lat}"
 
     async def analyze_coverage(
         self,
@@ -19,7 +36,7 @@ class POIAnalyzer:
         radius: int = POI_RADIUS
     ) -> Dict[str, Any]:
         """
-        分析指定位置周边的POI覆盖情况
+        分析指定位置周边的POI覆盖情况（带缓存）
 
         Args:
             location: 中心点坐标 {"lng": x, "lat": y}
@@ -28,6 +45,16 @@ class POIAnalyzer:
         Returns:
             各类设施的覆盖统计
         """
+        location_key = self._get_location_key(location)
+        cache_key = f"poi_coverage:{location_key}:{radius}"
+
+        # 尝试从缓存获取
+        cached_result = self.cache.get(cache_key)
+        if cached_result is not None:
+            print(f"[缓存命中] POI数据: {location_key}")
+            return cached_result
+
+        print(f"[缓存未命中] 查询POI数据: {location_key}")
         coverage = {}
 
         for category, queries in POI_TYPES.items():
@@ -35,13 +62,27 @@ class POIAnalyzer:
             facilities = []
 
             for query in queries:
-                pois = await self.baidu_map.search_poi(
-                    location=location,
-                    query=query,
-                    radius=radius
-                )
-                total_count += len(pois)
-                facilities.extend(pois)
+                # 检查单个查询的缓存
+                query_cache_key = f"poi_query:{location_key}:{query}:{radius}"
+                cached_pois = self.cache.get(query_cache_key)
+
+                if cached_pois is not None:
+                    pois = cached_pois
+                    print(f"  [缓存命中] {query}: {len(pois)}条")
+                else:
+                    pois = await self.baidu_map.search_poi(
+                        location=location,
+                        query=query,
+                        radius=radius
+                    )
+                    # 缓存查询结果
+                    if pois is not None:
+                        self.cache.set(query_cache_key, pois, ttl=86400)  # 24小时
+                        print(f"  [API调用] {query}: {len(pois)}条")
+
+                if pois:
+                    total_count += len(pois)
+                    facilities.extend(pois)
 
             # 去重
             seen = set()
@@ -61,7 +102,41 @@ class POIAnalyzer:
                 "facilities": unique_facilities[:10]  # 只返回前10个
             }
 
+        # 缓存完整结果
+        self.cache.set(cache_key, coverage, ttl=86400)  # 24小时
+
         return coverage
+
+    def filter_coverage_by_distance(
+        self,
+        coverage: Dict[str, Any],
+        max_distance: float
+    ) -> Dict[str, Any]:
+        """
+        根据距离过滤设施（用于获取5分钟、10分钟的设施子集）
+
+        Args:
+            coverage: 15分钟的设施数据
+            max_distance: 最大距离（米）
+
+        Returns:
+            过滤后的设施数据
+        """
+        filtered = {}
+
+        for category, data in coverage.items():
+            filtered_facilities = [
+                f for f in data.get("facilities", [])
+                if f.get("distance", 0) <= max_distance
+            ]
+
+            filtered[category] = {
+                "count": len(filtered_facilities),
+                "level": self._evaluate_level(len(filtered_facilities)),
+                "facilities": filtered_facilities
+            }
+
+        return filtered
 
     def _evaluate_level(self, count: int) -> str:
         """
@@ -100,24 +175,12 @@ class POIAnalyzer:
         if category not in POI_TYPES:
             return None
 
-        queries = POI_TYPES[category]
-        nearest = None
-        min_distance = float('inf')
+        # 先获取该类别的所有设施
+        coverage = await self.analyze_coverage(location)
+        if category in coverage and coverage[category]["facilities"]:
+            return coverage[category]["facilities"][0]
 
-        for query in queries:
-            pois = await self.baidu_map.search_poi(
-                location=location,
-                query=query,
-                radius=2000
-            )
-
-            for poi in pois:
-                distance = poi.get("distance", float('inf'))
-                if distance and distance < min_distance:
-                    min_distance = distance
-                    nearest = poi
-
-        return nearest
+        return None
 
     async def calculate_satisfaction_score(
         self,
