@@ -247,12 +247,37 @@ const MapView: React.FC<MapViewProps> = ({
                 const marker = new BMap.Marker(point, { icon });
                 map.addOverlay(marker);
 
+                // 计算距离
+                const centerLng = center?.lng || 118.7969;
+                const centerLat = center?.lat || 32.0603;
+                const distance = facility.distance || Math.round(
+                  Math.sqrt(
+                    Math.pow((facility.location.lng - centerLng) * 111000 * Math.cos(centerLat * Math.PI / 180), 2) +
+                    Math.pow((facility.location.lat - centerLat) * 111000, 2)
+                  )
+                );
+
+                // 估算出行时间
+                const walkingTime = Math.round(distance / 1.2 / 60);
+                const cyclingTime = Math.round(distance / 3.5 / 60);
+                const drivingTime = Math.round(distance / 8 / 60);
+
                 const infoWindow = new BMap.InfoWindow(
-                  '<div style="padding: 8px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
-                    '<div style="font-weight: 600; color: #333;">' + facility.name + '</div>' +
-                    '<div style="font-size: 12px; color: ' + color + '; margin-top: 4px;">' + category + '</div>' +
+                  '<div style="padding: 12px; font-family: PingFang SC, Microsoft YaHei, sans-serif; min-width: 200px;">' +
+                    '<div style="font-weight: 600; color: #333; font-size: 14px; margin-bottom: 8px;">' + facility.name + '</div>' +
+                    '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">' +
+                      '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ' + color + ';"></span>' +
+                      '<span style="font-size: 13px; color: ' + color + ';">' + category + '</span>' +
+                    '</div>' +
+                    '<div style="display: grid; grid-template-columns: repeat(2, gap: 8px; font-size: 12px; color: #666;">' +
+                      '<div>📍 距离: ' + distance + '米</div>' +
+                      '<div>🚶 步行: ' + walkingTime + '分钟</div>' +
+                      '<div>🚲 骑行: ' + cyclingTime + '分钟</div>' +
+                      '<div>🚗 驾车: ' + drivingTime + '分钟</div>' +
+                    '</div>' +
+                    (facility.address ? '<div style="margin-top: 8px; font-size: 12px; color: #999;">' + facility.address + '</div>' : '') +
                   '</div>',
-                  { width: 200, height: 50 }
+                  { width: 280, height: 120 }
                 );
                 marker.addEventListener('click', () => {
                   map.openInfoWindow(infoWindow, point);

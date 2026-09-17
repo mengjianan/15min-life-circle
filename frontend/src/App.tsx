@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import MapView from './components/MapView';
 import Report from './components/Report';
 import CustomCenter from './components/CustomCenter';
@@ -98,6 +98,7 @@ function App() {
   const [selectedFacility, setSelectedFacility] = useState<POIItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
   const [showCustomCenter, setShowCustomCenter] = useState(false);
   const [reportExpanded, setReportExpanded] = useState(true);
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([
@@ -110,11 +111,6 @@ function App() {
   const [showProgress, setShowProgress] = useState(false);
   const [fengshuiScore, setFengshuiScore] = useState<any>(null);
 
-  useEffect(() => {
-    if (SAMPLE_COMMUNITIES.length > 0) {
-      setSelectedCommunity(SAMPLE_COMMUNITIES[0]);
-    }
-  }, []);
 
   // 获取当前出行方式数据
   const getCurrentModeData = (): TravelModeData | null => {
@@ -218,6 +214,7 @@ function App() {
 
     setLoading(true);
     setError(null);
+    setAnalysisMessage(null);
     setShowProgress(true);
 
     // 重置步骤状态
@@ -225,7 +222,7 @@ function App() {
 
     try {
       // 调用全出行方式分析API
-      updateStepStatus('walking', 'active', '分析步行范围...');
+      updateStepStatus('walking', 'active', '正在计算步行范围...');
 
       const response = await fetch(`${API_BASE_URL}/analysis/full-analysis`, {
         method: 'POST',
@@ -243,24 +240,65 @@ function App() {
 
       const result: FullAnalysisResult = await response.json();
 
-      // 更新步骤状态
-      updateStepStatus('walking', 'completed', '步行分析完成');
+      // 更新步骤状态 - 逐步显示
+      updateStepStatus('walking', 'completed', '步行范围计算完成');
+      setAnalysisMessage('🚶 步行分析完成，正在计算骑行范围...');
+      await delay(300);
+
+      updateStepStatus('cycling', 'active', '正在计算骑行范围...');
       await delay(200);
-      updateStepStatus('cycling', 'completed', '骑行分析完成');
+      updateStepStatus('cycling', 'completed', '骑行范围计算完成');
+      setAnalysisMessage('🚲 骑行分析完成，正在计算公交范围...');
+      await delay(300);
+
+      updateStepStatus('transit', 'active', '正在计算公交范围...');
       await delay(200);
-      updateStepStatus('transit', 'completed', '公交分析完成');
+      updateStepStatus('transit', 'completed', '公交范围计算完成');
+      setAnalysisMessage('🚌 公交分析完成，正在计算驾车范围...');
+      await delay(300);
+
+      updateStepStatus('driving', 'active', '正在计算驾车范围...');
       await delay(200);
-      updateStepStatus('driving', 'completed', '驾车分析完成');
-      await delay(200);
-      updateStepStatus('report', 'active', '生成报告...');
+      updateStepStatus('driving', 'completed', '驾车范围计算完成');
+      setAnalysisMessage('🚗 驾车分析完成，正在生成报告...');
+      await delay(300);
+
+      updateStepStatus('report', 'active', '生成综合报告...');
+
+      // 统计设施信息
+      let totalFacilities = 0;
+      const facilitySummary: Record<string, number> = {};
+
+      if (result.modes?.walking?.time_slots?.['900']?.poi_coverage) {
+        const coverage = result.modes.walking.time_slots['900'].poi_coverage;
+        Object.entries(coverage).forEach(([category, data]: [string, any]) => {
+          const count = data.count || 0;
+          totalFacilities += count;
+          facilitySummary[category] = count;
+        });
+      }
+
+      // 显示设施发现消息
+      const summaryText = Object.entries(facilitySummary)
+        .filter(([_, count]) => count > 0)
+        .map(([category, count]) => `${category}${count}处`)
+        .join('、');
+
+      if (summaryText) {
+        setAnalysisMessage(`🔍 发现${totalFacilities}处设施：${summaryText}`);
+        await delay(500);
+      }
 
       setFullResult(result);
-      await delay(500);
+      await delay(300);
+
       updateStepStatus('report', 'completed', '报告生成完成');
+      setAnalysisMessage('✅ 分析完成！');
 
       await delay(800);
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析过程中出现错误');
+      setAnalysisMessage(null);
     } finally {
       setLoading(false);
       setShowProgress(false);
@@ -318,7 +356,7 @@ function App() {
                 setCustomCenter(null);
               }}
             >
-              <option value="">选择社区</option>
+              <option value="" disabled>请选择社区</option>
               {SAMPLE_COMMUNITIES.map((community, index) => (
                 <option key={index} value={`${community.lng},${community.lat}`}>
                   {community.name}
@@ -384,6 +422,14 @@ function App() {
               <Icons.Refresh />
               重试
             </button>
+          </div>
+        )}
+
+        {/* 分析消息提示 */}
+        {analysisMessage && (
+          <div className="analysis-message-banner">
+            <span className="message-icon">ℹ️</span>
+            <span className="message-text">{analysisMessage}</span>
           </div>
         )}
 

@@ -24,7 +24,7 @@ const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
 
   return (
     <div className="analysis-progress-inline">
-      <div className="progress-info">
+      <div className="progress-info-row">
         <span className="progress-step-name">
           {activeStep ? activeStep.label : '准备中...'}
         </span>
