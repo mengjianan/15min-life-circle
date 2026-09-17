@@ -2529,3 +2529,243 @@ body {
 .conclusion-text p { margin-bottom: 8px; }
 .conclusion-text p:last-child { margin-bottom: 0; }
 .conclusion-text strong { font-weight: 600; }
+
+/* ==================== Feng Shui Card ==================== */
+.fengshui-card {
+  background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.fengshui-card-header {
+  font-size: 16px;
+  font-weight: 600;
+  color: #722ed1;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+/* ==================== Mode Comparison Simple ==================== */
+.mode-comparison-simple {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.mode-scores-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.mode-score-card {
+  text-align: center;
+  padding: 12px 8px;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 2px solid transparent;
+}
+
+.mode-score-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.mode-score-card.active {
+  border-color: #667eea;
+  background: #f0f5ff;
+}
+
+.mode-card-name {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.mode-card-score {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mode-card-level {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: white;
+  font-size: 11px;
+  margin-top: 8px;
+}
+
+/* ==================== Score Panel Improvements ==================== */
+.score-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+}
+
+.score-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  color: white;
+}
+
+.score-header {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+
+.score-value {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.score-level {
+  font-size: 18px;
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+/* ==================== Time Comparison ==================== */
+.time-comparison {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.time-comparison-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.time-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.time-button {
+  text-align: center;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 2px solid transparent;
+}
+
+.time-button:hover {
+  background: #e6f7ff;
+}
+
+.time-button.active {
+  background: #e6f7ff;
+  border-color: #1890ff;
+}
+
+.time-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.time-area {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* ==================== Key Metrics ==================== */
+.key-metrics {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.metric-row:last-child {
+  border-bottom: none;
+}
+
+.metric-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.metric-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* ==================== Category Scores ==================== */
+.category-scores {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.category-scores-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.category-score-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.category-name {
+  width: 50px;
+  font-size: 13px;
+  color: #666;
+}
+
+.score-bar {
+  flex: 1;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.category-score {
+  width: 35px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}

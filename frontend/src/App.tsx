@@ -3,6 +3,7 @@ import MapView from './components/MapView';
 import Report from './components/Report';
 import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
+import FengShuiRadar from './components/FengShuiRadar';
 import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
 import type { TravelMode, FullAnalysisResult, TravelModeData, POIItem, POICategoryData } from './types';
 
@@ -516,25 +517,35 @@ function App() {
                 </div>
               )}
 
-              {/* 出行方式对比 */}
-              {fullResult.comparison && (
-                <div className="mode-comparison">
-                  <div className="mode-comparison-header">出行方式对比</div>
-                  {fullResult.comparison.map(item => (
-                    <div key={item.mode} className="mode-comparison-row">
-                      <span className="mode-name">{item.mode_name}</span>
-                      <div className="comparison-bar">
-                        <div
-                          className="comparison-bar-fill"
-                          style={{
-                            width: `${(item.time_15 / 200) * 100}%`,
-                            backgroundColor: activeMode === item.mode ? '#667eea' : '#e8e8e8',
-                          }}
-                        />
+              {/* 风水评分 */}
+              {fengshuiScore && (
+                <div className="fengshui-card">
+                  <div className="fengshui-card-header">风水评分</div>
+                  <FengShuiRadar data={fengshuiScore} showLabels={true} />
+                </div>
+              )}
+
+              {/* 出行方式覆盖对比 */}
+              {fullResult.modes && (
+                <div className="mode-comparison-simple">
+                  <div className="mode-comparison-header">出行方式覆盖对比</div>
+                  <div className="mode-scores-grid">
+                    {Object.entries(fullResult.modes).map(([mode, modeData]: [string, any]) => (
+                      <div
+                        key={mode}
+                        className={`mode-score-card ${activeMode === mode ? 'active' : ''}`}
+                        onClick={() => setActiveMode(mode as TravelMode)}
+                      >
+                        <div className="mode-card-name">{modeData.mode_name}</div>
+                        <div className="mode-card-score" style={{ color: getLevelColor(modeData.score?.level) }}>
+                          {modeData.score?.total || 0}
+                        </div>
+                        <div className="mode-card-level" style={{ backgroundColor: getLevelColor(modeData.score?.level) }}>
+                          {modeData.score?.level}
+                        </div>
                       </div>
-                      <span className="comparison-value">{item.time_15} km2</span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
