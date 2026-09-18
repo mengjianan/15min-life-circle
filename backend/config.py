@@ -14,7 +14,7 @@ BAIDU_MAP_SK = os.getenv("BAIDU_MAP_SK", "")
 
 # 百度地图API端点
 BAIDU_MAP_API_BASE = "https://api.map.baidu.com"
-DIRECTION_API = f"{BAIDU_MAP_API_BASE}/direction/v1"
+DIRECTION_API = f"{BAIDU_MAP_API_BASE}/directionlite/v1"
 PLACE_API = f"{BAIDU_MAP_API_BASE}/place/v2/search"
 GEOCODER_API = f"{BAIDU_MAP_API_BASE}/geocoder/v2"
 DISTANCE_MATRIX_API = f"{BAIDU_MAP_API_BASE}/routematrix/v1"
