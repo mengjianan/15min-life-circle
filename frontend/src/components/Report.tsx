@@ -1,3 +1,5 @@
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+
 interface Props {
   communityName: string;
   fullResult?: any;
@@ -5,7 +7,7 @@ interface Props {
 
 const MODE_NAMES: Record<string, string> = {
   walking: '步行',
-  cycling: '骑行', 
+  cycling: '骑行',
   transit: '公交',
   driving: '驾车'
 };
@@ -30,6 +32,22 @@ export default function Report({ communityName, fullResult }: Props) {
     return '#fef2f2';
   };
 
+  // 雷达图数据
+  const radarData = [
+    { subject: '设施覆盖', score: comprehensiveScore.facility_coverage || 0, fullMark: 100 },
+    { subject: '可达性', score: comprehensiveScore.accessibility || 0, fullMark: 100 },
+    { subject: '出行适配', score: comprehensiveScore.mode_adaptability || 0, fullMark: 100 },
+    { subject: '服务盲区', score: 100 - (comprehensiveScore.blind_spot_penalty || 0), fullMark: 100 },
+    { subject: '风水宜居', score: comprehensiveScore.fengshui || 0, fullMark: 100 },
+  ];
+
+  // 柱状图数据
+  const barData = Object.entries(modes).map(([mode, data]: [string, any]) => ({
+    name: MODE_NAMES[mode],
+    score: data.coverage_score || 0,
+    facilities: data.total_facilities || 0,
+  }));
+
   return (
     <div className="report-container compact-report">
       <h1 style={{ textAlign: 'center', marginBottom: '4px' }}>📊 15分钟生活圈体检报告</h1>
@@ -45,7 +63,19 @@ export default function Report({ communityName, fullResult }: Props) {
           </div>
         </div>
         <div className="score-desc">基于设施覆盖、可达性、出行适配、服务盲区、风水宜居5个维度的综合评估</div>
-        
+
+        {/* 雷达图 */}
+        <div className="chart-wrapper">
+          <ResponsiveContainer width="100%" height={100}>
+            <RadarChart cx="50%" cy="50%" outerRadius="60%" data={radarData}>
+              <PolarGrid />
+              <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9 }} />
+              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8 }} />
+              <Radar name="评分" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.6} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+
         {/* 权重 */}
         <div className="weights-grid">
           <div className="weight-item"><span className="weight-name">设施覆盖</span><span className="weight-value">35%</span></div>
@@ -91,6 +121,19 @@ export default function Report({ communityName, fullResult }: Props) {
             <div className="mode-area">覆盖{data.coverage_area_km2 || 0}km²</div>
           </div>
         ))}
+      </div>
+
+      {/* 柱状图 */}
+      <div className="chart-wrapper">
+        <ResponsiveContainer width="100%" height={100}>
+          <BarChart data={barData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+            <YAxis tick={{ fontSize: 9 }} />
+            <Tooltip />
+            <Bar dataKey="score" fill="#2563eb" />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* 三、可达性分析 */}
