@@ -9,9 +9,9 @@
   border-radius: 6px;
 }
 
-.report-container h1 { font-size: 16px; margin: 4px 0; }
-.report-container h2 { font-size: 13px; margin: 6px 0 4px; padding-bottom: 2px; border-bottom: 1px solid #e5e7eb; }
-.report-container h3 { font-size: 11px; margin: 4px 0 2px; }
+.report-container h1 { font-size: 16px !important; margin: 4px 0 !important; }
+.report-container h2 { font-size: 13px !important; margin: 6px 0 4px !important; padding-bottom: 2px !important; border-bottom: 1px solid #e5e7eb !important; }
+.report-container h3 { font-size: 11px !important; margin: 4px 0 2px !important; }
 
 .comprehensive-score {
   background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
@@ -22,9 +22,9 @@
 }
 
 .score-header { display: flex; justify-content: center; align-items: center; gap: 16px; }
-.score-value { font-size: 28px; font-weight: bold; color: #2563eb; }
-.score-level { font-size: 13px; color: #10b981; font-weight: 600; }
-.score-desc { font-size: 10px; color: #4b5563; margin-top: 2px; }
+.score-value { font-size: 28px !important; font-weight: bold !important; color: #2563eb !important; line-height: 1 !important; margin-bottom: 0 !important; }
+.score-level { font-size: 13px !important; color: #10b981 !important; font-weight: 600 !important; opacity: 1 !important; }
+.score-desc { font-size: 10px !important; color: #4b5563 !important; margin-top: 2px !important; }
 
 .weights-grid {
   display: grid;
@@ -40,8 +40,8 @@
   border-radius: 4px;
 }
 
-.weight-name { font-size: 9px; color: #4b5563; display: block; }
-.weight-value { font-size: 12px; font-weight: 600; color: #2563eb; }
+.weight-name { font-size: 9px !important; color: #4b5563 !important; display: block !important; }
+.weight-value { font-size: 12px !important; font-weight: 600 !important; color: #2563eb !important; }
 
 .breakdown-grid {
   display: grid;
@@ -58,8 +58,8 @@
   font-size: 10px;
 }
 
-.breakdown-name { display: block; font-size: 9px; color: #4b5563; }
-.breakdown-value { font-weight: 600; color: #2563eb; }
+.breakdown-name { display: block !important; font-size: 9px !important; color: #4b5563 !important; }
+.breakdown-value { font-weight: 600 !important; color: #2563eb !important; }
 
 .modes-grid {
   display: grid;
@@ -75,10 +75,10 @@
   text-align: center;
 }
 
-.mode-title { font-size: 10px; font-weight: 600; margin-bottom: 3px; }
-.mode-score { font-size: 18px; font-weight: bold; color: #2563eb; }
-.mode-count { font-size: 10px; color: #4b5563; }
-.mode-area { font-size: 9px; color: #4b5563; }
+.mode-title { font-size: 10px !important; font-weight: 600 !important; margin-bottom: 3px !important; }
+.mode-score { font-size: 18px !important; font-weight: bold !important; color: #2563eb !important; }
+.mode-count { font-size: 10px !important; color: #4b5563 !important; }
+.mode-area { font-size: 9px !important; color: #4b5563 !important; }
 
 .access-grid {
   display: grid;
@@ -94,9 +94,9 @@
   text-align: center;
 }
 
-.access-title { font-size: 9px; font-weight: 600; margin-bottom: 2px; }
-.access-value { font-size: 14px; font-weight: bold; color: #2563eb; }
-.access-unit { font-size: 9px; color: #4b5563; }
+.access-title { font-size: 9px !important; font-weight: 600 !important; margin-bottom: 2px !important; }
+.access-value { font-size: 14px !important; font-weight: bold !important; color: #2563eb !important; }
+.access-unit { font-size: 9px !important; color: #4b5563 !important; }
 
 .blind-list {
   list-style: none;
@@ -104,9 +104,9 @@
 }
 
 .blind-list li {
-  font-size: 10px;
-  padding: 2px 4px;
-  border-bottom: 1px solid #f3f4f6;
+  font-size: 10px !important;
+  padding: 2px 4px !important;
+  border-bottom: 1px solid #f3f4f6 !important;
 }
 
 .fengshui-grid {
@@ -126,15 +126,15 @@
   font-size: 10px;
 }
 
-.fengshui-mini span:first-child { font-size: 14px; }
-.fengshui-mini strong { color: #2563eb; font-size: 13px; }
+.fengshui-mini span:first-child { font-size: 14px !important; }
+.fengshui-mini strong { color: #2563eb !important; font-size: 13px !important; }
 
 .conclusion-content {
-  font-size: 11px;
-  line-height: 1.5;
-  padding: 6px 8px;
-  background: #f8fafc;
-  border-radius: 4px;
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+  padding: 6px 8px !important;
+  background: #f8fafc !important;
+  border-radius: 4px !important;
 }
 
 .chart-wrapper {
