@@ -717,8 +717,8 @@ function App() {
                 <Report
                   communityName={fullResult.community_name}
                   fullResult={fullResult}
-                  fengshuiResult={fengshuiScore}
-                  activeMode={activeMode}
+                  
+                  
                 />
               </div>
             )}
