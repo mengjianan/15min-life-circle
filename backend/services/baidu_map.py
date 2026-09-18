@@ -32,15 +32,18 @@ from config import (
 class BaiduMapService:
     """百度地图API服务"""
 
+    # 全局API状态缓存（所有实例共享）
+    _global_api_status = {
+        "place": None,      # 地点检索
+        "direction": None,  # 路线规划
+        "geocoder": None,   # 地理编码
+    }
+
     def __init__(self):
         self.ak = BAIDU_MAP_AK
         self.semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
         self.client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT)
-        self._api_status = {
-            "place": None,      # 地点检索
-            "direction": None,  # 路线规划
-            "geocoder": None,   # 地理编码
-        }
+        self._api_status = self._global_api_status  # 使用全局缓存
 
     async def _check_api_type(self, api_type: str) -> bool:
         """
@@ -348,9 +351,12 @@ class BaiduMapService:
         Returns:
             POI列表
         """
-        # 检查地点检索API是否可用
+        # 检查地点检索API是否可用（使用缓存状态）
+        if self._api_status["place"] is False:
+            # API已知不可用，直接返回模拟数据
+            return self._generate_mock_poi(location, query), True
         if not await self._check_api_type("place"):
-            return self._generate_mock_poi(location, query)
+            return self._generate_mock_poi(location, query), True
 
         async with self.semaphore:
             try:

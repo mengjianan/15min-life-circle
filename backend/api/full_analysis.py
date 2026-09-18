@@ -48,6 +48,9 @@ MODE_POI_RADIUS = {
 }
 
 
+# 共享数据字典
+modes_cache = {}
+
 async def analyze_single_mode(mode, mode_config, center, location, community_name):
     """分析单种出行方式（每种方式独立查询POI）"""
     engine = IsochroneEngine()
@@ -64,13 +67,38 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
         print(f"[{mode}] 使用搜索半径: {search_radius}m")
         coverage_15min = await poi_analyzer.analyze_coverage(location, radius=search_radius)
 
-        # 计算15分钟等时圈（用于盲区检测）
-        isochrone_15min = await engine.calculate_isochrone(center, max_time=900)
+        # 计算15分钟等时圈（使用速度缩放，减少计算）
+        base_isochrone = await engine.calculate_isochrone(center, max_time=900)
 
-        # 盲区检测（只做一次）
-        blind_spots_15min = await blind_detector.detect_blind_spots(
-            center=location, polygon=isochrone_15min.polygon
-        )
+        # 根据出行方式缩放等时圈
+        if speed_multiplier != 1.0:
+            scaled_points = []
+            for p in base_isochrone.boundary_points:
+                dlng = p.lng - center.lng
+                dlat = p.lat - center.lat
+                scaled_points.append(GeoPoint(
+                    lng=center.lng + dlng * speed_multiplier,
+                    lat=center.lat + dlat * speed_multiplier
+                ))
+            isochrone_15min = type(base_isochrone)(
+                center=base_isochrone.center,
+                boundary_points=scaled_points,
+                polygon=[(p.lng, p.lat) for p in scaled_points],
+                max_time=900
+            )
+        else:
+            isochrone_15min = base_isochrone
+
+        # 盲区检测（只对步行做，其他复用）
+        if mode == "walking":
+            blind_spots_15min = await blind_detector.detect_blind_spots(
+                center=location, polygon=isochrone_15min.polygon
+            )
+        else:
+            # 复用步行的盲区数据，按距离过滤
+            walking_blind = modes.get("walking", {}).get("time_slots", {}).get("900", {}).get("blind_spots", [])
+            max_dist = MODE_POI_RADIUS.get(mode, 1500)
+            blind_spots_15min = [s for s in walking_blind if s.get("distance", 0) <= max_dist]
 
         for time_minutes in [5, 10, 15]:
             time_seconds = time_minutes * 60
