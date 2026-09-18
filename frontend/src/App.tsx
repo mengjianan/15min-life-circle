@@ -299,6 +299,7 @@ function App() {
       setError(err instanceof Error ? err.message : '分析过程中出现错误');
       setAnalysisMessage(null);
     } finally {
+      setAnalysisMessage(null);
       setLoading(false);
       setShowProgress(false);
       // 获取风水评分
