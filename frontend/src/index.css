@@ -23,19 +23,20 @@ body {
 
 .app { min-height: 100vh; display: flex; flex-direction: column; }
 
-/* 超紧凑报告 */
+/* 超紧凑报告 - 强制覆盖所有样式 */
+.report-container.compact-report,
 .compact-report {
   max-width: 800px;
   margin: 0 auto;
   padding: 8px 12px;
   font-size: 11px;
+  background: white;
+  border-radius: 6px;
 }
 
 .compact-report h1 { font-size: 16px; margin: 4px 0; }
 .compact-report h2 { font-size: 13px; margin: 6px 0 4px; padding-bottom: 2px; border-bottom: 1px solid var(--gray-200); }
 .compact-report h3 { font-size: 11px; margin: 4px 0 2px; }
-
-.report-container { background: white; border-radius: 6px; padding: 8px 12px; }
 
 /* 综合评分 */
 .comprehensive-score {
@@ -181,19 +182,13 @@ body {
 /* 图表容器 - 最关键 */
 .chart-wrapper {
   width: 100%;
-  max-height: 120px;
+  max-height: 100px;
   margin: 4px 0;
 }
 
-.chart-wrapper .recharts-wrapper {
-  max-height: 120px !important;
-}
-
-.chart-wrapper .recharts-responsive-container {
-  min-height: 100px !important;
-}
-
 /* Recharts 尺寸覆盖 */
+.recharts-wrapper { max-height: 100px !important; }
+.recharts-responsive-container { min-height: 80px !important; }
 .recharts-default-tooltip { font-size: 10px !important; }
 .recharts-tooltip-label { font-size: 10px !important; }
 .recharts-legend-wrapper { font-size: 9px !important; }
@@ -287,3 +282,9 @@ body {
 
 /* 错误 */
 .error-container { text-align: center; padding: 20px; color: var(--danger); }
+
+/* 覆盖所有可能的大样式 */
+.report-container .score-value { font-size: 28px !important; }
+.report-container .score-level { font-size: 13px !important; }
+.report-container .score-card { padding: 8px !important; }
+.report-container .report-section { margin: 4px 0 !important; padding: 8px !important; }
