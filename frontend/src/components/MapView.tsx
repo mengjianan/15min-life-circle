@@ -238,10 +238,10 @@ const MapView: React.FC<MapViewProps> = ({
 
                 const icon = new BMap.Icon(
                   'data:image/svg+xml,' + encodeURIComponent(
-                    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="' + color + '" stroke="white" stroke-width="2"/></svg>'
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="32" viewBox="0 0 24 32"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20C24 5.4 18.6 0 12 0z" fill="' + color + '"/><circle cx="12" cy="12" r="5" fill="white"/></svg>'
                   ),
-                  new BMap.Size(20, 20),
-                  { anchor: new BMap.Size(10, 10) }
+                  new BMap.Size(24, 32),
+                  { anchor: new BMap.Size(12, 32) }
                 );
 
                 const marker = new BMap.Marker(point, { icon });
