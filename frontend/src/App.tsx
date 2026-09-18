@@ -715,16 +715,8 @@ function App() {
               <div className="report-content">
                 <Report
                   communityName={fullResult.community_name}
-                  score={modeData?.score || { total: 0, level: '需改善', categories: {}, blind_spot_penalty: 0 }}
-                  fengshuiScore={fengshuiScore}
-                  suggestions={modeData?.suggestions || []}
-                  blindSpots={timeSlotData?.blind_spots || []}
-                  poiCoverage={timeSlotData?.poi_coverage || {}}
-                  isochrone={timeSlotData ? {
-                    boundary_points: timeSlotData.boundary_points,
-                    area: timeSlotData.area,
-                  } : undefined}
-                  fullModeData={fullResult.modes}
+                  fullResult={fullResult}
+                  fengshuiResult={fengshuiScore}
                   activeMode={activeMode}
                 />
               </div>

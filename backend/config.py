@@ -14,10 +14,32 @@ BAIDU_MAP_SK = os.getenv("BAIDU_MAP_SK", "")
 
 # 百度地图API端点
 BAIDU_MAP_API_BASE = "https://api.map.baidu.com"
-DIRECTION_API = f"{BAIDU_MAP_API_BASE}/directionlite/v1"
-PLACE_API = f"{BAIDU_MAP_API_BASE}/place/v2/search"
+
+# 地理编码服务
 GEOCODER_API = f"{BAIDU_MAP_API_BASE}/geocoder/v2"
+
+# 地点检索服务
+PLACE_API = f"{BAIDU_MAP_API_BASE}/place/v2/search"
+PLACE_DETAIL_API = f"{BAIDU_MAP_API_BASE}/place/v2/detail"
+
+# 路线规划服务（Lite版）
+DIRECTION_API = f"{BAIDU_MAP_API_BASE}/directionlite/v1"
+WALKING_DIRECTION_API = f"{DIRECTION_API}/walking"
+RIDING_DIRECTION_API = f"{DIRECTION_API}/riding"
+DRIVING_DIRECTION_API = f"{DIRECTION_API}/driving"
+TRANSIT_DIRECTION_API = f"{DIRECTION_API}/transit"
+
+# 距离矩阵
 DISTANCE_MATRIX_API = f"{BAIDU_MAP_API_BASE}/routematrix/v1"
+
+# IP定位
+IP_LOCATION_API = f"{BAIDU_MAP_API_BASE}/location/ip"
+
+# 鹰眼轨迹服务
+YINGYAN_API_BASE = f"{BAIDU_MAP_API_BASE}/api/v3"
+YINGYAN_ENTITY_API = f"{YINGYAN_API_BASE}/entity"
+YINGYAN_TRACK_API = f"{YINGYAN_API_BASE}/track"
+YINGYAN_GEOFENCE_API = f"{YINGYAN_API_BASE}/geofence"
 
 # 等时圈计算配置（优化版）
 ISOCHRONE_DIRECTIONS = 16  # 采样方向数（每15度一个，从36减少到24）

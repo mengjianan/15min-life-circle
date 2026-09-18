@@ -1,60 +1,37 @@
 import React from 'react';
-import RadarChart from './RadarChart';
 import FengShuiRadar from './FengShuiRadar';
-import FacilityPieChart from './FacilityPieChart';
 
 interface ReportProps {
   communityName: string;
-  score: {
-    total: number;
-    level: string;
-    categories: Record<string, number>;
-    blind_spot_penalty: number;
-  };
-  fengshuiScore?: {
-    total: number;
-    level: string;
-    terrain: number;
-    water: number;
-    environment: number;
-    orientation: number;
-  };
-  suggestions: Array<{
-    category: string;
-    priority: string;
-    message: string;
-  }>;
-  blindSpots: Array<{
-    center: { lng: number; lat: number };
-    category: string;
-    description: string;
-  }>;
-  poiCoverage?: Record<string, any>;
-  isochrone?: {
-    area: number;
-    boundary_points: any[];
-  };
-  fullModeData?: {
-    [key: string]: any;
-    walking?: any;
-    cycling?: any;
-    transit?: any;
-    driving?: any;
-  };
+  fullResult: any;
+  fengshuiResult?: any;
   activeMode?: string;
 }
 
 const Report: React.FC<ReportProps> = ({
   communityName,
-  score,
-  fengshuiScore,
-  suggestions,
-  blindSpots,
-  poiCoverage,
-  isochrone,
-  fullModeData,
+  fullResult,
+  fengshuiResult,
   activeMode = 'walking'
 }) => {
+  if (!fullResult) {
+    return <div className="report-container">暂无数据</div>;
+  }
+
+  const modes = fullResult.modes || {};
+  const modeNames: Record<string, string> = {
+    walking: '步行',
+    cycling: '骑行',
+    transit: '公交',
+    driving: '驾车'
+  };
+  const modeIcons: Record<string, string> = {
+    walking: '🚶',
+    cycling: '🚲',
+    transit: '🚌',
+    driving: '🚗'
+  };
+
   const getScoreColor = (level: string) => {
     switch (level) {
       case '优秀': return '#52c41a';
@@ -65,220 +42,261 @@ const Report: React.FC<ReportProps> = ({
     }
   };
 
-  const getCategoryScoreColor = (val: number) => {
-    if (val >= 90) return '#52c41a';
-    if (val >= 75) return '#1890ff';
-    if (val >= 60) return '#faad14';
-    return '#ff4d4f';
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case '高': return '#ff4d4f';
+      case '中': return '#faad14';
+      case '低': return '#52c41a';
+      default: return '#666';
+    }
   };
 
-  const getPriorityTag = (priority: string) => {
-    const colors: Record<string, string> = { '高': '#ff4d4f', '中': '#faad14', '低': '#52c41a' };
-    return <span className="priority-tag" style={{ backgroundColor: colors[priority] || '#666' }}>{priority}</span>;
-  };
-
-  const totalFacilities = Object.values(poiCoverage || {}).reduce((sum: number, cat: any) => sum + (cat.count || 0), 0);
-
-  const modeName = activeMode === 'walking' ? '步行' : activeMode === 'cycling' ? '骑行' : activeMode === 'transit' ? '公交' : '驾车';
-
-  // 计算9维度得分
-  const dimensionScores = {
-    '医疗': score.categories?.['医疗'] || 0,
-    '教育': score.categories?.['教育'] || 0,
-    '购物': score.categories?.['购物'] || 0,
-    '养老': score.categories?.['养老'] || 0,
-    '文体': score.categories?.['文体'] || 0,
-    '餐饮': score.categories?.['餐饮'] || 0,
-    '交通': Math.min(100, Math.round((isochrone?.area || 0) / 1000000 * 40)),
-    '盲区': Math.max(0, 100 - blindSpots.length * 10),
-    '空间': Math.min(100, Math.round((isochrone?.area || 0) / 500000 * 100))
-  };
-
-  // 计算各出行方式的覆盖面积
-  const modeAreas = {
-    '步行': fullModeData?.walking?.time_slots?.['900']?.area || 0,
-    '骑行': fullModeData?.cycling?.time_slots?.['900']?.area || 0,
-    '公交': fullModeData?.transit?.time_slots?.['900']?.area || 0,
-    '驾车': fullModeData?.driving?.time_slots?.['900']?.area || 0
-  };
+  // 计算综合评分
+  const totalScore = Math.round(
+    Object.values(modes).reduce((sum: number, m: any) => sum + (m.score?.total || 0), 0) / 4
+  );
+  const totalLevel = totalScore >= 90 ? '优秀' : totalScore >= 75 ? '良好' : totalScore >= 60 ? '一般' : '需改善';
 
   return (
     <div className="report-container">
-      {/* 标题 */}
+      {/* 报告标题 */}
       <div className="report-header">
         <h2>📊 15分钟生活圈体检报告</h2>
         <div className="report-meta">
           <span>📍 {communityName}</span>
           <span>📅 {new Date().toLocaleDateString('zh-CN')}</span>
-          <span>🚶 {modeName}模式</span>
         </div>
       </div>
 
-      {/* 第一行：综合评分 + 风水评分 */}
-      <div className="report-row">
-        <div className="report-card score-card">
-          <h3>综合评分</h3>
-          <div className="score-display">
-            <div className="score-number" style={{ color: getScoreColor(score.level) }}>{score.total}</div>
-            <div className="score-level" style={{ backgroundColor: getScoreColor(score.level) }}>{score.level}</div>
+      {/* 第一部分：综合概览 */}
+      <section className="report-section">
+        <h3 className="section-title">📈 综合概览</h3>
+        <div className="overview-grid">
+          <div className="overview-card">
+            <div className="overview-label">综合评分</div>
+            <div className="overview-score" style={{ color: getScoreColor(totalLevel) }}>
+              {totalScore}
+            </div>
+            <div className="overview-level" style={{ backgroundColor: getScoreColor(totalLevel) }}>
+              {totalLevel}
+            </div>
           </div>
-          <div className="score-desc">
-            {score.total >= 90 ? '生活圈配置优秀' : score.total >= 75 ? '生活圈配置良好' : score.total >= 60 ? '生活圈配置一般' : '生活圈需要改善'}
-          </div>
-        </div>
-
-        <div className="report-card fengshui-card">
-          <h3>🔮 风水评分</h3>
-          {fengshuiScore ? (
-            <FengShuiRadar data={fengshuiScore} showLabels={true} />
-          ) : (
-            <div className="loading">风水分析中...</div>
+          {fengshuiResult && (
+            <div className="overview-card">
+              <div className="overview-label">风水评分</div>
+              <div className="overview-score" style={{ color: getScoreColor(fengshuiResult.level) }}>
+                {fengshuiResult.total}
+              </div>
+              <div className="overview-level" style={{ backgroundColor: getScoreColor(fengshuiResult.level) }}>
+                {fengshuiResult.level}
+              </div>
+            </div>
           )}
-        </div>
-      </div>
-
-      {/* 第二行：9维度雷达图 */}
-      <div className="report-row full-width">
-        <div className="report-card">
-          <h3>🎯 9维度设施覆盖雷达图</h3>
-          <div className="radar-container">
-            <RadarChart categories={dimensionScores} />
+          <div className="overview-card">
+            <div className="overview-label">最佳出行方式</div>
+            <div className="overview-best-mode">
+              {Object.entries(modes).sort((a: any, b: any) => (b[1].score?.total || 0) - (a[1].score?.total || 0))[0]?.[0] === 'walking' ? '🚶 步行' :
+               Object.entries(modes).sort((a: any, b: any) => (b[1].score?.total || 0) - (a[1].score?.total || 0))[0]?.[0] === 'cycling' ? '🚲 骑行' :
+               Object.entries(modes).sort((a: any, b: any) => (b[1].score?.total || 0) - (a[1].score?.total || 0))[0]?.[0] === 'transit' ? '🚌 公交' : '🚗 驾车'}
+            </div>
           </div>
-          <div className="category-legend">
-            {Object.entries(dimensionScores).map(([cat, val]) => (
-              <div key={cat} className="legend-item">
-                <span className="legend-name">{cat}</span>
-                <span className="legend-score" style={{ color: getCategoryScoreColor(val as number) }}>{val}分</span>
+        </div>
+      </section>
+
+      {/* 第二部分：4种出行方式详细分析 */}
+      <section className="report-section">
+        <h3 className="section-title">🚶🚌🚗 出行方式详细分析</h3>
+
+        {Object.entries(modes).map(([mode, modeData]: [string, any]) => (
+          <div key={mode} className={`mode-section ${mode === activeMode ? 'active' : ''}`}>
+            <h4 className="mode-title">
+              {modeIcons[mode]} {modeNames[mode]}分析
+            </h4>
+
+            <div className="mode-stats-grid">
+              <div className="stat-item">
+                <span className="stat-label">覆盖面积</span>
+                <span className="stat-value">{((modeData.time_slots?.['900']?.area || 0) / 1000000).toFixed(2)} km²</span>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 第三行：4种出行方式对比 */}
-      <div className="report-row full-width">
-        <div className="report-card">
-          <h3>🚗 4种出行方式覆盖对比</h3>
-          <div className="mode-comparison-grid">
-            {Object.entries(modeAreas).map(([mode, area]) => (
-              <div key={mode} className={`mode-card ${mode === modeName ? 'active' : ''}`}>
-                <div className="mode-icon">
-                  {mode === '步行' ? '🚶' : mode === '骑行' ? '🚲' : mode === '公交' ? '🚌' : '🚗'}
-                </div>
-                <div className="mode-name">{mode}</div>
-                <div className="mode-area">{(area as number / 1000000).toFixed(2)} km²</div>
-                <div className="mode-label">15分钟覆盖</div>
+              <div className="stat-item">
+                <span className="stat-label">设施数量</span>
+                <span className="stat-value">
+                  {Object.values(modeData.time_slots?.['900']?.poi_coverage || {}).reduce((sum: number, cat: any) => sum + (cat.count || 0), 0)} 个
+                </span>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
+              <div className="stat-item">
+                <span className="stat-label">服务盲区</span>
+                <span className="stat-value">{(modeData.time_slots?.['900']?.blind_spots || []).length} 个</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">评分</span>
+                <span className="stat-value" style={{ color: getScoreColor(modeData.score?.level) }}>
+                  {modeData.score?.total} 分
+                </span>
+              </div>
+            </div>
 
-      {/* 第四行：时间维度 + 设施分布 */}
-      <div className="report-row">
-        <div className="report-card">
-          <h3>⏱️ 时间维度覆盖</h3>
-          <div className="time-slots">
-            {[5, 10, 15].map(minutes => {
-              const slotKey = String(minutes * 60);
-              const area = fullModeData?.[activeMode]?.time_slots?.[slotKey]?.area || 0;
-              return (
-                <div key={minutes} className="time-slot-item">
-                  <div className="time-label">{minutes}分钟</div>
-                  <div className="time-area">{(area / 1000000).toFixed(2)} km²</div>
-                  <div className="time-bar">
-                    <div className="time-bar-fill" style={{ width: `${Math.min(100, area / 50000)}%` }} />
+            {/* 6维度雷达图 */}
+            <div className="category-radar">
+              <h5>设施覆盖评分</h5>
+              <div className="category-bars">
+                {Object.entries(modeData.score?.categories || {}).map(([cat, score]: [string, any]) => (
+                  <div key={cat} className="category-bar-item">
+                    <span className="category-name">{cat}</span>
+                    <div className="category-bar-bg">
+                      <div
+                        className="category-bar-fill"
+                        style={{
+                          width: `${score}%`,
+                          backgroundColor: score >= 90 ? '#52c41a' : score >= 75 ? '#1890ff' : score >= 60 ? '#faad14' : '#ff4d4f'
+                        }}
+                      />
+                    </div>
+                    <span className="category-score">{score}</span>
                   </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 设施列表 */}
+            <div className="facilities-list">
+              <h5>主要设施</h5>
+              <div className="facilities-grid">
+                {Object.entries(modeData.time_slots?.['900']?.poi_coverage || {}).map(([category, data]: [string, any]) => (
+                  <div key={category} className="facility-category">
+                    <div className="facility-category-title">{category}</div>
+                    {(data.facilities || []).slice(0, 3).map((fac: any, idx: number) => (
+                      <div key={idx} className="facility-item">
+                        <span className="facility-name">{fac.name}</span>
+                        <span className="facility-distance">{fac.distance}m</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 路线信息 */}
+            {modeData.routes && modeData.routes.length > 0 && (
+              <div className="routes-info">
+                <h5>路线规划</h5>
+                <div className="routes-list">
+                  {modeData.routes.slice(0, 5).map((route: any, idx: number) => (
+                    <div key={idx} className="route-item">
+                      <span className="route-facility">{route.facility_name}</span>
+                      <span className="route-category">{route.category}</span>
+                      <span className="route-distance">{route.route?.distance || 0}m</span>
+                      <span className="route-duration">{Math.round((route.route?.duration || 0) / 60)}分钟</span>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
-        </div>
+        ))}
+      </section>
 
-        <div className="report-card">
-          <h3>🏢 设施分布</h3>
-          <FacilityPieChart data={poiCoverage || {}} />
-        </div>
-      </div>
-
-      {/* 第五行：关键指标 */}
-      <div className="report-row full-width">
-        <div className="report-card">
-          <h3>📈 关键指标</h3>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span className="metric-icon">📐</span>
-              <span className="metric-label">覆盖面积</span>
-              <span className="metric-value">{isochrone?.area ? (isochrone.area / 1000000).toFixed(2) : '0'} km²</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-icon">🏢</span>
-              <span className="metric-label">周边设施</span>
-              <span className="metric-value">{totalFacilities} 个</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-icon">⚠️</span>
-              <span className="metric-label">服务盲区</span>
-              <span className="metric-value">{blindSpots.length} 个</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-icon">🔮</span>
-              <span className="metric-label">风水评分</span>
-              <span className="metric-value">{fengshuiScore?.total || '--'} 分</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 第六行：盲区分析 */}
-      {blindSpots.length > 0 && (
-        <div className="report-row full-width">
-          <div className="report-card warning-card">
-            <h3>⚠️ 服务盲区分析</h3>
-            <div className="blind-spots-list">
-              {blindSpots.map((spot, index) => (
-                <div key={index} className="blind-spot-item">
-                  <span className="spot-index">{index + 1}</span>
-                  <span className="spot-category">{spot.category}</span>
-                  <span className="spot-desc">{spot.description || `${spot.category}设施覆盖不足`}</span>
-                </div>
-              ))}
+      {/* 第三部分：风水分析 */}
+      {fengshuiResult && (
+        <section className="report-section">
+          <h3 className="section-title">🔮 风水分析</h3>
+          <div className="fengshui-detail">
+            <FengShuiRadar data={fengshuiResult} showLabels={true} />
+            <div className="fengshui-items">
+              <div className="fengshui-item">
+                <span className="fengshui-icon">⛰️</span>
+                <span className="fengshui-label">地形</span>
+                <span className="fengshui-score">{fengshuiResult.terrain}分</span>
+                <span className="fengshui-desc">地势平坦，适宜居住</span>
+              </div>
+              <div className="fengshui-item">
+                <span className="fengshui-icon">💧</span>
+                <span className="fengshui-label">水系</span>
+                <span className="fengshui-score">{fengshuiResult.water}分</span>
+                <span className="fengshui-desc">水气适中，风水良好</span>
+              </div>
+              <div className="fengshui-item">
+                <span className="fengshui-icon">🌳</span>
+                <span className="fengshui-label">环境</span>
+                <span className="fengshui-score">{fengshuiResult.environment}分</span>
+                <span className="fengshui-desc">绿化良好，环境宜人</span>
+              </div>
+              <div className="fengshui-item">
+                <span className="fengshui-icon">🧭</span>
+                <span className="fengshui-label">方位</span>
+                <span className="fengshui-score">{fengshuiResult.orientation}分</span>
+                <span className="fengshui-desc">坐北朝南，采光通风</span>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* 第七行：规划建议 */}
-      {suggestions.length > 0 && (
-        <div className="report-row full-width">
-          <div className="report-card">
-            <h3>💡 规划建议</h3>
-            <div className="suggestions-list">
-              {suggestions.map((s, i) => (
-                <div key={i} className="suggestion-item">
-                  {getPriorityTag(s.priority)}
-                  <span className="suggestion-category">{s.category}</span>
-                  <span className="suggestion-text">{s.message}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* 第四部分：服务盲区分析 */}
+      <section className="report-section">
+        <h3 className="section-title">⚠️ 服务盲区分析</h3>
+        <div className="blind-spots-analysis">
+          {Object.entries(modes).map(([mode, modeData]: [string, any]) => {
+            const spots = modeData.time_slots?.['900']?.blind_spots || [];
+            return (
+              <div key={mode} className="blind-spot-mode">
+                <h5>{modeIcons[mode]} {modeNames[mode]}盲区</h5>
+                {spots.length === 0 ? (
+                  <div className="no-blind-spot">✅ 无服务盲区</div>
+                ) : (
+                  <div className="blind-spot-list">
+                    {spots.map((spot: any, idx: number) => (
+                      <div key={idx} className="blind-spot-item">
+                        <span className="spot-category">{spot.category}</span>
+                        <span className="spot-desc">{spot.description || `${spot.category}设施覆盖不足`}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-      )}
+      </section>
 
-      {/* 总结 */}
-      <div className="report-conclusion">
-        <h3>📊 体检总结</h3>
+      {/* 第五部分：规划建议 */}
+      <section className="report-section">
+        <h3 className="section-title">💡 规划建议</h3>
+        <div className="suggestions-list">
+          {Object.entries(modes).map(([mode, modeData]: [string, any]) => {
+            const suggestions = modeData.suggestions || [];
+            return suggestions.length > 0 ? (
+              <div key={mode} className="suggestions-mode">
+                <h5>{modeIcons[mode]} {modeNames[mode]}建议</h5>
+                {suggestions.map((s: any, idx: number) => (
+                  <div key={idx} className="suggestion-item">
+                    <span className="priority-tag" style={{ backgroundColor: getPriorityColor(s.priority) }}>
+                      {s.priority}
+                    </span>
+                    <span className="suggestion-category">{s.category}</span>
+                    <span className="suggestion-text">{s.message}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null;
+          })}
+        </div>
+      </section>
+
+      {/* 第六部分：体检总结 */}
+      <section className="report-section conclusion">
+        <h3 className="section-title">📊 体检总结</h3>
         <p>
           <strong>{communityName}</strong> 15分钟生活圈综合评分
-          <strong style={{ color: getScoreColor(score.level) }}> {score.total}分</strong>，
-          处于<strong style={{ color: getScoreColor(score.level) }}>{score.level}</strong>水平。
-          {modeName}15分钟覆盖面积 {isochrone?.area ? (isochrone.area / 1000000).toFixed(2) : '0'} 平方公里，
-          周边共有 {totalFacilities} 处设施。
-          {blindSpots.length > 0 ? `发现 ${blindSpots.length} 个服务盲区。` : '覆盖良好。'}
-          {fengshuiScore && `风水评分 ${fengshuiScore.total}分（${fengshuiScore.level}）。`}
+          <strong style={{ color: getScoreColor(totalLevel) }}> {totalScore}分</strong>，
+          处于<strong style={{ color: getScoreColor(totalLevel) }}>{totalLevel}</strong>水平。
+          {Object.entries(modes).map(([mode, modeData]: [string, any]) => {
+            const area = ((modeData.time_slots?.['900']?.area || 0) / 1000000).toFixed(2);
+            return `${modeNames[mode]}覆盖面积${area}平方公里，`;
+          }).join('')}
+          {fengshuiResult && `风水评分${fengshuiResult.total}分（${fengshuiResult.level}）。`}
         </p>
-      </div>
+      </section>
     </div>
   );
 };
