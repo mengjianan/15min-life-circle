@@ -726,7 +726,6 @@ function App() {
                     area: timeSlotData.area,
                   } : undefined}
                   fullModeData={fullResult.modes}
-                  comparison={fullResult.comparison}
                   activeMode={activeMode}
                   activeTimeSlot={activeTimeSlot}
                 />

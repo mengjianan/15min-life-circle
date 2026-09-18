@@ -70,15 +70,25 @@ class POIAnalyzer:
                     pois = cached_pois
                     print(f"  [缓存命中] {query}: {len(pois)}条")
                 else:
-                    pois = await self.baidu_map.search_poi(
+                    result = await self.baidu_map.search_poi(
                         location=location,
                         query=query,
                         radius=radius
                     )
-                    # 缓存查询结果
-                    if pois is not None:
+                    # search_poi returns tuple (pois, is_mock)
+                    if isinstance(result, tuple):
+                        pois, is_mock = result
+                    else:
+                        pois = result
+                        is_mock = False
+                    # 只缓存真实数据，不缓存模拟数据
+                    if pois is not None and not is_mock:
                         self.cache.set(query_cache_key, pois, ttl=86400)  # 24小时
-                        print(f"  [API调用] {query}: {len(pois)}条")
+                        print(f"  [API调用-真实] {query}: {len(pois)}条")
+                    elif is_mock:
+                        print(f"  [API调用-模拟] {query}: {len(pois)}条(不缓存)")
+                    else:
+                        print(f"  [API调用] {query}: 0条")
 
                 if pois:
                     total_count += len(pois)
