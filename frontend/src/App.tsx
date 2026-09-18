@@ -295,7 +295,6 @@ function App() {
       updateStepStatus('report', 'completed', '报告生成完成');
       setAnalysisMessage('✅ 分析完成！');
 
-      await delay(800);
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析过程中出现错误');
       setAnalysisMessage(null);
@@ -727,7 +726,6 @@ function App() {
                   } : undefined}
                   fullModeData={fullResult.modes}
                   activeMode={activeMode}
-                  activeTimeSlot={activeTimeSlot}
                 />
               </div>
             )}

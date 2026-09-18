@@ -38,9 +38,17 @@ TIME_DISTANCE_MAP = {
     900: 1800,  # 15分钟步行约1800米
 }
 
+# 出行方式对应的POI搜索半径（米）
+MODE_POI_RADIUS = {
+    "walking": 1500,   # 步行1.5km
+    "cycling": 4000,   # 骑行4km
+    "transit": 6000,   # 公交6km
+    "driving": 9000    # 驾车9km
+}
+
 
 async def analyze_single_mode(mode, mode_config, center, location, community_name):
-    """分析单种出行方式（优化版：只查询15分钟POI）"""
+    """分析单种出行方式（每种方式独立查询POI）"""
     engine = IsochroneEngine()
     poi_analyzer = POIAnalyzer()
     blind_detector = BlindSpotDetector()
@@ -50,8 +58,9 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
         time_slots = {}
         blind_spots_15min = []
 
-        # 只查询15分钟的POI数据（最大的范围）
-        search_radius = int(1800 * speed_multiplier)
+        # 使用出行方式对应的搜索半径（而不是统一的步行半径）
+        search_radius = MODE_POI_RADIUS.get(mode, 1500)
+        print(f"[{mode}] 使用搜索半径: {search_radius}m")
         coverage_15min = await poi_analyzer.analyze_coverage(location, radius=search_radius)
 
         # 计算15分钟等时圈（用于盲区检测）
@@ -112,6 +121,36 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
                 "routes": []
             }
 
+        # 获取从中心到主要设施的路线
+        routes_to_facilities = []
+        slot_15min = time_slots.get("900", {})
+        coverage_15min_data = slot_15min.get("poi_coverage", {})
+        for category, data in coverage_15min_data.items():
+            facilities = data.get("facilities", [])[:2]  # 每类取前2个
+            for fac in facilities:
+                if fac.get("location"):
+                    try:
+                        baidu_map_temp = BaiduMapService()
+                        origin = {"lng": center.lng, "lat": center.lat}
+                        dest = {"lng": fac["location"]["lng"], "lat": fac["location"]["lat"]}
+                        if mode == "walking":
+                            route = await baidu_map_temp.get_walking_route(origin, dest)
+                        elif mode == "cycling":
+                            route = await baidu_map_temp.get_riding_route(origin, dest)
+                        elif mode == "driving":
+                            route = await baidu_map_temp.get_driving_route(origin, dest)
+                        else:
+                            route = await baidu_map_temp.get_walking_route(origin, dest)
+                        if route:
+                            routes_to_facilities.append({
+                                "facility_name": fac.get("name", ""),
+                                "category": category,
+                                "route": route
+                            })
+                        await baidu_map_temp.close()
+                    except Exception as e:
+                        print(f"获取路线失败: {e}")
+
         score = calculate_mode_score(time_slots, mode_config)
         suggestions = generate_mode_suggestions(time_slots, mode_config)
 
@@ -121,7 +160,8 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
             "speed": mode_config["speed"],
             "score": score,
             "time_slots": time_slots,
-            "suggestions": suggestions
+            "suggestions": suggestions,
+            "routes": routes_to_facilities
         }
     except Exception as e:
         print(f"分析出行方式 {mode} 失败: {e}")
