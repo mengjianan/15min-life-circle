@@ -12,6 +12,7 @@ import time
 from core.isochrone_engine import IsochroneEngine, GeoPoint
 from core.poi_analyzer import POIAnalyzer
 from core.blind_spot import BlindSpotDetector
+from core.scoring import calculate_comprehensive_score
 from services.baidu_map import BaiduMapService
 
 router = APIRouter()
@@ -311,12 +312,35 @@ async def generate_full_analysis(request: FullAnalysisRequest):
 
         print(f"[分析完成] 成功分析 {len([r for r in results if not isinstance(r, Exception)])} 种出行方式")
 
+        # 计算综合评分
+        comprehensive_score = calculate_comprehensive_score(modes)
+
         return {
             "community_name": request.community_name,
             "center": {"lng": center.lng, "lat": center.lat},
             "timestamp": time.time(),
             "modes": modes,
-            "comparison": comparison
+            "comparison": comparison,
+            "comprehensive_score": {
+                "facility_coverage": comprehensive_score.facility_coverage,
+                "accessibility": comprehensive_score.accessibility,
+                "mode_adaptability": comprehensive_score.mode_adaptability,
+                "blind_spot": comprehensive_score.blind_spot,
+                "fengshui": comprehensive_score.fengshui,
+                "total": comprehensive_score.total,
+                "level": comprehensive_score.level,
+                "fengshui_detail": {
+                    "terrain": comprehensive_score.fengshui_detail.terrain,
+                    "orientation": comprehensive_score.fengshui_detail.orientation,
+                    "water": comprehensive_score.fengshui_detail.water,
+                    "road_form": comprehensive_score.fengshui_detail.road_form,
+                    "sensitive_facilities": comprehensive_score.fengshui_detail.sensitive_facilities,
+                    "greenery": comprehensive_score.fengshui_detail.greenery,
+                    "popularity": comprehensive_score.fengshui_detail.popularity,
+                    "total": comprehensive_score.fengshui_detail.total,
+                    "level": comprehensive_score.fengshui_detail.level
+                }
+            }
         }
     except Exception as e:
         print(f"[分析失败] {e}")

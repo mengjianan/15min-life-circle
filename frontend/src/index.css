@@ -3150,3 +3150,534 @@ body {
   line-height: 1.8;
   color: #333;
 }
+
+/* 综合评分样式 */
+.comprehensive-score {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.total-score-card {
+  flex: 0 0 200px;
+  text-align: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #f0f5ff 0%, #e6f7ff 100%);
+  border-radius: 12px;
+}
+
+.total-score-number {
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.total-score-level {
+  display: inline-block;
+  padding: 4px 16px;
+  border-radius: 16px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.total-score-label {
+  color: #666;
+  margin-top: 8px;
+}
+
+.score-breakdown {
+  flex: 1;
+  min-width: 300px;
+}
+
+.score-breakdown h4 {
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.breakdown-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.breakdown-icon {
+  font-size: 32px;
+  flex: 0 0 48px;
+}
+
+.breakdown-info {
+  flex: 1;
+}
+
+.breakdown-label {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+}
+
+.breakdown-desc {
+  color: #999;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.breakdown-score {
+  text-align: right;
+  flex: 0 0 80px;
+}
+
+.score-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1890ff;
+}
+
+.score-weight {
+  display: block;
+  color: #999;
+  font-size: 12px;
+}
+
+/* 出行方式覆盖 */
+.modes-coverage {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.mode-coverage-card {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s;
+}
+
+.mode-coverage-card.active {
+  background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%);
+  border: 2px solid #1890ff;
+}
+
+.mode-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mode-icon {
+  font-size: 28px;
+}
+
+.mode-name {
+  font-size: 18px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.mode-total-score {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.category-coverage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.category-name {
+  width: 40px;
+  font-size: 14px;
+  color: #666;
+}
+
+.category-bar {
+  flex: 1;
+  height: 20px;
+  background: #e8e8e8;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.category-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.6s ease;
+}
+
+.category-score {
+  width: 30px;
+  text-align: right;
+  font-weight: 600;
+  color: #333;
+}
+
+.mode-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: #999;
+}
+
+.stat-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1890ff;
+  margin-top: 4px;
+}
+
+/* 可达性评分 */
+.accessibility-section {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.accessibility-card {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.accessibility-card h4 {
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.accessibility-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.metric {
+  text-align: center;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1890ff;
+}
+
+.metric-label {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.nearest-facilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nearest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 16px;
+  font-size: 14px;
+}
+
+.nearest-cat {
+  color: #666;
+}
+
+.nearest-dist {
+  font-weight: 600;
+  color: #1890ff;
+}
+
+/* 出行方式对比 */
+.mode-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.comparison-radar h4,
+.comparison-summary h4 {
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.radar-placeholder {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.radar-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.radar-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.radar-mode {
+  width: 80px;
+  font-weight: 600;
+}
+
+.radar-bar {
+  flex: 1;
+  height: 24px;
+  background: #e8e8e8;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.radar-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1890ff 0%, #52c41a 100%);
+  border-radius: 12px;
+  transition: width 0.6s ease;
+}
+
+.radar-score {
+  width: 40px;
+  text-align: right;
+  font-weight: 700;
+  color: #1890ff;
+}
+
+.comparison-summary {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.summary-text {
+  line-height: 1.8;
+  color: #333;
+}
+
+/* 盲区识别 */
+.blind-spots-section {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.blind-spot-card {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.blind-spot-card h4 {
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.no-blind-spot {
+  color: #52c41a;
+  font-size: 16px;
+  padding: 20px;
+  text-align: center;
+}
+
+.blind-spot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.blind-spot-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #fff2e8;
+  border-radius: 8px;
+}
+
+.spot-icon {
+  font-size: 20px;
+}
+
+.spot-category {
+  font-weight: 600;
+  color: #333;
+}
+
+.spot-desc {
+  color: #666;
+  flex: 1;
+}
+
+/* 风水评分 */
+.fengshui-section {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.fengshui-total {
+  flex: 0 0 160px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.fengshui-score-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 4px solid #722ed1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: #f9f0ff;
+}
+
+.fengshui-score-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: #722ed1;
+}
+
+.fengshui-score-level {
+  font-size: 14px;
+  color: #722ed1;
+}
+
+.fengshui-details {
+  flex: 1;
+  min-width: 300px;
+}
+
+.fengshui-details h4 {
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.fengshui-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fengshui-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.fengshui-icon {
+  font-size: 24px;
+  flex: 0 0 32px;
+}
+
+.fengshui-label {
+  width: 60px;
+  font-weight: 600;
+  color: #333;
+}
+
+.fengshui-bar {
+  flex: 1;
+  height: 20px;
+  background: #e8e8e8;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.fengshui-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #722ed1 0%, #b37feb 100%);
+  border-radius: 10px;
+  transition: width 0.6s ease;
+}
+
+.fengshui-score {
+  width: 40px;
+  text-align: right;
+  font-weight: 700;
+  color: #722ed1;
+}
+
+.fengshui-desc {
+  width: 120px;
+  font-size: 12px;
+  color: #999;
+}
+
+/* 体检总结 */
+.conclusion-content {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.conclusion-content p {
+  font-size: 16px;
+  line-height: 1.8;
+  margin-bottom: 16px;
+}
+
+.conclusion-list {
+  list-style: none;
+  padding: 0;
+}
+
+.conclusion-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid #e8e8e8;
+  color: #666;
+}
+
+.conclusion-list li:last-child {
+  border-bottom: none;
+}
+
+.conclusion-list li strong {
+  color: #1890ff;
+}
