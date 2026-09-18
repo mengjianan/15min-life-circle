@@ -50,8 +50,14 @@ class FengShuiEngine:
         orientation = await self.analyze_orientation(center)
         score = self.calculate_score(terrain, water, environment, orientation)
         suggestions = self.generate_suggestions(terrain, water, environment, orientation)
+        # Convert center to dict if needed
+        if hasattr(center, "lng"):
+            center_dict = {"lng": center.lng, "lat": center.lat}
+        else:
+            center_dict = center
+
         return FengShuiResult(
-            center=center, terrain=terrain, water=water,
+            center=center_dict, terrain=terrain, water=water,
             environment=environment, orientation=orientation,
             score=score, suggestions=suggestions
         )

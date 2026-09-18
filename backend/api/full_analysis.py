@@ -95,9 +95,11 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
             blind_spots_15min = await blind_detector.detect_blind_spots(
                 center=location, polygon=isochrone_15min.polygon
             )
+            # 缓存步行盲区数据
+            modes_cache["blind_spots"] = blind_spots_15min
         else:
             # 复用步行的盲区数据，按距离过滤
-            walking_blind = modes.get("walking", {}).get("time_slots", {}).get("900", {}).get("blind_spots", [])
+            walking_blind = modes_cache.get("blind_spots", [])
             max_dist = MODE_POI_RADIUS.get(mode, 1500)
             blind_spots_15min = [s for s in walking_blind if s.get("distance", 0) <= max_dist]
 
