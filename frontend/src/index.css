@@ -3681,3 +3681,51 @@ body {
 .conclusion-list li strong {
   color: #1890ff;
 }
+
+/* 优化：图表尺寸减小一半 */
+.report-section {
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.mode-coverage-card {
+  padding: 12px;
+}
+
+.category-bar {
+  height: 12px;
+}
+
+.total-score-number {
+  font-size: 48px;
+}
+
+.breakdown-item {
+  padding: 10px;
+}
+
+.fengshui-score-circle {
+  width: 80px;
+  height: 80px;
+}
+
+.fengshui-score-number {
+  font-size: 24px;
+}
+
+.metric {
+  padding: 8px;
+}
+
+.metric-value {
+  font-size: 18px;
+}
+
+.radar-bar {
+  height: 16px;
+}

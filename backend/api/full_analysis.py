@@ -13,6 +13,7 @@ from core.isochrone_engine import IsochroneEngine, GeoPoint
 from core.poi_analyzer import POIAnalyzer
 from core.blind_spot import BlindSpotDetector
 from core.scoring import calculate_comprehensive_score
+from core.feng_shui_engine import feng_shui_engine
 from services.baidu_map import BaiduMapService
 
 router = APIRouter()
@@ -340,8 +341,21 @@ async def generate_full_analysis(request: FullAnalysisRequest):
 
         print(f"[分析完成] 成功分析 {len([r for r in results if not isinstance(r, Exception)])} 种出行方式")
 
+        # 获取风水评分
+        fengshui_data = None
+        try:
+            fengshui_result = await feng_shui_engine.analyze(center, radius=1500)
+            fengshui_data = {
+                "terrain": {"score": fengshui_result.terrain.score},
+                "water": {"score": fengshui_result.water.score},
+                "environment": {"score": fengshui_result.environment.score},
+                "orientation": {"score": fengshui_result.orientation.score}
+            }
+        except Exception as e:
+            print(f"风水分析失败: {e}")
+
         # 计算综合评分
-        comprehensive_score = calculate_comprehensive_score(modes)
+        comprehensive_score = calculate_comprehensive_score(modes, fengshui_data)
 
         return {
             "community_name": request.community_name,

@@ -61,7 +61,7 @@ const Report: React.FC<ReportProps> = ({
 
       {/* 第一部分：综合总分 */}
       <section className="report-section">
-        <h3 className="section-title">📈 综合评分</h3>
+        <h3 className="section-title">一、📈 综合评分</h3>
         <div className="comprehensive-score">
           <div className="total-score-card">
             <div className="total-score-number" style={{ color: getScoreColor(comprehensiveScore.level) }}>
@@ -142,7 +142,7 @@ const Report: React.FC<ReportProps> = ({
 
       {/* 第二部分：基础覆盖评分（四种出行方式） */}
       <section className="report-section">
-        <h3 className="section-title">🏢 基础覆盖评分</h3>
+        <h3 className="section-title">二、🏢 基础覆盖评分</h3>
         <div className="modes-coverage">
           {Object.entries(modes).map(([mode, modeData]: [string, any]) => {
             const modeScore = comprehensiveScore[`mode_${mode}`] || modeData.score || {};
@@ -198,7 +198,7 @@ const Report: React.FC<ReportProps> = ({
 
       {/* 第三部分：可达性效率评分 */}
       <section className="report-section">
-        <h3 className="section-title">🚶 可达性效率评分</h3>
+        <h3 className="section-title">三、🚶 可达性效率评分</h3>
         <div className="accessibility-section">
           {Object.entries(modes).map(([mode, modeData]: [string, any]) => {
             const coverage = modeData.time_slots?.['900']?.poi_coverage || {};
@@ -254,7 +254,7 @@ const Report: React.FC<ReportProps> = ({
 
       {/* 第四部分：出行方式对比评分 */}
       <section className="report-section">
-        <h3 className="section-title">📊 出行方式对比评分</h3>
+        <h3 className="section-title">四、📊 出行方式对比评分</h3>
         <div className="mode-comparison">
           <div className="comparison-radar">
             <h4>四维雷达图</h4>
@@ -288,7 +288,7 @@ const Report: React.FC<ReportProps> = ({
 
       {/* 第五部分：服务盲区识别 */}
       <section className="report-section">
-        <h3 className="section-title">⚠️ 服务盲区识别</h3>
+        <h3 className="section-title">五、⚠️ 服务盲区识别</h3>
         <div className="blind-spots-section">
           {Object.entries(modes).map(([mode, modeData]: [string, any]) => {
             const spots = modeData.time_slots?.['900']?.blind_spots || [];
@@ -317,7 +317,7 @@ const Report: React.FC<ReportProps> = ({
       {/* 第六部分：风水/居住适宜性 */}
       {comprehensiveScore.fengshui_detail && (
         <section className="report-section">
-          <h3 className="section-title">🔮 风水/居住适宜性评分</h3>
+          <h3 className="section-title">六、🔮 风水/居住适宜性评分</h3>
           <div className="fengshui-section">
             <div className="fengshui-total">
               <div className="fengshui-score-circle" style={{ borderColor: getScoreColor(comprehensiveScore.fengshui_detail.level) }}>
@@ -406,7 +406,7 @@ const Report: React.FC<ReportProps> = ({
 
       {/* 第七部分：体检总结 */}
       <section className="report-section conclusion">
-        <h3 className="section-title">📊 体检总结</h3>
+        <h3 className="section-title">七、📊 体检总结</h3>
         <div className="conclusion-content">
           <p>
             <strong>{communityName}</strong> 15分钟生活圈综合评分
