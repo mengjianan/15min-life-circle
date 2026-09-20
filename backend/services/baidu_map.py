@@ -95,7 +95,7 @@ class BaiduMapService:
                     "ak": self.ak,
                     "output": "json"
                 }
-                response = await self.client.get(GEOCODER_API, params=params)
+                response = await self.client.get(PLACE_API, params=params)
                 data = response.json()
                 self._api_status["geocoder"] = data.get("status") == 0
 
@@ -492,7 +492,7 @@ class BaiduMapService:
         city: str = "南京"
     ) -> Optional[Dict[str, float]]:
         """
-        地理编码
+        地理编码（使用Place API替代Geocoder API）
 
         Args:
             address: 地址
@@ -501,28 +501,31 @@ class BaiduMapService:
         Returns:
             坐标 {"lng": x, "lat": y}
         """
-        if not await self._check_api_type("geocoder"):
+        if not await self._check_api_type("place"):
             return None
 
         async with self.semaphore:
             try:
+                # 使用Place API搜索地址
                 params = {
-                    "address": address,
-                    "city": city,
-                    "ak": self.ak,
-                    "output": "json"
+                    "query": address,
+                    "region": city,
+                    "output": "json",
+                    "ak": self.ak
                 }
 
-                response = await self.client.get(GEOCODER_API, params=params)
+                api_protection.increment_usage()
+                response = await self.client.get(PLACE_API, params=params)
                 data = response.json()
 
                 if data.get("status") == 0:
-                    result = data.get("result", {})
-                    location = result.get("location", {})
-                    return {
-                        "lng": location.get("lng"),
-                        "lat": location.get("lat")
-                    }
+                    results = data.get("results", [])
+                    if results:
+                        location = results[0].get("location", {})
+                        return {
+                            "lng": location.get("lng"),
+                            "lat": location.get("lat")
+                        }
 
                 return None
             except Exception as e:
@@ -534,7 +537,7 @@ class BaiduMapService:
         location: Dict[str, float]
     ) -> Optional[str]:
         """
-        逆地理编码
+        逆地理编码（使用Place API）
 
         Args:
             location: 坐标
@@ -542,243 +545,30 @@ class BaiduMapService:
         Returns:
             地址字符串
         """
-        if not await self._check_api_type("geocoder"):
+        if not await self._check_api_type("place"):
             return None
 
         async with self.semaphore:
             try:
+                # 使用Place API搜索附近地点
                 params = {
+                    "query": "生活服务",
                     "location": f"{location['lat']},{location['lng']}",
-                    "ak": self.ak,
-                    "output": "json"
+                    "radius": 100,
+                    "output": "json",
+                    "ak": self.ak
                 }
 
-                response = await self.client.get(GEOCODER_API, params=params)
+                api_protection.increment_usage()
+                response = await self.client.get(PLACE_API, params=params)
                 data = response.json()
 
                 if data.get("status") == 0:
-                    result = data.get("result", {})
-                    return result.get("formatted_address")
+                    results = data.get("results", [])
+                    if results:
+                        return results[0].get("name", "未知地址")
 
                 return None
             except Exception as e:
                 print(f"逆地理编码失败: {e}")
                 return None
-
-    async def batch_distance_matrix(
-        self,
-        origins: List[Dict[str, float]],
-        destinations: List[Dict[str, float]],
-        mode: str = "walking"
-    ) -> Optional[List[List[int]]]:
-        """批量距离矩阵计算"""
-        if not await self._check_api_type("direction"):
-            return None
-
-        async with self.semaphore:
-            try:
-                origins_str = "|".join(
-                    f"{p['lat']},{p['lng']}" for p in origins
-                )
-                destinations_str = "|".join(
-                    f"{p['lat']},{p['lng']}" for p in destinations
-                )
-
-                params = {
-                    "origins": origins_str,
-                    "destinations": destinations_str,
-                    "ak": self.ak,
-                    "output": "json"
-                }
-
-                response = await self.client.get(DISTANCE_MATRIX_API, params=params)
-                data = response.json()
-
-                if data.get("status") == 0:
-                    result = data.get("result", [])
-                    return [
-                        [item.get("distance", {}).get("value", 0) for item in row]
-                        for row in result
-                    ]
-
-                return None
-            except Exception as e:
-                print(f"批量距离矩阵查询失败: {e}")
-                return None
-
-    # ===== IP定位 =====
-    async def ip_location(self, ip: str = "") -> Optional[Dict]:
-        """IP定位"""
-        async with self.semaphore:
-            try:
-                params = {"ak": self.ak, "output": "json"}
-                if ip:
-                    params["ip"] = ip
-                response = await self.client.get(IP_LOCATION_API, params=params)
-                data = response.json()
-                if data.get("status") == 0:
-                    return data.get("content", {})
-                return None
-            except Exception as e:
-                print(f"IP定位失败: {e}")
-                return None
-
-    # ===== 地点详情检索 =====
-    async def get_poi_detail(self, uid: str) -> Optional[Dict]:
-        """地点详情检索"""
-        async with self.semaphore:
-            try:
-                params = {
-                    "uid": uid,
-                    "ak": self.ak,
-                    "output": "json",
-                    "scope": 2
-                }
-                response = await self.client.get(PLACE_DETAIL_API, params=params)
-                data = response.json()
-                if data.get("status") == 0:
-                    return data.get("result")
-                return None
-            except Exception as e:
-                print(f"地点详情检索失败: {e}")
-                return None
-
-    # ===== 公交路线规划 =====
-    async def get_transit_route(self, origin: Dict[str, float], destination: Dict[str, float], city: str = "南京") -> Optional[Dict[str, Any]]:
-        """公交路线规划"""
-        if not await self._check_api_type("direction"):
-            return None
-        async with self.semaphore:
-            try:
-                params = {
-                    "origin": f"{origin['lat']},{origin['lng']}",
-                    "destination": f"{destination['lat']},{destination['lng']}",
-                    "city": city,
-                    "ak": self.ak,
-                    "output": "json"
-                }
-                response = await self.client.get(TRANSIT_DIRECTION_API, params=params)
-                data = response.json()
-                if data.get("status") == 0:
-                    result = data.get("result", {})
-                    routes = result.get("routes", [])
-                    if routes:
-                        route = routes[0]
-                        return {
-                            "distance": route.get("distance", 0),
-                            "duration": route.get("duration", 0),
-                            "steps": route.get("steps", []),
-                            "scheme": route.get("scheme", [])
-                        }
-                return None
-            except Exception as e:
-                print(f"公交路线查询失败: {e}")
-                return None
-
-    # ===== 批量算路 =====
-    async def batch_distance_matrix(self, origins: List[Dict], destinations: List[Dict], mode: str = "walking") -> Optional[Dict]:
-        """批量算路"""
-        async with self.semaphore:
-            try:
-                origins_str = "|".join([f"{o['lat']},{o['lng']}" for o in origins])
-                dests_str = "|".join([f"{d['lat']},{d['lng']}" for d in destinations])
-                params = {
-                    "origins": origins_str,
-                    "destinations": dests_str,
-                    "mode": mode,
-                    "ak": self.ak,
-                    "output": "json"
-                }
-                response = await self.client.get(DISTANCE_MATRIX_API, params=params)
-                data = response.json()
-                if data.get("status") == 0:
-                    return data.get("result")
-                return None
-            except Exception as e:
-                print(f"批量算路失败: {e}")
-                return None
-
-    # ===== 鹰眼轨迹服务 =====
-    async def create_track_entity(self, entity_name: str, entity_desc: str = "") -> Optional[Dict]:
-        """创建轨迹实体"""
-        async with self.semaphore:
-            try:
-                params = {
-                    "ak": self.ak,
-                    "entity_name": entity_name,
-                    "entity_desc": entity_desc,
-                    "output": "json"
-                }
-                response = await self.client.post(f"{YINGYAN_ENTITY_API}/add", params=params)
-                data = response.json()
-                return data
-            except Exception as e:
-                print(f"创建轨迹实体失败: {e}")
-                return None
-
-    async def add_track_point(self, entity_name: str, point: Dict, timestamp: int) -> Optional[Dict]:
-        """添加轨迹点"""
-        async with self.semaphore:
-            try:
-                params = {
-                    "ak": self.ak,
-                    "entity_name": entity_name,
-                    "latitude": point["lat"],
-                    "longitude": point["lng"],
-                    "loc_time": timestamp,
-                    "output": "json"
-                }
-                response = await self.client.post(f"{YINGYAN_TRACK_API}/addpoint", params=params)
-                data = response.json()
-                return data
-            except Exception as e:
-                print(f"添加轨迹点失败: {e}")
-                return None
-
-    async def get_track(self, entity_name: str, start_time: int, end_time: int) -> Optional[Dict]:
-        """查询轨迹"""
-        async with self.semaphore:
-            try:
-                params = {
-                    "ak": self.ak,
-                    "entity_name": entity_name,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "output": "json"
-                }
-                response = await self.client.get(f"{YINGYAN_TRACK_API}/gettrack", params=params)
-                data = response.json()
-                return data
-            except Exception as e:
-                print(f"查询轨迹失败: {e}")
-                return None
-
-    # ===== 地理围栏服务 =====
-    async def create_geofence(self, name: str, center: Dict, radius: int) -> Optional[Dict]:
-        """创建地理围栏"""
-        import json
-        async with self.semaphore:
-            try:
-                fence_shape = json.dumps({
-                    "center": {"latitude": center["lat"], "longitude": center["lng"]},
-                    "radius": radius
-                })
-                params = {
-                    "ak": self.ak,
-                    "fence_name": name,
-                    "monitored_person": "all",
-                    "fence_type": "circle",
-                    "fence_shape": fence_shape,
-                    "output": "json"
-                }
-                response = await self.client.post(f"{YINGYAN_GEOFENCE_API}/create", params=params)
-                data = response.json()
-                return data
-            except Exception as e:
-                print(f"创建地理围栏失败: {e}")
-                return None
-
-
-    async def close(self):
-        """关闭HTTP客户端"""
-        await self.client.aclose()
