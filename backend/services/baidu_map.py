@@ -45,6 +45,10 @@ class BaiduMapService:
         self.client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT)
         self._api_status = self._global_api_status  # 使用全局缓存
 
+    async def close(self):
+        """关闭HTTP客户端"""
+        await self.client.aclose()
+
     async def _check_api_type(self, api_type: str) -> bool:
         """
         检查特定类型的API是否可用
@@ -136,7 +140,8 @@ class BaiduMapService:
                     result = data.get("result", {})
                     routes = result.get("routes", [])
                     if routes:
-                        duration = routes[0].get("duration", 0); return duration if isinstance(duration, int) else duration.get("value", 0)
+                        duration = routes[0].get("duration", 0)
+                        return duration if isinstance(duration, (int, float)) else duration.get("value", 0)
 
                 return None
             except Exception as e:
@@ -174,7 +179,7 @@ class BaiduMapService:
                         route = routes[0]
                         return {
                             "distance": route.get("distance", {}).get("value"),
-                            "duration": route.get("duration", {}).get("value"),
+                            "duration": route.get("duration", 0) if isinstance(route.get("duration", 0), (int, float)) else route.get("duration", {}).get("value", 0),
                             "steps": route.get("steps", [])
                         }
 
@@ -214,7 +219,7 @@ class BaiduMapService:
                         route = routes[0]
                         return {
                             "distance": route.get("distance", {}).get("value"),
-                            "duration": route.get("duration", {}).get("value"),
+                            "duration": route.get("duration", 0) if isinstance(route.get("duration", 0), (int, float)) else route.get("duration", {}).get("value", 0),
                             "steps": route.get("steps", [])
                         }
 
@@ -263,7 +268,7 @@ class BaiduMapService:
                         route = routes[0]
                         return {
                             "distance": route.get("distance", {}).get("value"),
-                            "duration": route.get("duration", {}).get("value"),
+                            "duration": route.get("duration", 0) if isinstance(route.get("duration", 0), (int, float)) else route.get("duration", {}).get("value", 0),
                             "steps": route.get("steps", [])
                         }
 
@@ -312,7 +317,7 @@ class BaiduMapService:
                         route = routes[0]
                         return {
                             "distance": route.get("distance", {}).get("value"),
-                            "duration": route.get("duration", {}).get("value"),
+                            "duration": route.get("duration", 0) if isinstance(route.get("duration", 0), (int, float)) else route.get("duration", {}).get("value", 0),
                             "steps": route.get("steps", [])
                         }
 
