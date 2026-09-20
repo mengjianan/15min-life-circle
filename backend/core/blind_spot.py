@@ -145,6 +145,106 @@ class BlindSpotDetector:
 
         return False
 
+
+    async def detect_blind_spots_with_data(
+        self,
+        center: Dict[str, float],
+        polygon: Dict[str, Any],
+        coverage_data: Dict[str, Any],
+        grid_size: int = BLIND_SPOT_GRID_SIZE,
+        radius: int = BLIND_SPOT_RADIUS,
+        min_count: int = BLIND_SPOT_MIN_COUNT
+    ) -> List[Dict[str, Any]]:
+        """
+        使用已有的POI数据检测盲区（避免重复API调用）
+
+        Args:
+            center: 中心点坐标
+            polygon: 等时圈GeoJSON多边形
+            coverage_data: 已获取的POI覆盖数据
+            grid_size: 网格大小（米）
+            radius: 检查半径（米）
+            min_count: 最少设施数量
+
+        Returns:
+            盲区列表
+        """
+        # 解析多边形
+        coordinates = polygon.get("geometry", {}).get("coordinates", [[]])[0]
+        if len(coordinates) < 3:
+            return []
+
+        # 创建Shapely多边形
+        poly = Polygon([(c[0], c[1]) for c in coordinates])
+
+        # 收集所有POI位置
+        all_pois = []
+        for category, data in coverage_data.items():
+            facilities = data.get("facilities", [])
+            for poi in facilities:
+                loc = poi.get("location", {})
+                if loc:
+                    all_pois.append((loc.get("lng", 0), loc.get("lat", 0)))
+
+        # 生成网格点
+        grid_points = self._generate_grid_points(poly, grid_size)
+
+        # 检查每个网格点（使用距离计算而非API调用）
+        blind_points = []
+        for point in grid_points:
+            is_blind = self._check_blind_spot_with_data(
+                point, all_pois, radius, min_count
+            )
+            if is_blind:
+                blind_points.append(point)
+
+        # 聚类相邻的盲区点
+        blind_spots = self._cluster_blind_spots(blind_points)
+
+        return blind_spots
+
+    def _check_blind_spot_with_data(
+        self,
+        point: Tuple[float, float],
+        all_pois: List[Tuple[float, float]],
+        radius: int,
+        min_count: int
+    ) -> bool:
+        """
+        使用已有POI数据检查盲区（距离计算）
+
+        Args:
+            point: 检查点
+            all_pois: 所有POI坐标列表
+            radius: 检查半径（米）
+            min_count: 最少设施数量
+
+        Returns:
+            是否是盲区
+        """
+        from math import radians, cos, sin, asin, sqrt
+
+        def haversine(lon1, lat1, lon2, lat2):
+            """计算两点间的距离（米）"""
+            lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+            dlon = lon2 - lon1
+            dlat = lat2 - lat1
+            a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+            c = 2 * asin(sqrt(a))
+            r = 6371000  # 地球半径（米）
+            return c * r
+
+        # 统计半径内的POI数量
+        count = 0
+        for poi_lon, poi_lat in all_pois:
+            dist = haversine(point[0], point[1], poi_lon, poi_lat)
+            if dist <= radius:
+                count += 1
+                if count >= min_count:
+                    return False  # 已经达到最少数量，不是盲区
+
+        return True  # 设施不足，是盲区
+
     def _cluster_blind_spots(
         self,
         blind_points: List[Tuple[float, float]],
