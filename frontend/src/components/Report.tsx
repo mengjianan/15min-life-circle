@@ -50,15 +50,6 @@ const Report: React.FC<ReportProps> = ({
 
   return (
     <div className="report-container">
-      {/* 报告标题 */}
-      <div className="report-header">
-        <h2>📊 15分钟生活圈体检报告</h2>
-        <div className="report-meta">
-          <span>📍 {communityName}</span>
-          <span>📅 {new Date().toLocaleDateString('zh-CN')}</span>
-        </div>
-      </div>
-
       {/* 第一部分：综合总分 */}
       <section className="report-section">
         <h3 className="section-title">一、📈 综合评分</h3>
