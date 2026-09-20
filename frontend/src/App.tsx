@@ -2,7 +2,8 @@ import { useState } from 'react';
 import MapView from './components/MapView';
 import Report from './components/Report';
 import ComprehensiveReport from './components/ComprehensiveReport';
-import ModeScorePanel from './components/ModeScorePanel';
+// import ModeScorePanel from './components/ModeScorePanel';
+import ScoreOverview from './components/ScoreOverview';
 import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
 import FengShuiRadar from './components/FengShuiRadar';
@@ -485,10 +486,20 @@ function App() {
                 ))}
               </div>
 
-              {/* 综合评分体系 */}
+              {/* 综合评分概览 - 不随出行方式切换 */}
               {fullResult && (
-                <ModeScorePanel
+                <ScoreOverview
                   fullResult={fullResult}
+                  communityName={fullResult.community_name || ''}
+                />
+              )}
+
+              {/* 出行方式评分 - 根据出行方式切换 */}
+              {fullResult && (
+                <Report
+                  communityName={fullResult.community_name || ''}
+                  fullResult={fullResult}
+                  fengshuiResult={fengshuiScore}
                   activeMode={activeMode}
                 />
               )}
@@ -713,14 +724,6 @@ function App() {
             </div>
             {reportExpanded && (
               <div className="report-content">
-                {/* 详细报告 */}
-                <Report
-                  communityName={fullResult.community_name}
-                  fullResult={fullResult}
-                  fengshuiResult={fengshuiScore}
-                  activeMode={activeMode}
-                />
-
                 {/* 综合报告 */}
                 {fullResult?.report && (
                   <ComprehensiveReport

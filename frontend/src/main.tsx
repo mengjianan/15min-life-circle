@@ -7,6 +7,7 @@ import './report-styles.css'
 import './header-styles.css'
 import './comprehensive-report.css'
 import './mode-score-panel.css'
+import './score-overview.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
