@@ -2,6 +2,7 @@ import { useState } from 'react';
 import MapView from './components/MapView';
 import Report from './components/Report';
 import ComprehensiveReport from './components/ComprehensiveReport';
+import ModeScorePanel from './components/ModeScorePanel';
 import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
 import FengShuiRadar from './components/FengShuiRadar';
@@ -715,6 +716,13 @@ function App() {
             </div>
             {reportExpanded && (
               <div className="report-content">
+                {/* 综合评分体系 - 根据出行方式切换 */}
+                <ModeScorePanel
+                  fullResult={fullResult}
+                  activeMode={activeMode}
+                />
+
+                {/* 详细报告 */}
                 <Report
                   communityName={fullResult.community_name}
                   fullResult={fullResult}

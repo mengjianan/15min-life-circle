@@ -1,0 +1,317 @@
+/* 出行方式评分面板样式 */
+.mode-score-panel {
+  padding: 15px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* 当前出行方式总分 */
+.mode-total-score {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  color: white;
+  margin-bottom: 15px;
+}
+
+.mode-icon-large {
+  font-size: 48px;
+}
+
+.mode-info {
+  flex: 1;
+}
+
+.mode-name {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 5px;
+}
+
+.mode-score-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: white !important;
+}
+
+.score-unit {
+  font-size: 16px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.mode-level {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 5px;
+}
+
+/* 等时圈信息 */
+.isochrone-info {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.info-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.info-icon {
+  font-size: 16px;
+}
+
+.info-label {
+  color: #666;
+  flex: 1;
+}
+
+.info-value {
+  font-weight: 600;
+  color: #333;
+}
+
+/* 评分部分 */
+.score-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+/* 设施类别评分 */
+.category-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.category-item {
+  background: white;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.category-icon {
+  font-size: 16px;
+}
+
+.category-name {
+  flex: 1;
+  font-size: 13px;
+  color: #333;
+}
+
+.category-score {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.score-bar {
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* 评分构成 */
+.score-composition {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.composition-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.composition-label {
+  flex: 1;
+  color: #333;
+}
+
+.composition-weight {
+  width: 40px;
+  color: #999;
+  font-size: 12px;
+}
+
+.composition-score {
+  width: 40px;
+  text-align: right;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 总分条 */
+.total-score-bar {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 8px;
+}
+
+.total-label {
+  font-weight: 600;
+  color: #333;
+}
+
+.total-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.total-level {
+  padding: 4px 12px;
+  border-radius: 20px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 出行方式对比 */
+.mode-comparison {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.comparison-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: white;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.comparison-item.active {
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+}
+
+.comparison-icon {
+  font-size: 18px;
+}
+
+.comparison-name {
+  width: 40px;
+  font-size: 13px;
+  color: #333;
+}
+
+.comparison-bar {
+  flex: 1;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.comparison-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.comparison-score {
+  width: 30px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 风水评分摘要 */
+.fengshui-summary {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.fengshui-total {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.fengshui-score {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.fengshui-level {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.fengshui-items {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.fengshui-mini-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.fengshui-mini-item span:first-child {
+  color: #666;
+}
+
+.fengshui-mini-item span:last-child {
+  font-weight: 600;
+  color: #333;
+}

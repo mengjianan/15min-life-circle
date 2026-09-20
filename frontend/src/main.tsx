@@ -6,6 +6,7 @@ import './three-column.css'
 import './report-styles.css'
 import './header-styles.css'
 import './comprehensive-report.css'
+import './mode-score-panel.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
