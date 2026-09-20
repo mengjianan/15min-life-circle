@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import MapView from './components/MapView';
 import Report from './components/Report';
+import ComprehensiveReport from './components/ComprehensiveReport';
 import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
 import FengShuiRadar from './components/FengShuiRadar';

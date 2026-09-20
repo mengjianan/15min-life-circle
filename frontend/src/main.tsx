@@ -5,6 +5,7 @@ import './index.css'
 import './three-column.css'
 import './report-styles.css'
 import './header-styles.css'
+import './comprehensive-report.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

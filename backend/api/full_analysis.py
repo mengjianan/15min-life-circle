@@ -13,6 +13,7 @@ from core.isochrone_engine import IsochroneEngine, GeoPoint
 from core.poi_analyzer import POIAnalyzer
 from core.blind_spot import BlindSpotDetector
 from core.scoring import calculate_comprehensive_score
+from core.report_generator import generate_comprehensive_report, report_to_dict
 from core.feng_shui_engine import feng_shui_engine
 from services.baidu_map import BaiduMapService
 
@@ -359,6 +360,23 @@ async def generate_full_analysis(request: FullAnalysisRequest):
         # 计算综合评分
         comprehensive_score = calculate_comprehensive_score(modes, fengshui_data)
 
+        # 生成综合报告
+        # 获取15分钟步行POI数据用于报告
+        walking_data = modes.get("walking", {})
+        slot_15min = walking_data.get("time_slots", {}).get("900", {})
+        poi_coverage = slot_15min.get("poi_coverage", {})
+        blind_spots_data = slot_15min.get("blind_spots", [])
+
+        report = generate_comprehensive_report(
+            community_name=request.community_name,
+            center={"lng": center.lng, "lat": center.lat},
+            comprehensive_score=comprehensive_score,
+            modes_data=modes,
+            blind_spots=blind_spots_data,
+            fengshui_data=fengshui_data,
+            poi_coverage=poi_coverage
+        )
+
         return {
             "community_name": request.community_name,
             "center": {"lng": center.lng, "lat": center.lat},
@@ -384,7 +402,8 @@ async def generate_full_analysis(request: FullAnalysisRequest):
                     "total": comprehensive_score.fengshui_detail.total,
                     "level": comprehensive_score.fengshui_detail.level
                 }
-            }
+            },
+            "report": report_to_dict(report)
         }
     except Exception as e:
         print(f"[分析失败] {e}")
