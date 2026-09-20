@@ -151,6 +151,27 @@ export interface FullAnalysisResult {
     driving: TravelModeData;
   };
   comparison: AreaComparison[];
+  comprehensive_score?: {
+    facility_coverage: number;
+    accessibility: number;
+    mode_adaptability: number;
+    blind_spot: number;
+    fengshui: number;
+    total: number;
+    level: string;
+    fengshui_detail: {
+      terrain: number;
+      orientation: number;
+      water: number;
+      road_form: number;
+      sensitive_facilities: number;
+      greenery: number;
+      popularity: number;
+      total: number;
+      level: string;
+    };
+  };
+  report?: any;
 }
 
 // 分析报告（单出行方式，保持兼容）

@@ -721,6 +721,14 @@ function App() {
                   fengshuiResult={fengshuiScore}
                   activeMode={activeMode}
                 />
+
+                {/* 综合报告 */}
+                {fullResult?.report && (
+                  <ComprehensiveReport
+                    report={fullResult.report}
+                    communityName={fullResult.community_name}
+                  />
+                )}
               </div>
             )}
           </div>
