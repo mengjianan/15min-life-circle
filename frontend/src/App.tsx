@@ -485,15 +485,12 @@ function App() {
                 ))}
               </div>
 
-              {/* 综合评分 */}
-              {modeData && (
-                <div className="score-card">
-                  <div className="score-header">综合评分</div>
-                  <div className="score-value">{modeData.score.total}</div>
-                  <div className="score-level" style={{ color: getLevelColor(modeData.score.level) }}>
-                    {modeData.score.level}
-                  </div>
-                </div>
+              {/* 综合评分体系 */}
+              {fullResult && (
+                <ModeScorePanel
+                  fullResult={fullResult}
+                  activeMode={activeMode}
+                />
               )}
 
               {/* 时间维度对比 */}
@@ -716,12 +713,6 @@ function App() {
             </div>
             {reportExpanded && (
               <div className="report-content">
-                {/* 综合评分体系 - 根据出行方式切换 */}
-                <ModeScorePanel
-                  fullResult={fullResult}
-                  activeMode={activeMode}
-                />
-
                 {/* 详细报告 */}
                 <Report
                   communityName={fullResult.community_name}
