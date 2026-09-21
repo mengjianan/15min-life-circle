@@ -112,16 +112,6 @@
   font-weight: 700;
 }
 
-/* 评分概览 */
-.score-overview {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 16px;
-  background: #fafafa;
-  border-radius: 10px;
-}
-
 .score-big-circle {
   width: 80px;
   height: 80px;
