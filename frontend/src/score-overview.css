@@ -469,7 +469,7 @@
   padding: 4px 8px;
   background: white;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .breakdown-icon {
@@ -478,8 +478,8 @@
 
 .breakdown-label {
   flex: 1;
-  color: #666;
-  font-size: 11px;
+  color: #333;
+  font-size: 12px;
 }
 
 .breakdown-score {
@@ -511,7 +511,7 @@
   padding: 4px 8px;
   background: white;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .mode-icon {
@@ -520,8 +520,8 @@
 
 .mode-name {
   width: 30px;
-  color: #666;
-  font-size: 11px;
+  color: #333;
+  font-size: 12px;
 }
 
 .mode-bar {
@@ -542,7 +542,7 @@
   width: 30px;
   text-align: right;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* 体检总结 - 纵向排列 */
