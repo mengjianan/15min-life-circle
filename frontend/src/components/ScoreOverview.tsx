@@ -48,30 +48,45 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
             <div className="breakdown-item-vertical">
               <span className="breakdown-icon">🏢</span>
               <span className="breakdown-label">设施覆盖</span>
+              <div className="breakdown-bar">
+                <div className="breakdown-bar-fill" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.facility_coverage || 0) }} />
+              </div>
               <span className="breakdown-score">{comprehensiveScore.facility_coverage || 0}</span>
               <span className="breakdown-weight">占总分35%</span>
             </div>
             <div className="breakdown-item-vertical">
               <span className="breakdown-icon">🚶</span>
               <span className="breakdown-label">可达性</span>
+              <div className="breakdown-bar">
+                <div className="breakdown-bar-fill" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.accessibility || 0) }} />
+              </div>
               <span className="breakdown-score">{comprehensiveScore.accessibility || 0}</span>
               <span className="breakdown-weight">占总分25%</span>
             </div>
             <div className="breakdown-item-vertical">
               <span className="breakdown-icon">🚌</span>
               <span className="breakdown-label">出行适配</span>
+              <div className="breakdown-bar">
+                <div className="breakdown-bar-fill" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.mode_adaptability || 0) }} />
+              </div>
               <span className="breakdown-score">{comprehensiveScore.mode_adaptability || 0}</span>
               <span className="breakdown-weight">占总分20%</span>
             </div>
             <div className="breakdown-item-vertical">
               <span className="breakdown-icon">⚠️</span>
               <span className="breakdown-label">盲区识别</span>
+              <div className="breakdown-bar">
+                <div className="breakdown-bar-fill" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.blind_spot || 0) }} />
+              </div>
               <span className="breakdown-score">{comprehensiveScore.blind_spot || 0}</span>
               <span className="breakdown-weight">占总分10%</span>
             </div>
             <div className="breakdown-item-vertical">
               <span className="breakdown-icon">🔮</span>
               <span className="breakdown-label">风水评分</span>
+              <div className="breakdown-bar">
+                <div className="breakdown-bar-fill" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.fengshui || 0) }} />
+              </div>
               <span className="breakdown-score">{comprehensiveScore.fengshui || 0}</span>
               <span className="breakdown-weight">占总分10%</span>
             </div>

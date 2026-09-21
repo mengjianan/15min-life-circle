@@ -427,41 +427,9 @@
 }
 
 
-/* 综合评分 - 纵向排列 */
-.comprehensive-score-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 
-.total-score-vertical {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: center;
-  padding: 10px;
-  background: white;
-  border-radius: 6px;
-}
 
-.total-score-vertical .score-number {
-  font-size: 32px;
-  font-weight: 700;
-}
-
-.total-score-vertical .score-level {
-  padding: 4px 12px;
-  border-radius: 12px;
-  color: white;
-  font-size: 12px;
-}
-
-.score-breakdown-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
+/* 综合评分明细 - 条形图 */
 .breakdown-item-vertical {
   display: flex;
   align-items: center;
@@ -477,17 +445,31 @@
 }
 
 .breakdown-label {
-  flex: 1;
+  width: 50px;
   color: #333;
   font-size: 12px;
+}
+
+.breakdown-bar {
+  flex: 1;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.breakdown-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
 }
 
 .breakdown-score {
   font-weight: 600;
   color: #333;
-  width: 50px;
+  width: 30px;
   text-align: right;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .breakdown-weight {
@@ -496,6 +478,7 @@
   width: 50px;
   text-align: right;
 }
+
 
 /* 出行方式对比 - 纵向排列 */
 .mode-comparison-vertical {
