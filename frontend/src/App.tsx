@@ -126,8 +126,8 @@ function App() {
     const modeData = getCurrentModeData();
     if (!modeData?.time_slots) return null;
     // 后端返回的键是字符串，需要转换
-    const slots = modeData.time_slots as Record<string, any>;
-    return slots[String(activeTimeSlot)] || null;
+    
+    return (modeData.time_slots as Record<string, any>)[String(activeTimeSlot)] || null;
   };
 
   // 获取所有设施列表
@@ -492,8 +492,8 @@ function App() {
                 <div className="time-comparison-mini">
                   <div className="time-buttons-mini">
                     {[300, 600, 900].map(time => {
-                      const slots = modeData.time_slots as Record<string, any>;
-                      const slot = slots[String(time)];
+                      
+                      
                       const isSelected = activeTimeSlot === time;
                       return (
                         <div
@@ -502,7 +502,7 @@ function App() {
                           onClick={() => setActiveTimeSlot(time)}
                         >
                           <span className="time-label-mini">{time === 300 ? '5分钟' : time === 600 ? '10分钟' : '15分钟'}</span>
-                          <span className="time-score-mini">{slot?.score?.total || 0}</span>
+                          <span className="time-score-mini">{modeData.score?.total || 0}</span>
                         </div>
                       );
                     })}
