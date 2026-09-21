@@ -44,52 +44,47 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
               {comprehensiveScore.level || '未知'}
             </span>
           </div>
-          <div className="score-breakdown-vertical">
-            <div className="breakdown-item-vertical">
-              <span className="breakdown-icon">🏢</span>
-              <span className="breakdown-label">设施覆盖</span>
-              <div className="breakdown-bar">
-                <div className="breakdown-bar-fill" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.facility_coverage || 0) }} />
-              </div>
-              <span className="breakdown-score">{comprehensiveScore.facility_coverage || 0}</span>
-              <span className="breakdown-weight">占总分35%</span>
+        </div>
+        <div className="category-coverage-compact">
+          <div className="category-item-compact">
+            <span className="category-icon-small">🏢</span>
+            <span className="category-name-small">设施覆盖</span>
+            <div className="category-bar-small">
+              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.facility_coverage || 0) }} />
             </div>
-            <div className="breakdown-item-vertical">
-              <span className="breakdown-icon">🚶</span>
-              <span className="breakdown-label">可达性</span>
-              <div className="breakdown-bar">
-                <div className="breakdown-bar-fill" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.accessibility || 0) }} />
-              </div>
-              <span className="breakdown-score">{comprehensiveScore.accessibility || 0}</span>
-              <span className="breakdown-weight">占总分25%</span>
+            <span className="category-score-small">{comprehensiveScore.facility_coverage || 0}</span>
+          </div>
+          <div className="category-item-compact">
+            <span className="category-icon-small">🚶</span>
+            <span className="category-name-small">可达性</span>
+            <div className="category-bar-small">
+              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.accessibility || 0) }} />
             </div>
-            <div className="breakdown-item-vertical">
-              <span className="breakdown-icon">🚌</span>
-              <span className="breakdown-label">出行适配</span>
-              <div className="breakdown-bar">
-                <div className="breakdown-bar-fill" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.mode_adaptability || 0) }} />
-              </div>
-              <span className="breakdown-score">{comprehensiveScore.mode_adaptability || 0}</span>
-              <span className="breakdown-weight">占总分20%</span>
+            <span className="category-score-small">{comprehensiveScore.accessibility || 0}</span>
+          </div>
+          <div className="category-item-compact">
+            <span className="category-icon-small">🚌</span>
+            <span className="category-name-small">出行适配</span>
+            <div className="category-bar-small">
+              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.mode_adaptability || 0) }} />
             </div>
-            <div className="breakdown-item-vertical">
-              <span className="breakdown-icon">⚠️</span>
-              <span className="breakdown-label">盲区识别</span>
-              <div className="breakdown-bar">
-                <div className="breakdown-bar-fill" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.blind_spot || 0) }} />
-              </div>
-              <span className="breakdown-score">{comprehensiveScore.blind_spot || 0}</span>
-              <span className="breakdown-weight">占总分10%</span>
+            <span className="category-score-small">{comprehensiveScore.mode_adaptability || 0}</span>
+          </div>
+          <div className="category-item-compact">
+            <span className="category-icon-small">⚠️</span>
+            <span className="category-name-small">盲区识别</span>
+            <div className="category-bar-small">
+              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.blind_spot || 0) }} />
             </div>
-            <div className="breakdown-item-vertical">
-              <span className="breakdown-icon">🔮</span>
-              <span className="breakdown-label">风水评分</span>
-              <div className="breakdown-bar">
-                <div className="breakdown-bar-fill" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.fengshui || 0) }} />
-              </div>
-              <span className="breakdown-score">{comprehensiveScore.fengshui || 0}</span>
-              <span className="breakdown-weight">占总分10%</span>
+            <span className="category-score-small">{comprehensiveScore.blind_spot || 0}</span>
+          </div>
+          <div className="category-item-compact">
+            <span className="category-icon-small">🔮</span>
+            <span className="category-name-small">风水评分</span>
+            <div className="category-bar-small">
+              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.fengshui || 0) }} />
             </div>
+            <span className="category-score-small">{comprehensiveScore.fengshui || 0}</span>
           </div>
         </div>
       </section>
@@ -97,23 +92,17 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
       {/* 出行方式对比 */}
       <section className="report-section compact">
         <h3 className="section-title">📊 出行方式对比</h3>
-        <div className="mode-comparison-vertical">
+        <div className="category-coverage-compact">
           {Object.entries(modes).map(([mode, modeData]: [string, any]) => {
             const score = modeData.score?.total || 0;
             return (
-              <div key={mode} className="mode-item-vertical">
-                <span className="mode-icon">{modeIcons[mode]}</span>
-                <span className="mode-name">{modeNames[mode]}</span>
-                <div className="mode-bar">
-                  <div
-                    className="mode-bar-fill"
-                    style={{
-                      width: `${comprehensiveScore.facility_coverage || 0}%`,
-                      backgroundColor: getScoreColor(score)
-                    }}
-                  />
+              <div key={mode} className="category-item-compact">
+                <span className="category-icon-small">{modeIcons[mode]}</span>
+                <span className="category-name-small">{modeNames[mode]}</span>
+                <div className="category-bar-small">
+                  <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(score) }} />
                 </div>
-                <span className="mode-score" style={{ color: getScoreColor(score) }}>{score}</span>
+                <span className="category-score-small">{score}</span>
               </div>
             );
           })}
