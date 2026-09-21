@@ -324,15 +324,15 @@ function App() {
   };
 
   // 获取等级颜色
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case '优秀': return '#52c41a';
-      case '良好': return '#1890ff';
-      case '一般': return '#faad14';
-      default: return '#ff4d4f';
-    }
-  };
-
+//  // const getLevelColor = (level: string) => {
+//    switch (level) {
+//      case '优秀': return '#52c41a';
+//      case '良好': return '#1890ff';
+//      case '一般': return '#faad14';
+//      default: return '#ff4d4f';
+//    }
+//  };
+//
   const modeData = getCurrentModeData();
   const timeSlotData = getCurrentTimeSlotData();
   const facilities = getAllFacilities();
@@ -552,74 +552,8 @@ function App() {
                 />
               )}
 
-              {/* 时间维度对比 */}
-              {modeData && (
-                <div className="time-comparison">
-                  <div className="time-comparison-header">时间维度对比</div>
-                  <div className="time-buttons">
-                    {[300, 600, 900].map(time => {
-                      const slots = modeData.time_slots as Record<string, any>;
-                      const slot = slots[String(time)];
-                      const isSelected = activeTimeSlot === time;
-                      const area = slot ? (slot.area / 1000000).toFixed(2) : '0.00';
-                      return (
-                        <div
-                          key={time}
-                          className={`time-button ${isSelected ? 'active' : ''}`}
-                          onClick={() => setActiveTimeSlot(time)}
-                        >
-                          <div className="time-label">{time / 60}min</div>
-                          <div className="time-area">{area} km2</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
-              {/* 关键指标 */}
-              {timeSlotData && (
-                <div className="key-metrics">
-                  <div className="metric-row">
-                    <span className="metric-label">覆盖面积</span>
-                    <span className="metric-value">{(timeSlotData.area / 1000000).toFixed(2)} km2</span>
-                  </div>
-                  <div className="metric-row">
-                    <span className="metric-label">周边设施</span>
-                    <span className="metric-value">
-                      {timeSlotData.poi_coverage
-                        ? Object.values(timeSlotData.poi_coverage).reduce((sum: number, cat: any) => sum + cat.count, 0)
-                        : 0} 个
-                    </span>
-                  </div>
-                  <div className="metric-row">
-                    <span className="metric-label">服务盲区</span>
-                    <span className="metric-value">{timeSlotData.blind_spots?.length || 0} 个</span>
-                  </div>
-                </div>
-              )}
 
-              {/* 各类评分 */}
-              {modeData && modeData.score.categories && (
-                <div className="category-scores">
-                  <div className="category-scores-header">各类评分</div>
-                  {Object.entries(modeData.score.categories).map(([category, score]) => (
-                    <div key={category} className="category-score-row">
-                      <span className="category-name">{category}</span>
-                      <div className="score-bar">
-                        <div
-                          className="score-bar-fill"
-                          style={{
-                            width: `${score}%`,
-                            backgroundColor: getCategoryColor(category),
-                          }}
-                        />
-                      </div>
-                      <span className="category-score">{score}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
 
               {/* 风水评分 */}
               {fengshuiScore && (
@@ -629,29 +563,6 @@ function App() {
                 </div>
               )}
 
-              {/* 出行方式覆盖对比 */}
-              {fullResult.modes && (
-                <div className="mode-comparison-simple">
-                  <div className="mode-comparison-header">出行方式覆盖对比</div>
-                  <div className="mode-scores-grid">
-                    {Object.entries(fullResult.modes).map(([mode, modeData]: [string, any]) => (
-                      <div
-                        key={mode}
-                        className={`mode-score-card ${activeMode === mode ? 'active' : ''}`}
-                        onClick={() => setActiveMode(mode as TravelMode)}
-                      >
-                        <div className="mode-card-name">{modeData.mode_name}</div>
-                        <div className="mode-card-score" style={{ color: getLevelColor(modeData.score?.level) }}>
-                          {modeData.score?.total || 0}
-                        </div>
-                        <div className="mode-card-level" style={{ backgroundColor: getLevelColor(modeData.score?.level) }}>
-                          {modeData.score?.level}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* 右侧 - 设施列表 (25%) */}
