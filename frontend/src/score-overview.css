@@ -465,33 +465,35 @@
 .breakdown-item-vertical {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 6px;
+  padding: 4px 8px;
   background: white;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .breakdown-icon {
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .breakdown-label {
   flex: 1;
-  color: #333;
+  color: #666;
+  font-size: 11px;
 }
 
 .breakdown-score {
   font-weight: 600;
-  color: #1890ff;
-  width: 35px;
+  color: #333;
+  width: 30px;
   text-align: right;
+  font-size: 11px;
 }
 
 .breakdown-weight {
   color: #999;
-  font-size: 11px;
-  width: 35px;
+  font-size: 10px;
+  width: 30px;
   text-align: right;
 }
 
