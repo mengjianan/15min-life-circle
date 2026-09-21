@@ -58,7 +58,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
             <span className="category-icon-small">🚶</span>
             <span className="category-name-small">可达性</span>
             <div className="category-bar-small">
-              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.accessibility || 0) }} />
+              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.accessibility || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.accessibility || 0) }} />
             </div>
             <span className="category-score-small">{comprehensiveScore.accessibility || 0}</span>
           </div>
@@ -66,7 +66,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
             <span className="category-icon-small">🚌</span>
             <span className="category-name-small">出行适配</span>
             <div className="category-bar-small">
-              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.mode_adaptability || 0) }} />
+              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.mode_adaptability || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.mode_adaptability || 0) }} />
             </div>
             <span className="category-score-small">{comprehensiveScore.mode_adaptability || 0}</span>
           </div>
@@ -74,7 +74,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
             <span className="category-icon-small">⚠️</span>
             <span className="category-name-small">盲区识别</span>
             <div className="category-bar-small">
-              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.blind_spot || 0) }} />
+              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.blind_spot || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.blind_spot || 0) }} />
             </div>
             <span className="category-score-small">{comprehensiveScore.blind_spot || 0}</span>
           </div>
@@ -82,7 +82,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
             <span className="category-icon-small">🔮</span>
             <span className="category-name-small">风水评分</span>
             <div className="category-bar-small">
-              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.fengshui || 0) }} />
+              <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.fengshui || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.fengshui || 0) }} />
             </div>
             <span className="category-score-small">{comprehensiveScore.fengshui || 0}</span>
           </div>
