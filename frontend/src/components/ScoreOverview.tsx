@@ -31,10 +31,10 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
   };
 
   return (
-    <div className="score-overview">
-      {/* 综合评分 - 纵向排列 */}
-      <section className="overview-section">
-        <h3 className="overview-title">📈 综合评分</h3>
+    <div className="report-container">
+      {/* 综合评分 */}
+      <section className="report-section compact">
+        <h3 className="section-title">📈 综合评分</h3>
         <div className="comprehensive-score-vertical">
           <div className="total-score-vertical">
             <span className="score-number" style={{ color: getScoreColor(comprehensiveScore.total || 0) }}>
@@ -95,8 +95,8 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
       </section>
 
       {/* 出行方式对比 */}
-      <section className="overview-section">
-        <h3 className="overview-title">📊 出行方式对比</h3>
+      <section className="report-section compact">
+        <h3 className="section-title">📊 出行方式对比</h3>
         <div className="mode-comparison-vertical">
           {Object.entries(modes).map(([mode, modeData]: [string, any]) => {
             const score = modeData.score?.total || 0;
@@ -108,7 +108,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
                   <div
                     className="mode-bar-fill"
                     style={{
-                      width: `${score}%`,
+                      width: `${comprehensiveScore.facility_coverage || 0}%`,
                       backgroundColor: getScoreColor(score)
                     }}
                   />
@@ -121,8 +121,8 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
       </section>
 
       {/* 体检总结 */}
-      <section className="overview-section">
-        <h3 className="overview-title">📊 体检总结</h3>
+      <section className="report-section compact">
+        <h3 className="section-title">📊 体检总结</h3>
         <div className="conclusion-vertical">
           <p className="conclusion-text">
             <strong>{communityName}</strong> 综合评分
