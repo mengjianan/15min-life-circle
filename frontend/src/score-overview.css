@@ -425,3 +425,133 @@
 .time-button-mini.active .time-score-mini {
   color: white;
 }
+
+
+/* 综合评分 - 纵向排列 */
+.comprehensive-score-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.total-score-vertical {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  padding: 10px;
+  background: white;
+  border-radius: 6px;
+}
+
+.total-score-vertical .score-number {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.total-score-vertical .score-level {
+  padding: 4px 12px;
+  border-radius: 12px;
+  color: white;
+  font-size: 12px;
+}
+
+.score-breakdown-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.breakdown-item-vertical {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: white;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.breakdown-icon {
+  font-size: 14px;
+}
+
+.breakdown-label {
+  flex: 1;
+  color: #333;
+}
+
+.breakdown-score {
+  font-weight: 600;
+  color: #1890ff;
+  width: 35px;
+  text-align: right;
+}
+
+.breakdown-weight {
+  color: #999;
+  font-size: 11px;
+  width: 35px;
+  text-align: right;
+}
+
+/* 出行方式对比 - 纵向排列 */
+.mode-comparison-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mode-item-vertical {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: white;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.mode-icon {
+  font-size: 16px;
+}
+
+.mode-name {
+  width: 35px;
+  color: #333;
+}
+
+.mode-bar {
+  flex: 1;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mode-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.mode-score {
+  width: 35px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* 体检总结 - 纵向排列 */
+.conclusion-vertical {
+  padding: 10px;
+  background: white;
+  border-radius: 6px;
+}
+
+.conclusion-text {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.8;
+  margin: 0;
+}
