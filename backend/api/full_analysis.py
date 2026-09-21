@@ -29,9 +29,9 @@ class FullAnalysisRequest(BaseModel):
 # 出行方式配置
 TRAVEL_MODES = {
     "walking": {"name": "步行", "speed": 1.2, "speed_multiplier": 1.0},
-    "cycling": {"name": "骑行", "speed": 3.5, "speed_multiplier": 1.8},
-    "transit": {"name": "公交", "speed": 5.0, "speed_multiplier": 2.2},
-    "driving": {"name": "驾车", "speed": 8.0, "speed_multiplier": 2.8},
+    "cycling": {"name": "骑行", "speed": 3.5, "speed_multiplier": 2.9},  # 骑行速度约3.5m/s，15分钟约3150m
+    "transit": {"name": "公交", "speed": 5.0, "speed_multiplier": 4.2},  # 公交速度约5m/s，15分钟约4500m
+    "driving": {"name": "驾车", "speed": 8.0, "speed_multiplier": 6.7},  # 驾车速度约8m/s，15分钟约7200m
 }
 
 # 时间点对应的最大距离（米）
