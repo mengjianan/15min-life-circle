@@ -3,12 +3,14 @@ interface ReportProps {
   fullResult: any;
   fengshuiResult?: any;
   activeMode?: string;
+  activeTimeSlot?: number;
 }
 
 const Report: React.FC<ReportProps> = ({
   // communityName,
   fullResult,
-  activeMode = 'walking'
+  activeMode = 'walking',
+  activeTimeSlot = 900
 }) => {
   if (!fullResult) {
     return <div className="report-container">暂无数据</div>;
@@ -19,21 +21,12 @@ const Report: React.FC<ReportProps> = ({
   const currentMode = modes[activeMode] || {};
   const currentScore = currentMode.score || {};
   const currentCategories = currentScore.categories || {};
-  const currentSlot = currentMode.time_slots?.['900'] || {};
 
-  // const modeNames: Record<string, string> = {
-  //   walking: '步行',
-  //   cycling: '骑行',
-  //   transit: '公交',
-  //   driving: '驾车'
-  // };
-
-  // const modeIcons: Record<string, string> = {
-  //   walking: '🚶',
-  //   cycling: '🚲',
-  //   transit: '🚌',
-  //   driving: '🚗'
-  // };
+  // 根据时间档获取数据
+  const timeSlotKey = String(activeTimeSlot);
+  const currentSlot = currentMode.time_slots?.[timeSlotKey] || {};
+  const coverage = currentSlot.poi_coverage || {};
+  const blindSpots = currentSlot.blind_spots || [];
 
   const categoryIcons: Record<string, string> = {
     '医疗': '🏥',
@@ -53,7 +46,6 @@ const Report: React.FC<ReportProps> = ({
   };
 
   // 计算可达性数据
-  const coverage = currentSlot.poi_coverage || {};
   let totalTime = 0;
   let count = 0;
   const nearestDistances: Record<string, number> = {};
@@ -75,14 +67,13 @@ const Report: React.FC<ReportProps> = ({
     ? Object.values(nearestDistances).reduce((a, b) => a + b, 0) / Object.keys(nearestDistances).length
     : 0;
 
-  // 盲区数据
-  const blindSpots = currentSlot.blind_spots || [];
+  const timeLabel = activeTimeSlot === 300 ? '5分钟' : activeTimeSlot === 600 ? '10分钟' : '15分钟';
 
   return (
     <div className="report-container">
-      {/* 基础覆盖评分 - 根据出行方式切换 */}
+      {/* 基础覆盖评分 - 根据出行方式和时间切换 */}
       <section className="report-section compact">
-        <h3 className="section-title">🏢 基础覆盖评分</h3>
+        <h3 className="section-title">🏢 {timeLabel}覆盖评分</h3>
         <div className="category-coverage-compact">
           {Object.entries(currentCategories).map(([cat, score]: [string, any]) => (
             <div key={cat} className="category-item-compact">
@@ -108,9 +99,9 @@ const Report: React.FC<ReportProps> = ({
         </div>
       </section>
 
-      {/* 可达性效率评分 - 根据出行方式切换 */}
+      {/* 可达性效率 - 根据出行方式和时间切换 */}
       <section className="report-section compact">
-        <h3 className="section-title">🚶 可达性效率</h3>
+        <h3 className="section-title">🚶 {timeLabel}可达性</h3>
         <div className="accessibility-compact">
           <div className="metric-compact">
             <span className="metric-value-compact">{avgTime.toFixed(1)}</span>
@@ -131,9 +122,9 @@ const Report: React.FC<ReportProps> = ({
         </div>
       </section>
 
-      {/* 服务盲区识别 - 根据出行方式切换 */}
+      {/* 服务盲区 - 根据出行方式和时间切换 */}
       <section className="report-section compact">
-        <h3 className="section-title">⚠️ 服务盲区</h3>
+        <h3 className="section-title">⚠️ {timeLabel}盲区</h3>
         {blindSpots.length === 0 ? (
           <div className="no-blind-spot-compact">✅ 无服务盲区</div>
         ) : (
@@ -149,7 +140,7 @@ const Report: React.FC<ReportProps> = ({
         )}
       </section>
 
-      {/* 风水/居住适宜性 - 根据出行方式切换 */}
+      {/* 风水/居住适宜性 - 不随时间切换 */}
       {comprehensiveScore.fengshui_detail && (
         <section className="report-section compact">
           <h3 className="section-title">🔮 风水/居住适宜性</h3>
