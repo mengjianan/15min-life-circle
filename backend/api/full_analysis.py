@@ -1,7 +1,8 @@
 """
-全出行方式分析API（优化版）
+全出行方式分析API（优化版 v3）
 支持步行、骑行、公交、驾车4种出行方式并行分析
 优化：只查询15分钟POI，其他时间按距离过滤
+优化：顺序执行避免并发限流
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -311,14 +312,17 @@ async def generate_full_analysis(request: FullAnalysisRequest):
         center = GeoPoint(lng=request.lng, lat=request.lat)
         location = {"lng": request.lng, "lat": request.lat}
 
-        print(f"[分析开始] 位置: {request.lng}, {request.lat}, 社区: {request.community_name}")
+        print(f"[分析开始] 位置: {request.lng}, {request.lat}, 社区: {request.community_name}", flush=True)
 
-        tasks = [
-            analyze_single_mode(mode, config, center, location, request.community_name)
-            for mode, config in TRAVEL_MODES.items()
-        ]
-
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # 顺序执行各出行方式分析（避免并发API请求过多被限流）
+        results = []
+        for mode, config in TRAVEL_MODES.items():
+            try:
+                result = await analyze_single_mode(mode, config, center, location, request.community_name)
+                results.append(result)
+            except Exception as e:
+                print(f"出行方式 {mode} 分析失败: {e}", flush=True)
+                results.append(e)
 
         modes = {}
         comparison = []
@@ -378,6 +382,7 @@ async def generate_full_analysis(request: FullAnalysisRequest):
         )
 
         return {
+            "api_version": "v3",
             "community_name": request.community_name,
             "center": {"lng": center.lng, "lat": center.lat},
             "timestamp": time.time(),

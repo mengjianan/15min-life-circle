@@ -5,8 +5,11 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# 加载.env文件
-load_dotenv(Path(__file__).parent.parent / ".env")
+# 加载.env文件（优先从当前目录加载，其次从父目录）
+env_path = Path(__file__).parent / ".env"
+if not env_path.exists():
+    env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
 
 # 百度地图API配置
 BAIDU_MAP_AK = os.getenv("BAIDU_MAP_AK", "")

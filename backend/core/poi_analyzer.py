@@ -112,8 +112,21 @@ class POIAnalyzer:
                 "facilities": unique_facilities[:10]  # 只返回前10个
             }
 
-        # 缓存完整结果
-        self.cache.set(cache_key, coverage, ttl=86400)  # 24小时
+        # 只缓存不包含模拟数据的完整结果
+        has_mock = False
+        for cat_data in coverage.values():
+            for f in cat_data.get("facilities", []):
+                if f.get("uid", "").startswith("mock_"):
+                    has_mock = True
+                    break
+            if has_mock:
+                break
+
+        if not has_mock:
+            self.cache.set(cache_key, coverage, ttl=86400)  # 24小时
+            print(f"[缓存写入] POI数据(全真实): {location_key}")
+        else:
+            print(f"[跳过缓存] POI数据含模拟数据: {location_key}")
 
         return coverage
 

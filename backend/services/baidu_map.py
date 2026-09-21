@@ -1,6 +1,7 @@
 """
-百度地图API封装服务（修复版）
+百度地图API封装服务（修复版 v2）
 修复：API可用性检查不再依赖地点检索
+修复：添加全局信号量共享和请求速率控制
 """
 import httpx
 import asyncio
@@ -39,9 +40,24 @@ class BaiduMapService:
         "geocoder": None,   # 地理编码
     }
 
+    # API状态缓存时间（秒）
+    _api_status_ttl = 300  # 5分钟
+    _api_status_last_check = {
+        "place": 0,
+        "direction": 0,
+        "geocoder": 0,
+    }
+
+    # 全局信号量（所有实例共享，避免并发超限）
+    _global_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+
+    # 全局请求间隔控制（最小间隔秒数）
+    _min_request_interval = 0.15  # 150ms between requests
+    _last_request_time = 0
+
     def __init__(self):
         self.ak = BAIDU_MAP_AK
-        self.semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+        self.semaphore = self._global_semaphore  # 使用全局共享信号量
         self.client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT)
         self._api_status = self._global_api_status  # 使用全局缓存
 
@@ -59,7 +75,12 @@ class BaiduMapService:
         Returns:
             是否可用
         """
-        if self._api_status[api_type] is not None:
+        import time
+        current_time = time.time()
+
+        # 检查缓存是否有效
+        if (self._api_status[api_type] is not None and
+            current_time - self._api_status_last_check[api_type] < self._api_status_ttl):
             return self._api_status[api_type]
 
         try:
@@ -78,6 +99,7 @@ class BaiduMapService:
                 response = await self.client.get(PLACE_API, params=params)
                 data = response.json()
                 self._api_status["place"] = data.get("status") == 0
+                self._api_status_last_check["place"] = current_time
 
             elif api_type == "direction":
                 # 检查路线规划API（用步行API测试）
@@ -90,6 +112,7 @@ class BaiduMapService:
                 response = await self.client.get(f"{DIRECTION_API}/walking", params=params)
                 data = response.json()
                 self._api_status["direction"] = data.get("status") == 0
+                self._api_status_last_check["direction"] = current_time
 
             elif api_type == "geocoder":
                 # 检查地理编码API
@@ -102,10 +125,12 @@ class BaiduMapService:
                 response = await self.client.get(PLACE_API, params=params)
                 data = response.json()
                 self._api_status["geocoder"] = data.get("status") == 0
+                self._api_status_last_check["geocoder"] = current_time
 
         except Exception as e:
             print(f"检查{api_type} API异常: {e}")
             self._api_status[api_type] = False
+            self._api_status_last_check[api_type] = current_time
 
         status = "可用" if self._api_status[api_type] else "不可用"
         print(f"{api_type} API: {status}")
@@ -356,52 +381,76 @@ class BaiduMapService:
         Returns:
             POI列表
         """
-        # 检查地点检索API是否可用（使用缓存状态）
-        if self._api_status["place"] is False:
-            # API已知不可用，直接返回模拟数据
-            return self._generate_mock_poi(location, query), True
+        # 检查地点检索API是否可用（使用带TTL的缓存状态）
+        print(f"[POI搜索] 检查API状态: {query}")
         if not await self._check_api_type("place"):
+            print(f"[POI搜索] API不可用，返回模拟数据: {query}")
             return self._generate_mock_poi(location, query), True
+        print(f"[POI搜索] API可用，开始搜索: {query}")
 
-        async with self.semaphore:
-            try:
-                params = {
-                    "query": query,
-                    "location": f"{location['lat']},{location['lng']}",
-                    "radius": radius,
-                    "output": "json",
-                    "ak": self.ak,
-                    "page_num": page_num,
-                    "page_size": page_size,
-                    "scope": 2
-                }
+        # 重试逻辑
+        max_retries = 3
+        for retry in range(max_retries):
+            async with self.semaphore:
+                try:
+                    params = {
+                        "query": query,
+                        "location": f"{location['lat']},{location['lng']}",
+                        "radius": radius,
+                        "output": "json",
+                        "ak": self.ak,
+                        "page_num": page_num,
+                        "page_size": page_size,
+                        "scope": 2
+                    }
 
-                # 增加API调用计数
-                api_protection.increment_usage()
+                    # 全局请求速率控制
+                    import time
+                    current_time = time.time()
+                    elapsed = current_time - BaiduMapService._last_request_time
+                    if elapsed < BaiduMapService._min_request_interval:
+                        await asyncio.sleep(BaiduMapService._min_request_interval - elapsed)
+                    BaiduMapService._last_request_time = time.time()
 
-                response = await self.client.get(PLACE_API, params=params)
-                data = response.json()
+                    # 增加API调用计数
+                    api_protection.increment_usage()
 
-                if data.get("status") == 0:
-                    results = data.get("results", [])
-                    return [
-                        {
-                            "name": poi.get("name"),
-                            "address": poi.get("address"),
-                            "location": poi.get("location"),
-                            "type": poi.get("detail_info", {}).get("type"),
-                            "tag": poi.get("detail_info", {}).get("tag"),
-                            "distance": poi.get("detail_info", {}).get("distance"),
-                            "uid": poi.get("uid")
-                        }
-                        for poi in results
-                    ]
+                    response = await self.client.get(PLACE_API, params=params)
+                    data = response.json()
 
-                # 如果API调用失败，返回模拟数据
-                return self._generate_mock_poi(location, query)
-            except Exception as e:
-                print(f"POI搜索失败: {e}")
-                return self._generate_mock_poi(location, query)
+                    if data.get("status") == 0:
+                        results = data.get("results", [])
+                        return [
+                            {
+                                "name": poi.get("name"),
+                                "address": poi.get("address"),
+                                "location": poi.get("location"),
+                                "type": poi.get("detail_info", {}).get("type"),
+                                "tag": poi.get("detail_info", {}).get("tag"),
+                                "distance": poi.get("detail_info", {}).get("distance"),
+                                "uid": poi.get("uid")
+                            }
+                            for poi in results
+                        ], False
+
+                    # 如果是并发限制错误，等待后重试
+                    if data.get("status") == 401 and retry < max_retries - 1:
+                        wait_time = (retry + 1) * 0.5  # 递增等待时间
+                        print(f"[POI搜索] 并发限制，等待{wait_time}秒后重试: {query}")
+                        await asyncio.sleep(wait_time)
+                        continue
+
+                    # 其他错误，返回模拟数据
+                    print(f"[POI搜索] API返回失败状态({data.get('status')}): {data.get('message', '')}，返回模拟数据: {query}")
+                    return self._generate_mock_poi(location, query), True
+                except Exception as e:
+                    print(f"POI搜索失败: {e}")
+                    if retry < max_retries - 1:
+                        await asyncio.sleep(0.5)
+                        continue
+                    return self._generate_mock_poi(location, query), True
+
+        return self._generate_mock_poi(location, query), True
 
     def _generate_mock_poi(
         self,

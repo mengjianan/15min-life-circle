@@ -1,5 +1,7 @@
 FROM python:3.10-slim
 
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
 # 安装系统依赖
@@ -21,7 +23,7 @@ COPY .env.example .env
 RUN mkdir -p /app/data
 
 # 暴露端口
-EXPOSE 8080
+EXPOSE 8000
 
 # 启动服务
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
