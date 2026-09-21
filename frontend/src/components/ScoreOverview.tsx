@@ -49,31 +49,31 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
               <span className="breakdown-icon">🏢</span>
               <span className="breakdown-label">设施覆盖</span>
               <span className="breakdown-score">{comprehensiveScore.facility_coverage || 0}</span>
-              <span className="breakdown-weight">35%</span>
+              <span className="breakdown-weight">占总分35%</span>
             </div>
             <div className="breakdown-item-vertical">
               <span className="breakdown-icon">🚶</span>
               <span className="breakdown-label">可达性</span>
               <span className="breakdown-score">{comprehensiveScore.accessibility || 0}</span>
-              <span className="breakdown-weight">25%</span>
+              <span className="breakdown-weight">占总分25%</span>
             </div>
             <div className="breakdown-item-vertical">
               <span className="breakdown-icon">🚌</span>
               <span className="breakdown-label">出行适配</span>
               <span className="breakdown-score">{comprehensiveScore.mode_adaptability || 0}</span>
-              <span className="breakdown-weight">20%</span>
+              <span className="breakdown-weight">占总分20%</span>
             </div>
             <div className="breakdown-item-vertical">
               <span className="breakdown-icon">⚠️</span>
               <span className="breakdown-label">盲区识别</span>
               <span className="breakdown-score">{comprehensiveScore.blind_spot || 0}</span>
-              <span className="breakdown-weight">10%</span>
+              <span className="breakdown-weight">占总分10%</span>
             </div>
             <div className="breakdown-item-vertical">
               <span className="breakdown-icon">🔮</span>
               <span className="breakdown-label">风水评分</span>
               <span className="breakdown-score">{comprehensiveScore.fengshui || 0}</span>
-              <span className="breakdown-weight">10%</span>
+              <span className="breakdown-weight">占总分10%</span>
             </div>
           </div>
         </div>
