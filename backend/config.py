@@ -6,10 +6,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # 加载.env文件（优先从当前目录加载，其次从父目录）
+# 使用override=False，不覆盖已有的环境变量（docker-compose env_file设置的优先）
 env_path = Path(__file__).parent / ".env"
 if not env_path.exists():
     env_path = Path(__file__).parent.parent / ".env"
-load_dotenv(env_path)
+load_dotenv(env_path, override=False)
 
 # 百度地图API配置
 BAIDU_MAP_AK = os.getenv("BAIDU_MAP_AK", "")

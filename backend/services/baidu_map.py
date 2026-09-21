@@ -98,7 +98,13 @@ class BaiduMapService:
                 }
                 response = await self.client.get(PLACE_API, params=params)
                 data = response.json()
-                self._api_status["place"] = data.get("status") == 0
+                status = data.get("status", -1)
+                # 401/402/302 是配额/限流问题，不标记为不可用
+                if status in (401, 402, 302):
+                    print(f"place API: 配额/限流(status={status}, msg={data.get('message','')})，保持可用状态")
+                    self._api_status["place"] = True
+                else:
+                    self._api_status["place"] = status == 0
                 self._api_status_last_check["place"] = current_time
 
             elif api_type == "direction":
@@ -111,7 +117,12 @@ class BaiduMapService:
                 }
                 response = await self.client.get(f"{DIRECTION_API}/walking", params=params)
                 data = response.json()
-                self._api_status["direction"] = data.get("status") == 0
+                status = data.get("status", -1)
+                if status in (401, 402, 302):
+                    print(f"direction API: 配额/限流(status={status})，保持可用状态")
+                    self._api_status["direction"] = True
+                else:
+                    self._api_status["direction"] = status == 0
                 self._api_status_last_check["direction"] = current_time
 
             elif api_type == "geocoder":
@@ -124,7 +135,12 @@ class BaiduMapService:
                 }
                 response = await self.client.get(PLACE_API, params=params)
                 data = response.json()
-                self._api_status["geocoder"] = data.get("status") == 0
+                status = data.get("status", -1)
+                if status in (401, 402, 302):
+                    print(f"geocoder API: 配额/限流(status={status})，保持可用状态")
+                    self._api_status["geocoder"] = True
+                else:
+                    self._api_status["geocoder"] = status == 0
                 self._api_status_last_check["geocoder"] = current_time
 
         except Exception as e:
@@ -202,9 +218,15 @@ class BaiduMapService:
                     routes = result.get("routes", [])
                     if routes:
                         route = routes[0]
+                        distance = route.get("distance", 0)
+                        if isinstance(distance, dict):
+                            distance = distance.get("value", 0)
+                        duration = route.get("duration", 0)
+                        if isinstance(duration, dict):
+                            duration = duration.get("value", 0)
                         return {
-                            "distance": route.get("distance", {}).get("value"),
-                            "duration": route.get("duration", 0) if isinstance(route.get("duration", 0), (int, float)) else route.get("duration", {}).get("value", 0),
+                            "distance": distance,
+                            "duration": duration,
                             "steps": route.get("steps", [])
                         }
 
@@ -242,9 +264,15 @@ class BaiduMapService:
                     routes = result.get("routes", [])
                     if routes:
                         route = routes[0]
+                        distance = route.get("distance", 0)
+                        if isinstance(distance, dict):
+                            distance = distance.get("value", 0)
+                        duration = route.get("duration", 0)
+                        if isinstance(duration, dict):
+                            duration = duration.get("value", 0)
                         return {
-                            "distance": route.get("distance", {}).get("value"),
-                            "duration": route.get("duration", 0) if isinstance(route.get("duration", 0), (int, float)) else route.get("duration", {}).get("value", 0),
+                            "distance": distance,
+                            "duration": duration,
                             "steps": route.get("steps", [])
                         }
 
@@ -291,9 +319,15 @@ class BaiduMapService:
                     routes = result.get("routes", [])
                     if routes:
                         route = routes[0]
+                        distance = route.get("distance", 0)
+                        if isinstance(distance, dict):
+                            distance = distance.get("value", 0)
+                        duration = route.get("duration", 0)
+                        if isinstance(duration, dict):
+                            duration = duration.get("value", 0)
                         return {
-                            "distance": route.get("distance", {}).get("value"),
-                            "duration": route.get("duration", 0) if isinstance(route.get("duration", 0), (int, float)) else route.get("duration", {}).get("value", 0),
+                            "distance": distance,
+                            "duration": duration,
                             "steps": route.get("steps", [])
                         }
 
@@ -340,9 +374,15 @@ class BaiduMapService:
                     routes = result.get("routes", [])
                     if routes:
                         route = routes[0]
+                        distance = route.get("distance", 0)
+                        if isinstance(distance, dict):
+                            distance = distance.get("value", 0)
+                        duration = route.get("duration", 0)
+                        if isinstance(duration, dict):
+                            duration = duration.get("value", 0)
                         return {
-                            "distance": route.get("distance", {}).get("value"),
-                            "duration": route.get("duration", 0) if isinstance(route.get("duration", 0), (int, float)) else route.get("duration", {}).get("value", 0),
+                            "distance": distance,
+                            "duration": duration,
                             "steps": route.get("steps", [])
                         }
 
@@ -433,10 +473,15 @@ class BaiduMapService:
                             for poi in results
                         ], False
 
+                    # 如果是配额超限(302)，不重试直接返回模拟数据
+                    if data.get("status") == 302:
+                        print(f"[POI搜索] 天配额超限，直接返回模拟数据: {query}")
+                        return self._generate_mock_poi(location, query), True
+
                     # 如果是并发限制错误，等待后重试
-                    if data.get("status") == 401 and retry < max_retries - 1:
-                        wait_time = (retry + 1) * 0.5  # 递增等待时间
-                        print(f"[POI搜索] 并发限制，等待{wait_time}秒后重试: {query}")
+                    if data.get("status") in (401, 402) and retry < max_retries - 1:
+                        wait_time = (retry + 1) * 1.5  # 递增等待时间(1.5s, 3s, 4.5s)
+                        print(f"[POI搜索] 并发限制(status={data.get('status')})，等待{wait_time}秒后重试: {query}")
                         await asyncio.sleep(wait_time)
                         continue
 
