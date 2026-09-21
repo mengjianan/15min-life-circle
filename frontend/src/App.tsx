@@ -510,28 +510,6 @@ function App() {
                 </div>
               )}
 
-              {/* 时间维度对比 - 紧凑版，放在综合评分上方 */}
-              {modeData && modeData.time_slots && (
-                <div className="time-comparison-mini">
-                  <div className="time-buttons-mini">
-                    {[300, 600, 900].map(time => {
-                      const slots = modeData.time_slots as Record<string, any>;
-                      const slot = slots[String(time)];
-                      const isSelected = activeTimeSlot === time;
-                      return (
-                        <div
-                          key={time}
-                          className={`time-button-mini ${isSelected ? 'active' : ''}`}
-                          onClick={() => setActiveTimeSlot(time)}
-                        >
-                          <span className="time-label-mini">{time === 300 ? '5分钟' : time === 600 ? '10分钟' : '15分钟'}</span>
-                          <span className="time-score-mini">{slot?.score?.total || 0}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
 {/* 综合评分概览 - 不随出行方式切换 */}
               {fullResult && (
