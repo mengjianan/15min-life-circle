@@ -4,7 +4,7 @@
 export const BAIDU_MAP_AK = '2bYD1EE33okcac0OpFT7ojWmTYXPKCCs';
 
 // API基础路径 - 指向实际运行的后端服务
-export const API_BASE_URL = 'http://100.77.182.51:8081/api';
+export const API_BASE_URL = 'http://100.126.142.87:8081/api';
 
 // 社区坐标接口
 export interface Community {
