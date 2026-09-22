@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.backend
     container_name: life-circle-backend
     ports:
-      - "0.0.0.0:8080:8000"
+      - "0.0.0.0:8081:8000"
     volumes:
       - ./data:/app/data
     env_file:
