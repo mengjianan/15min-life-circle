@@ -207,6 +207,92 @@ class BaiduMapService:
                 print(f"步行时间查询失败: {e}")
                 return None
 
+    async def get_riding_time(
+        self,
+        origin: Dict[str, float],
+        destination: Dict[str, float]
+    ) -> Optional[float]:
+        """获取骑行时间（带缓存）"""
+        cache_key = self._get_route_cache_key("riding_time", origin, destination)
+        cached = self._get_cached_route(cache_key)
+        if cached is not None:
+            return cached
+
+        if not await self._check_api_type("direction"):
+            return None
+
+        async with self.semaphore:
+            try:
+                params = {
+                    "origin": f"{origin['lat']},{origin['lng']}",
+                    "destination": f"{destination['lat']},{destination['lng']}",
+                    "ak": self.ak,
+                    "output": "json"
+                }
+
+                response = await self.client.get(
+                    f"{DIRECTION_API}/riding",
+                    params=params
+                )
+                data = response.json()
+
+                if data.get("status") == 0:
+                    result = data.get("result", {})
+                    routes = result.get("routes", [])
+                    if routes:
+                        duration = routes[0].get("duration", 0)
+                        duration = duration if isinstance(duration, (int, float)) else duration.get("value", 0)
+                        self._set_cached_route(cache_key, duration)
+                        return duration
+
+                return None
+            except Exception as e:
+                print(f"骑行时间查询失败: {e}")
+                return None
+
+    async def get_driving_time(
+        self,
+        origin: Dict[str, float],
+        destination: Dict[str, float]
+    ) -> Optional[float]:
+        """获取驾车时间（带缓存）"""
+        cache_key = self._get_route_cache_key("driving_time", origin, destination)
+        cached = self._get_cached_route(cache_key)
+        if cached is not None:
+            return cached
+
+        if not await self._check_api_type("direction"):
+            return None
+
+        async with self.semaphore:
+            try:
+                params = {
+                    "origin": f"{origin['lat']},{origin['lng']}",
+                    "destination": f"{destination['lat']},{destination['lng']}",
+                    "ak": self.ak,
+                    "output": "json"
+                }
+
+                response = await self.client.get(
+                    f"{DIRECTION_API}/driving",
+                    params=params
+                )
+                data = response.json()
+
+                if data.get("status") == 0:
+                    result = data.get("result", {})
+                    routes = result.get("routes", [])
+                    if routes:
+                        duration = routes[0].get("duration", 0)
+                        duration = duration if isinstance(duration, (int, float)) else duration.get("value", 0)
+                        self._set_cached_route(cache_key, duration)
+                        return duration
+
+                return None
+            except Exception as e:
+                print(f"驾车时间查询失败: {e}")
+                return None
+
     async def get_walking_route(
         self,
         origin: Dict[str, float],

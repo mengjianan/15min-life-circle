@@ -133,10 +133,21 @@ class IsochroneEngine:
     ) -> GeoPoint:
         """
         二分搜索某方向上的边界点
+        根据速度选择合适的出行方式API
         """
         low = 0
         high = max_radius
         best_point = center
+
+        # 根据速度判断出行方式，选择对应的API
+        if speed >= 7.0:  # 驾车 ~8m/s
+            travel_mode = "driving"
+        elif speed >= 4.0:  # 公交 ~5m/s
+            travel_mode = "driving"  # 公交也用驾车API近似
+        elif speed >= 3.0:  # 骑行 ~3.5m/s
+            travel_mode = "riding"
+        else:  # 步行 ~1.2m/s
+            travel_mode = "walking"
 
         for _ in range(max_iterations):
             mid = (low + high) / 2
@@ -144,12 +155,19 @@ class IsochroneEngine:
 
             origin_dict = {"lng": center.lng, "lat": center.lat}
             target_dict = {"lng": target.lng, "lat": target.lat}
-            walk_time = await self.baidu_map.get_walking_time(origin_dict, target_dict)
 
-            if walk_time is None:
-                walk_time = mid / speed
+            # 根据出行方式获取时间
+            if travel_mode == "walking":
+                travel_time = await self.baidu_map.get_walking_time(origin_dict, target_dict)
+            elif travel_mode == "riding":
+                travel_time = await self.baidu_map.get_riding_time(origin_dict, target_dict)
+            else:  # driving
+                travel_time = await self.baidu_map.get_driving_time(origin_dict, target_dict)
 
-            if walk_time < max_time:
+            if travel_time is None:
+                travel_time = mid / speed
+
+            if travel_time < max_time:
                 best_point = target
                 low = mid
             else:

@@ -44,6 +44,10 @@ class FengShuiEngine:
 
     async def analyze(self, center, radius=1500):
         """综合风水分析"""
+        # Convert center to dict if needed (GeoPoint对象转dict，search_poi需要dict)
+        if hasattr(center, "lng"):
+            center = {"lng": center.lng, "lat": center.lat}
+
         terrain = await self.analyze_terrain(center, radius)
         water = await self.analyze_water(center, radius)
         environment = await self.analyze_surroundings(center, radius)
@@ -51,11 +55,7 @@ class FengShuiEngine:
         greenery = await self.analyze_greenery(center, radius)
         score = self.calculate_score(terrain, water, environment, orientation, greenery)
         suggestions = self.generate_suggestions(terrain, water, environment, orientation)
-        # Convert center to dict if needed
-        if hasattr(center, "lng"):
-            center_dict = {"lng": center.lng, "lat": center.lat}
-        else:
-            center_dict = center
+        center_dict = center
 
         return FengShuiResult(
             center=center_dict, terrain=terrain, water=water,
@@ -202,18 +202,28 @@ class FengShuiEngine:
         for cat, kws in POSITIVE_FACILITIES.items():
             for kw in kws:
                 try:
-                    results = await self.baidu_map.search_poi(center=center, keyword=kw, radius=radius, page_size=5)
-                    for poi in results:
+                    result = await self.baidu_map.search_poi(location=center, query=kw, radius=radius, page_size=5)
+                    if isinstance(result, tuple):
+                        pois, _ = result
+                    else:
+                        pois = result
+                    for poi in (pois or []):
                         pos.append(EnvironmentFacility(name=poi.get("name", ""), type=cat, impact=FacilityImpact.POSITIVE, distance=poi.get("distance", 0), direction=""))
-                except:
+                except Exception as e:
+                    print(f"环境搜索失败({kw}): {e}")
                     continue
         for cat, kws in NEGATIVE_FACILITIES.items():
             for kw in kws:
                 try:
-                    results = await self.baidu_map.search_poi(center=center, keyword=kw, radius=radius, page_size=5)
-                    for poi in results:
+                    result = await self.baidu_map.search_poi(location=center, query=kw, radius=radius, page_size=5)
+                    if isinstance(result, tuple):
+                        pois, _ = result
+                    else:
+                        pois = result
+                    for poi in (pois or []):
                         neg.append(EnvironmentFacility(name=poi.get("name", ""), type=cat, impact=FacilityImpact.NEGATIVE, distance=poi.get("distance", 0), direction=""))
-                except:
+                except Exception as e:
+                    print(f"环境搜索失败({kw}): {e}")
                     continue
         if len(neg) == 0:
             score = 100.0

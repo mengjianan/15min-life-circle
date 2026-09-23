@@ -58,6 +58,12 @@ const MapView: React.FC<MapViewProps> = ({
   const [showRoutes, setShowRoutes] = useState(true);
   const [showFengshui, setShowFengshui] = useState(true);
   const [clickMode, setClickMode] = useState(false);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState<number | null>(null);
+
+  // 切换出行方式时重置选中的路线
+  useEffect(() => {
+    setSelectedRouteIndex(null);
+  }, [activeMode]);
 
   const checkBaiduMapAPI = useCallback(() => {
     return new Promise<void>((resolve, reject) => {
@@ -211,6 +217,7 @@ const MapView: React.FC<MapViewProps> = ({
       }
 
       // 绘制路线（从中心到设施的路线，按出行方式）
+      // 默认显示所有路线（半透明），点击设施时高亮对应路线
       if (showRoutes && routesData && routesData.length > 0) {
         const modeColors: Record<string, string> = {
           'walking': '#52c41a',    // 绿色
@@ -223,7 +230,6 @@ const MapView: React.FC<MapViewProps> = ({
         routesData.forEach((routeInfo: any, index: number) => {
           const route = routeInfo.route;
           if (route && route.steps) {
-            // 从百度地图路线数据中提取路径点
             const allPoints: any[] = [];
             route.steps.forEach((step: any) => {
               if (step.path) {
@@ -236,37 +242,54 @@ const MapView: React.FC<MapViewProps> = ({
             });
 
             if (allPoints.length > 1) {
+              // 判断是否是选中的路线
+              const isSelected = selectedRouteIndex === index;
+
               const polyline = new BMap.Polyline(allPoints, {
                 strokeColor: routeColor,
-                strokeWeight: 4,
-                strokeOpacity: 0.8,
+                strokeWeight: isSelected ? 6 : 3,
+                strokeOpacity: isSelected ? 1.0 : 0.3,
               });
               map.addOverlay(polyline);
+
+              // 存储路线信息到polyline对象
+              (polyline as any)._routeIndex = index;
+              (polyline as any)._routeInfo = routeInfo;
+
+              // 点击路线时高亮
+              polyline.addEventListener('click', () => {
+                setSelectedRouteIndex(index);
+              });
 
               // 添加设施标记
               const lastPoint = allPoints[allPoints.length - 1];
               const facilityIcon = new BMap.Icon(
                 'data:image/svg+xml,' + encodeURIComponent(
-                  '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="' + routeColor + '" stroke="white" stroke-width="2"/><text x="10" y="14" text-anchor="middle" fill="white" font-size="10">' + (index + 1) + '</text></svg>'
+                  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="' + routeColor + '" stroke="white" stroke-width="2" opacity="' + (isSelected ? '1' : '0.6') + '"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="11">' + (index + 1) + '</text></svg>'
                 ),
-                new BMap.Size(20, 20),
-                { anchor: new BMap.Size(10, 10) }
+                new BMap.Size(24, 24),
+                { anchor: new BMap.Size(12, 12) }
               );
               const marker = new BMap.Marker(lastPoint, { icon: facilityIcon });
               map.addOverlay(marker);
 
-              const infoWindow = new BMap.InfoWindow(
-                '<div style="padding: 8px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
-                  '<div style="font-weight: 600; color: #333;">' + (routeInfo.facility_name || '设施') + '</div>' +
-                  '<div style="font-size: 12px; color: #666; margin-top: 4px;">' +
-                    '分类: ' + (routeInfo.category || '') + '<br>' +
-                    '距离: ' + (route.distance ? (route.distance / 1000).toFixed(1) + 'km' : '未知') + '<br>' +
-                    '时间: ' + (route.duration ? Math.round(route.duration / 60) + '分钟' : '未知') +
-                  '</div>' +
-                '</div>',
-                { width: 200, height: 80 }
-              );
+              // 点击设施标记时高亮对应路线
               marker.addEventListener('click', () => {
+                setSelectedRouteIndex(index);
+                const infoWindow = new BMap.InfoWindow(
+                  '<div style="padding: 12px; font-family: PingFang SC, Microsoft YaHei, sans-serif; min-width: 180px;">' +
+                    '<div style="font-weight: 600; color: #333; font-size: 14px; margin-bottom: 8px;">' + (routeInfo.facility_name || '设施') + '</div>' +
+                    '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">' +
+                      '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ' + routeColor + ';"></span>' +
+                      '<span style="font-size: 13px; color: ' + routeColor + ';">' + (routeInfo.category || '') + '</span>' +
+                    '</div>' +
+                    '<div style="font-size: 12px; color: #666;">' +
+                      '📍 距离: ' + (route.distance ? (route.distance / 1000).toFixed(1) + 'km' : '未知') + '<br>' +
+                      '⏱️ 时间: ' + (route.duration ? Math.round(route.duration / 60) + '分钟' : '未知') +
+                    '</div>' +
+                  '</div>',
+                  { width: 220, height: 100 }
+                );
                 map.openInfoWindow(infoWindow, lastPoint);
               });
             }
@@ -362,6 +385,12 @@ const MapView: React.FC<MapViewProps> = ({
 
       // 绘制风水数据（水系、地形、绿化）- 使用实际坐标，按时间过滤
       if (showFengshui && fengshuiData) {
+        console.log('[MapView] fengshuiData:', fengshuiData);
+        console.log('[MapView] water:', fengshuiData.water);
+        console.log('[MapView] water_features:', fengshuiData.water?.water_features);
+        console.log('[MapView] terrain_features:', fengshuiData.terrain?.terrain_features);
+        console.log('[MapView] greenery_features:', fengshuiData.greenery?.greenery_features);
+
         // 获取当前等时圈边界用于过滤
         let currentPolygon: {lng: number, lat: number}[] = [];
         if (multiTimeData && multiTimeData.layers) {
@@ -371,6 +400,7 @@ const MapView: React.FC<MapViewProps> = ({
             currentPolygon = selectedLayer.boundary_points;
           }
         }
+        console.log('[MapView] currentPolygon length:', currentPolygon.length);
 
         // 绘制水系（蓝色水滴图标）
         if (fengshuiData.water && fengshuiData.water.water_features) {
@@ -502,7 +532,7 @@ const MapView: React.FC<MapViewProps> = ({
         });
       }
     }
-  }, [mapReady, center, isochrone, poiCoverage, blindSpots, multiTimeData, showPOI, showBlindSpots, showRoutes, showFengshui, routesData, fengshuiData, activeTimeSlot, activeMode]);
+  }, [mapReady, center, isochrone, poiCoverage, blindSpots, multiTimeData, showPOI, showBlindSpots, showRoutes, showFengshui, routesData, fengshuiData, activeTimeSlot, activeMode, selectedRouteIndex]);
 
   // 处理选中的设施
   useEffect(() => {
