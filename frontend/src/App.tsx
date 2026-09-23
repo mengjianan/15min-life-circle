@@ -197,7 +197,7 @@ function App() {
 
   const fetchFengshuiScore = async (lng: number, lat: number) => {
     try {
-      const response = await fetch('/api/fengshui/score', {
+      const response = await fetch('/api/fengshui/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lng, lat }),
@@ -207,7 +207,7 @@ function App() {
         setFengshuiScore(data);
       }
     } catch (err) {
-      console.error('获取风水评分失败:', err);
+      console.error('获取风水分析失败:', err);
     }
   };
 

@@ -3,15 +3,8 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip
 } from 'recharts';
 
-interface FengShuiData {
-  terrain: number;
-  water: number;
-  environment: number;
-  orientation: number;
-}
-
 interface FengShuiRadarProps {
-  data: FengShuiData;
+  data: any;  // 支持完整分析结果或纯评分数据
   showLabels?: boolean;
 }
 
@@ -30,15 +23,17 @@ const getLevel = (score: number): string => {
 };
 
 const FengShuiRadarComponent: React.FC<FengShuiRadarProps> = ({ data, showLabels = true }) => {
+  // 兼容完整分析结果和纯评分数据
+  const scores = data.score || data;
   const chartData = [
-    { dimension: '地形', score: data.terrain, fullMark: 100 },
-    { dimension: '水系', score: data.water, fullMark: 100 },
-    { dimension: '环境', score: data.environment, fullMark: 100 },
-    { dimension: '方位', score: data.orientation, fullMark: 100 },
+    { dimension: '地形', score: scores.terrain || 0, fullMark: 100 },
+    { dimension: '水系', score: scores.water || 0, fullMark: 100 },
+    { dimension: '环境', score: scores.environment || 0, fullMark: 100 },
+    { dimension: '方位', score: scores.orientation || 0, fullMark: 100 },
   ];
 
   const averageScore = Math.round(
-    (data.terrain + data.water + data.environment + data.orientation) / 4
+    ((scores.terrain || 0) + (scores.water || 0) + (scores.environment || 0) + (scores.orientation || 0)) / 4
   );
   const level = getLevel(averageScore);
 
