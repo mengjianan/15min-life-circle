@@ -49,8 +49,12 @@ class GraphBuilder:
                 end = points[i + 1]
 
                 # 计算该段的距离和时间
-                step_distance = step.get("distance", {}).get("value", 0)
-                step_duration = step.get("duration", {}).get("value", 0)
+                step_distance = step.get("distance", 0)
+                if isinstance(step_distance, dict):
+                    step_distance = step_distance.get("value", 0)
+                step_duration = step.get("duration", 0)
+                if isinstance(step_duration, dict):
+                    step_duration = step_duration.get("value", 0)
 
                 # 按比例分配到每个小段
                 seg_distance = step_distance / (len(points) - 1)
