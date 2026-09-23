@@ -117,6 +117,11 @@ export interface TravelModeData {
     900: TimeSlotData;
   };
   suggestions: Suggestion[];
+  routes?: Array<{
+    facility_name: string;
+    category: string;
+    route: any;
+  }>;
 }
 
 // 时段数据
@@ -151,6 +156,54 @@ export interface FullAnalysisResult {
     driving: TravelModeData;
   };
   comparison: AreaComparison[];
+  fengshui?: {
+    terrain: {
+      score: number;
+      terrain_type?: string;
+      elevation?: number;
+      slope?: number;
+      description?: string;
+      terrain_features?: Array<{
+        name: string;
+        location: GeoPoint;
+        distance: number;
+        type: string;
+      }>;
+    };
+    water: {
+      score: number;
+      has_water?: boolean;
+      distance?: number;
+      description?: string;
+      water_features?: Array<{
+        name: string;
+        location: GeoPoint;
+        distance: number;
+        type: string;
+      }>;
+    };
+    environment: {
+      score: number;
+      description?: string;
+    };
+    orientation: {
+      score: number;
+      facing_direction?: string;
+      description?: string;
+    };
+    greenery: {
+      score: number;
+      has_greenery?: boolean;
+      count?: number;
+      description?: string;
+      greenery_features?: Array<{
+        name: string;
+        location: GeoPoint;
+        distance: number;
+        type: string;
+      }>;
+    };
+  };
   comprehensive_score?: {
     facility_coverage: number;
     accessibility: number;

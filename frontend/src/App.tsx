@@ -462,7 +462,8 @@ function App() {
                 selectedFacility={selectedFacility}
                 activeTimeSlot={activeTimeSlot}
                 activeMode={activeMode}
-                fengshuiData={fengshuiScore}
+                fengshuiData={fullResult?.fengshui || fengshuiScore}
+                routesData={modeData?.routes || []}
                 multiTimeData={modeData?.time_slots ? {
                   layers: Object.entries(modeData.time_slots).map(([key, slot]: [string, any]) => ({
                     time: Number(key),

@@ -8,7 +8,7 @@ from models.feng_shui import (
     TerrainData, WaterData, EnvironmentData, OrientationData,
     FengShuiScore, FengShuiResult, FengShuiSuggestion,
     TerrainType, WaterType, RoadType, FacilityImpact,
-    EnvironmentFacility
+    EnvironmentFacility, WaterFeature, TerrainFeature, GreeneryData, GreeneryFeature
 )
 from services.baidu_map import BaiduMapService
 from config import BAIDU_MAP_AK
@@ -48,7 +48,8 @@ class FengShuiEngine:
         water = await self.analyze_water(center, radius)
         environment = await self.analyze_surroundings(center, radius)
         orientation = await self.analyze_orientation(center)
-        score = self.calculate_score(terrain, water, environment, orientation)
+        greenery = await self.analyze_greenery(center, radius)
+        score = self.calculate_score(terrain, water, environment, orientation, greenery)
         suggestions = self.generate_suggestions(terrain, water, environment, orientation)
         # Convert center to dict if needed
         if hasattr(center, "lng"):
@@ -59,41 +60,141 @@ class FengShuiEngine:
         return FengShuiResult(
             center=center_dict, terrain=terrain, water=water,
             environment=environment, orientation=orientation,
-            score=score, suggestions=suggestions
+            greenery=greenery, score=score, suggestions=suggestions
         )
     async def analyze_terrain(self, center, radius):
         """地形分析"""
+        TERRAIN_KEYWORDS = ["山", "高地", "丘陵", "坡", "岭", "峰", "山丘", "土丘"]
+        terrain_features = []
+        found_terrain = False
+
+        for kw in TERRAIN_KEYWORDS:
+            try:
+                result = await self.baidu_map.search_poi(location=center, query=kw, radius=radius, page_size=10)
+                if isinstance(result, tuple):
+                    pois, is_mock = result
+                else:
+                    pois = result
+                    is_mock = False
+
+                for poi in (pois or []):
+                    name = poi.get("name", "")
+                    location = poi.get("location")
+                    d = poi.get("distance", 9999)
+                    if location and name:
+                        found_terrain = True
+                        terrain_features.append(TerrainFeature(
+                            name=name,
+                            location=location,
+                            distance=d,
+                            type=kw
+                        ))
+            except Exception as e:
+                print(f"地形搜索失败({kw}): {e}")
+                continue
+
+        # 去重
+        seen = set()
+        unique_features = []
+        for f in terrain_features:
+            if f.name not in seen:
+                seen.add(f.name)
+                unique_features.append(f)
+
+        # 模拟地形数据（基于是否有地形特征）
         elevations = [50.0, 52.0, 48.0, 51.0, 49.0]
         avg = sum(elevations) / len(elevations)
         diff = max(elevations) - min(elevations)
         slope = math.degrees(math.atan(diff / 100))
-        if slope < 2:
-            return TerrainData(elevation=avg, slope=slope, terrain_type=TerrainType.FLAT, score=100.0, description="地势平坦，适宜居住")
-        elif slope < 10:
-            return TerrainData(elevation=avg, slope=slope, terrain_type=TerrainType.GENTLE_SLOPE, score=80.0, description="地势平缓，较为适宜")
+
+        if found_terrain:
+            # 有地形特征，评分根据数量和距离
+            close_count = sum(1 for f in unique_features if f.distance < 1000)
+            if close_count >= 3:
+                score = 70.0  # 周围地形丰富
+                desc = f"周边有{len(unique_features)}个地形特征"
+                terrain_type = TerrainType.GENTLE_SLOPE
+            elif close_count >= 1:
+                score = 80.0
+                desc = f"周边有少量地形特征"
+                terrain_type = TerrainType.GENTLE_SLOPE
+            else:
+                score = 90.0
+                desc = "地形较为平坦"
+                terrain_type = TerrainType.FLAT
         else:
-            return TerrainData(elevation=avg, slope=slope, terrain_type=TerrainType.STEEP_SLOPE, score=60.0, description="地势起伏较大")
+            score = 100.0
+            desc = "地势平坦，适宜居住"
+            terrain_type = TerrainType.FLAT
+
+        return TerrainData(
+            elevation=avg, slope=slope, terrain_type=terrain_type,
+            terrain_features=unique_features[:10],
+            score=score, description=desc
+        )
 
     async def analyze_water(self, center, radius):
         """水系分析"""
         min_dist = float("inf")
         names = []
+        water_features = []
+        WATER_KEYWORDS = ["河流", "湖泊", "水库", "池塘", "喷泉", "河", "湖"]
+
         for kw in WATER_KEYWORDS:
             try:
-                results = await self.baidu_map.search_poi(center=center, keyword=kw, radius=radius, page_size=10)
-                for poi in results:
+                # search_poi returns tuple (pois, is_mock)
+                result = await self.baidu_map.search_poi(location=center, query=kw, radius=radius, page_size=10)
+                if isinstance(result, tuple):
+                    pois, is_mock = result
+                else:
+                    pois = result
+                    is_mock = False
+
+                for poi in (pois or []):
                     d = poi.get("distance", 9999)
                     if d < min_dist:
                         min_dist = d
-                    names.append(poi.get("name", ""))
-            except:
+                    name = poi.get("name", "")
+                    if name and name not in names:
+                        names.append(name)
+                        # 添加水系特征点（包含坐标）
+                        location = poi.get("location")
+                        if location:
+                            water_features.append(WaterFeature(
+                                name=name,
+                                location=location,
+                                distance=d,
+                                type=kw
+                            ))
+            except Exception as e:
+                print(f"水系搜索失败({kw}): {e}")
                 continue
+
+        # 去重（按名称）
+        seen = set()
+        unique_features = []
+        for f in water_features:
+            if f.name not in seen:
+                seen.add(f.name)
+                unique_features.append(f)
+
         if min_dist < 500:
-            return WaterData(has_water=True, distance=min_dist, water_type=WaterType.EMBRACE, water_names=list(set(names))[:5], score=100.0, description="近水而居，距离{}米".format(min_dist))
+            return WaterData(
+                has_water=True, distance=min_dist, water_type=WaterType.EMBRACE,
+                water_names=list(set(names))[:5], water_features=unique_features[:10],
+                score=100.0, description="近水而居，距离{}米".format(min_dist)
+            )
         elif min_dist < 1000:
-            return WaterData(has_water=True, distance=min_dist, water_type=WaterType.STRAIGHT, water_names=list(set(names))[:5], score=80.0, description="距离水系适中，约{}米".format(min_dist))
+            return WaterData(
+                has_water=True, distance=min_dist, water_type=WaterType.STRAIGHT,
+                water_names=list(set(names))[:5], water_features=unique_features[:10],
+                score=80.0, description="距离水系适中，约{}米".format(min_dist)
+            )
         else:
-            return WaterData(has_water=False, score=60.0, description="距离水系较远")
+            return WaterData(
+                has_water=False, water_features=unique_features[:10],
+                score=60.0, description="距离水系较远"
+            )
     async def analyze_surroundings(self, center, radius):
         """周边环境分析"""
         pos = []
@@ -128,9 +229,74 @@ class FengShuiEngine:
     async def analyze_orientation(self, center):
         """方位分析"""
         return OrientationData(facing_direction="南", auspicious_directions=["坎", "巽", "震", "离"], inauspicious_directions=["乾", "坤", "艮", "兑"], score=90.0, description="坐北朝南，采光通风良好")
-    def calculate_score(self, terrain, water, environment, orientation):
+
+    async def analyze_greenery(self, center, radius):
+        """绿化分析"""
+        GREENERY_KEYWORDS = ["公园", "绿地", "花园", "广场", "绿化带", "植物园", "园林", "湿地公园"]
+        greenery_features = []
+
+        for kw in GREENERY_KEYWORDS:
+            try:
+                result = await self.baidu_map.search_poi(location=center, query=kw, radius=radius, page_size=10)
+                if isinstance(result, tuple):
+                    pois, is_mock = result
+                else:
+                    pois = result
+                    is_mock = False
+
+                for poi in (pois or []):
+                    name = poi.get("name", "")
+                    location = poi.get("location")
+                    d = poi.get("distance", 9999)
+                    if location and name:
+                        greenery_features.append(GreeneryFeature(
+                            name=name,
+                            location=location,
+                            distance=d,
+                            type=kw
+                        ))
+            except Exception as e:
+                print(f"绿化搜索失败({kw}): {e}")
+                continue
+
+        # 去重
+        seen = set()
+        unique_features = []
+        for f in greenery_features:
+            if f.name not in seen:
+                seen.add(f.name)
+                unique_features.append(f)
+
+        count = len(unique_features)
+        if count >= 5:
+            score = 100.0
+            desc = f"绿化资源丰富，有{count}个绿化区域"
+        elif count >= 3:
+            score = 85.0
+            desc = f"绿化较好，有{count}个绿化区域"
+        elif count >= 1:
+            score = 70.0
+            desc = f"绿化一般，有{count}个绿化区域"
+        else:
+            score = 50.0
+            desc = "绿化较少"
+
+        return GreeneryData(
+            has_greenery=count > 0,
+            count=count,
+            greenery_features=unique_features[:10],
+            score=score,
+            description=desc
+        )
+    def calculate_score(self, terrain, water, environment, orientation, greenery=None):
         """计算综合评分"""
-        total = terrain.score * 0.2 + water.score * 0.25 + environment.score * 0.3 + orientation.score * 0.25
+        # 权重分配：地形15%、水系20%、环境25%、朝向15%、绿化25%
+        total = terrain.score * 0.15 + water.score * 0.2 + environment.score * 0.25 + orientation.score * 0.15
+        if greenery:
+            total += greenery.score * 0.25
+        else:
+            total += 75 * 0.25  # 默认绿化分
+
         level = "优秀" if total >= 90 else "良好" if total >= 80 else "一般" if total >= 70 else "较差"
         return FengShuiScore(total=round(total, 1), level=level, terrain=terrain.score, water=water.score, environment=environment.score, orientation=orientation.score)
 

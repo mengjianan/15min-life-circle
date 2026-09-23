@@ -35,13 +35,30 @@ class FacilityImpact(str, Enum):
     NEGATIVE = "不利"
 
 
+class TerrainFeature(BaseModel):
+    """地形特征点"""
+    name: str
+    location: Dict[str, float] = {}  # {"lng": float, "lat": float}
+    distance: float = 0.0
+    type: str = "地形"
+
+
 class TerrainData(BaseModel):
     """地形数据"""
     elevation: float = 0.0  # 平均高程(米)
     slope: float = 0.0  # 坡度(度)
     terrain_type: TerrainType = TerrainType.FLAT
+    terrain_features: List[TerrainFeature] = []  # 地形特征点列表
     score: float = 100.0
     description: str = ""
+
+
+class WaterFeature(BaseModel):
+    """水系特征点"""
+    name: str
+    location: Dict[str, float] = {}  # {"lng": float, "lat": float}
+    distance: float = 0.0
+    type: str = "水系"
 
 
 class WaterData(BaseModel):
@@ -51,6 +68,7 @@ class WaterData(BaseModel):
     direction: str = ""  # 方位
     water_type: WaterType = WaterType.STRAIGHT
     water_names: List[str] = []
+    water_features: List[WaterFeature] = []  # 水系特征点列表
     score: float = 100.0
     description: str = ""
 
@@ -82,6 +100,23 @@ class OrientationData(BaseModel):
     description: str = ""
 
 
+class GreeneryFeature(BaseModel):
+    """绿化特征点"""
+    name: str
+    location: Dict[str, float] = {}  # {"lng": float, "lat": float}
+    distance: float = 0.0
+    type: str = "绿化"
+
+
+class GreeneryData(BaseModel):
+    """绿化数据"""
+    has_greenery: bool = False
+    count: int = 0
+    greenery_features: List[GreeneryFeature] = []  # 绿化特征点列表
+    score: float = 100.0
+    description: str = ""
+
+
 class FengShuiScore(BaseModel):
     """风水评分"""
     total: float = 0.0
@@ -107,5 +142,6 @@ class FengShuiResult(BaseModel):
     water: WaterData = WaterData()
     environment: EnvironmentData = EnvironmentData()
     orientation: OrientationData = OrientationData()
+    greenery: GreeneryData = GreeneryData()  # 绿化数据（替代朝向显示）
     score: FengShuiScore = FengShuiScore()
     suggestions: List[FengShuiSuggestion] = []

@@ -345,15 +345,42 @@ async def generate_full_analysis(request: FullAnalysisRequest):
 
         print(f"[分析完成] 成功分析 {len([r for r in results if not isinstance(r, Exception)])} 种出行方式")
 
-        # 获取风水评分
+        # 获取风水评分（包含完整的水系、地形、绿化数据）
         fengshui_data = None
         try:
             fengshui_result = await feng_shui_engine.analyze(center, radius=1500)
             fengshui_data = {
-                "terrain": {"score": fengshui_result.terrain.score},
-                "water": {"score": fengshui_result.water.score},
-                "environment": {"score": fengshui_result.environment.score},
-                "orientation": {"score": fengshui_result.orientation.score}
+                "terrain": {
+                    "score": fengshui_result.terrain.score,
+                    "terrain_type": fengshui_result.terrain.terrain_type.value if hasattr(fengshui_result.terrain.terrain_type, 'value') else str(fengshui_result.terrain.terrain_type),
+                    "elevation": fengshui_result.terrain.elevation,
+                    "slope": fengshui_result.terrain.slope,
+                    "description": fengshui_result.terrain.description,
+                    "terrain_features": [f.dict() for f in fengshui_result.terrain.terrain_features]
+                },
+                "water": {
+                    "score": fengshui_result.water.score,
+                    "has_water": fengshui_result.water.has_water,
+                    "distance": fengshui_result.water.distance,
+                    "description": fengshui_result.water.description,
+                    "water_features": [f.dict() for f in fengshui_result.water.water_features]
+                },
+                "environment": {
+                    "score": fengshui_result.environment.score,
+                    "description": fengshui_result.environment.description
+                },
+                "orientation": {
+                    "score": fengshui_result.orientation.score,
+                    "facing_direction": fengshui_result.orientation.facing_direction,
+                    "description": fengshui_result.orientation.description
+                },
+                "greenery": {
+                    "score": fengshui_result.greenery.score,
+                    "has_greenery": fengshui_result.greenery.has_greenery,
+                    "count": fengshui_result.greenery.count,
+                    "description": fengshui_result.greenery.description,
+                    "greenery_features": [f.dict() for f in fengshui_result.greenery.greenery_features]
+                }
             }
         except Exception as e:
             print(f"风水分析失败: {e}")
@@ -385,6 +412,7 @@ async def generate_full_analysis(request: FullAnalysisRequest):
             "timestamp": time.time(),
             "modes": modes,
             "comparison": comparison,
+            "fengshui": fengshui_data,  # 完整风水数据（包含水系、地形、绿化坐标）
             "comprehensive_score": {
                 "facility_coverage": comprehensive_score.facility_coverage,
                 "accessibility": comprehensive_score.accessibility,
