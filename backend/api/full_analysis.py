@@ -54,43 +54,29 @@ MODE_POI_RADIUS = {
 # 共享数据字典
 modes_cache = {}
 
-async def analyze_single_mode(mode, mode_config, center, location, community_name):
-    """分析单种出行方式（每种方式独立查询POI）"""
+async def analyze_single_mode(mode, mode_config, center, location, community_name, shared_poi_data=None):
+    """分析单种出行方式（共享POI数据，按距离过滤）"""
     engine = IsochroneEngine()
     poi_analyzer = POIAnalyzer()
     blind_detector = BlindSpotDetector()
 
     try:
-        speed_multiplier = mode_config["speed_multiplier"]
         time_slots = {}
         blind_spots_15min = []
 
-        # 使用出行方式对应的搜索半径（而不是统一的步行半径）
-        search_radius = MODE_POI_RADIUS.get(mode, 1500)
-        print(f"[{mode}] 使用搜索半径: {search_radius}m")
-        coverage_15min = await poi_analyzer.analyze_coverage(location, radius=search_radius)
-
-        # 计算15分钟等时圈（使用速度缩放，减少计算）
-        base_isochrone = await engine.calculate_isochrone(center, max_time=900)
-
-        # 根据出行方式缩放等时圈
-        if speed_multiplier != 1.0:
-            scaled_points = []
-            for p in base_isochrone.boundary_points:
-                dlng = p.lng - center.lng
-                dlat = p.lat - center.lat
-                scaled_points.append(GeoPoint(
-                    lng=center.lng + dlng * speed_multiplier,
-                    lat=center.lat + dlat * speed_multiplier
-                ))
-            isochrone_15min = type(base_isochrone)(
-                center=base_isochrone.center,
-                boundary_points=scaled_points,
-                polygon=[(p.lng, p.lat) for p in scaled_points],
-                max_time=900
-            )
+        # 使用共享的POI数据（最大半径查询一次，按距离过滤）
+        if shared_poi_data:
+            max_radius = MODE_POI_RADIUS.get(mode, 1500)
+            coverage_15min = poi_analyzer.filter_coverage_by_distance(shared_poi_data, max_radius)
+            print(f"[{mode}] 使用共享POI数据，过滤半径: {max_radius}m")
         else:
-            isochrone_15min = base_isochrone
+            search_radius = MODE_POI_RADIUS.get(mode, 1500)
+            print(f"[{mode}] 使用搜索半径: {search_radius}m")
+            coverage_15min = await poi_analyzer.analyze_coverage(location, radius=search_radius)
+
+        # 直接用出行方式的速度计算15分钟等时圈（不再缩放）
+        mode_speed = mode_config["speed"]  # 步行1.2, 骑行3.5, 公交5.0, 驾车8.0 m/s
+        isochrone_15min = await engine.calculate_isochrone(center, max_time=900, speed=mode_speed)
 
         # 盲区检测（只对步行做，其他复用）
         if mode == "walking":
@@ -108,25 +94,29 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
         for time_minutes in [5, 10, 15]:
             time_seconds = time_minutes * 60
 
-            # 计算等时圈
+            # 15分钟等时圈已计算，5/10分钟按时间比例缩放（节省API调用）
             if time_minutes == 15:
                 isochrone_result = isochrone_15min
             else:
-                isochrone_result = await engine.calculate_isochrone(center, max_time=time_seconds)
-
-            # 根据出行方式缩放等时圈范围
-            if speed_multiplier != 1.0:
+                scale = time_minutes / 15.0
                 scaled_points = []
-                for p in isochrone_result.boundary_points:
+                for p in isochrone_15min.boundary_points:
                     dlng = p.lng - center.lng
                     dlat = p.lat - center.lat
                     scaled_points.append(GeoPoint(
-                        lng=center.lng + dlng * speed_multiplier,
-                        lat=center.lat + dlat * speed_multiplier
+                        lng=center.lng + dlng * scale,
+                        lat=center.lat + dlat * scale
                     ))
-                boundary_points = scaled_points
-            else:
-                boundary_points = isochrone_result.boundary_points
+                # 构建缩放后的等时圈结果
+                polygon = engine._build_polygon(scaled_points)
+                isochrone_result = type(isochrone_15min)(
+                    center=center,
+                    boundary_points=scaled_points,
+                    polygon=polygon,
+                    max_time=time_seconds
+                )
+
+            boundary_points = isochrone_result.boundary_points
 
             area = engine.calculate_area(boundary_points)
 
@@ -136,7 +126,7 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
                 blind_spots = blind_spots_15min
             else:
                 # 根据距离过滤
-                max_distance = TIME_DISTANCE_MAP.get(time_seconds, 1800) * speed_multiplier
+                max_distance = mode_speed * time_seconds
                 coverage = poi_analyzer.filter_coverage_by_distance(coverage_15min, max_distance)
 
                 # 过滤盲区
@@ -160,7 +150,7 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
         slot_15min = time_slots.get("900", {})
         coverage_15min_data = slot_15min.get("poi_coverage", {})
         for category, data in coverage_15min_data.items():
-            facilities = data.get("facilities", [])[:2]  # 每类取前2个
+            facilities = data.get("facilities", [])[:1]  # 每类只取前1个（减少API调用）
             for fac in facilities:
                 if fac.get("location"):
                     try:
@@ -314,11 +304,18 @@ async def generate_full_analysis(request: FullAnalysisRequest):
 
         print(f"[分析开始] 位置: {request.lng}, {request.lat}, 社区: {request.community_name}", flush=True)
 
+        # 预加载POI数据（用最大半径查询一次，所有模式共享）
+        poi_analyzer = POIAnalyzer()
+        max_poi_radius = max(MODE_POI_RADIUS.values())  # 9000m（驾车半径）
+        print(f"[POI预加载] 使用最大半径: {max_poi_radius}m")
+        shared_poi_data = await poi_analyzer.analyze_coverage(location, radius=max_poi_radius)
+        await poi_analyzer.baidu_map.close()
+
         # 顺序执行各出行方式分析（避免并发API请求过多被限流）
         results = []
         for mode, config in TRAVEL_MODES.items():
             try:
-                result = await analyze_single_mode(mode, config, center, location, request.community_name)
+                result = await analyze_single_mode(mode, config, center, location, request.community_name, shared_poi_data)
                 results.append(result)
             except Exception as e:
                 print(f"出行方式 {mode} 分析失败: {e}", flush=True)

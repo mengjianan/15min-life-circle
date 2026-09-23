@@ -16,7 +16,7 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 # 配置
 USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "false").lower() == "true"  # 默认不使用模拟数据
-DAILY_API_LIMIT = int(os.getenv("DAILY_API_LIMIT", "50000"))  # 每日API调用限制
+DAILY_API_LIMIT = int(os.getenv("DAILY_API_LIMIT", "2000"))  # 每日API调用限制（百度地图配额3000/天，留1000缓冲）
 DB_PATH = os.getenv("DATABASE_URL", "sqlite:///./data/cache.db").replace("sqlite:///", "")
 
 

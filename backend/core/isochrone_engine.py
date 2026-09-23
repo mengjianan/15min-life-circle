@@ -81,14 +81,14 @@ class IsochroneEngine:
         self,
         center: GeoPoint,
         max_time: int,
-        directions: int = 24
+        directions: int = 24,
+        speed: float = ISOCHRONE_WALKING_SPEED
     ) -> IsochroneResult:
         """
-        生成模拟等时圈（圆形，基于步行速度）
+        生成模拟等时圈（圆形，基于指定速度）
         当API不可用时使用
         """
-        # 15分钟步行距离 (1.2m/s * 900s = 1080m)
-        radius = ISOCHRONE_WALKING_SPEED * max_time
+        radius = speed * max_time
         
         # 生成圆形边界点
         boundary_points = []
@@ -109,23 +109,17 @@ class IsochroneEngine:
 
     async def _check_api_availability(self) -> bool:
         """
-        检查百度地图API是否可用
+        检查百度地图API是否可用（复用API状态缓存，不额外调用）
         """
         if self._api_available is not None:
             return self._api_available
-        
-        try:
-            # 尝试一次简单的API调用
-            origin = {"lng": 118.7784, "lat": 32.0663}
-            target = {"lng": 118.7884, "lat": 32.0763}
-            walk_time = await self.baidu_map.get_walking_time(origin, target)
-            self._api_available = walk_time is not None
-        except Exception:
-            self._api_available = False
-        
+
+        # 复用 baidu_map 的 API 状态缓存，不额外消耗配额
+        self._api_available = self.baidu_map._api_status.get("direction", True)
+
         if not self._api_available:
             print("百度地图API不可用，使用模拟等时圈数据")
-        
+
         return self._api_available
 
     async def _search_boundary_point(
@@ -133,13 +127,15 @@ class IsochroneEngine:
         center: GeoPoint,
         direction: float,
         max_time: int = ISOCHRONE_MAX_TIME,
-        max_iterations: int = BINARY_SEARCH_ITERATIONS
+        max_iterations: int = BINARY_SEARCH_ITERATIONS,
+        max_radius: float = MAX_SEARCH_RADIUS,
+        speed: float = ISOCHRONE_WALKING_SPEED
     ) -> GeoPoint:
         """
         二分搜索某方向上的边界点
         """
         low = 0
-        high = MAX_SEARCH_RADIUS
+        high = max_radius
         best_point = center
 
         for _ in range(max_iterations):
@@ -151,7 +147,7 @@ class IsochroneEngine:
             walk_time = await self.baidu_map.get_walking_time(origin_dict, target_dict)
 
             if walk_time is None:
-                walk_time = mid / ISOCHRONE_WALKING_SPEED
+                walk_time = mid / speed
 
             if walk_time < max_time:
                 best_point = target
@@ -166,7 +162,8 @@ class IsochroneEngine:
         center: GeoPoint,
         max_time: int = ISOCHRONE_MAX_TIME,
         directions: int = ISOCHRONE_DIRECTIONS,
-        fast_mode: bool = False
+        fast_mode: bool = False,
+        speed: float = None
     ) -> IsochroneResult:
         """
         计算等时圈（并发优化版）
@@ -177,7 +174,8 @@ class IsochroneEngine:
         # 如果API不可用，直接返回模拟数据
         if not api_available:
             actual_directions = FAST_MODE_DIRECTIONS if fast_mode else directions
-            return self._generate_mock_isochrone(center, max_time, actual_directions)
+            effective_speed = speed if speed else ISOCHRONE_WALKING_SPEED
+            return self._generate_mock_isochrone(center, max_time, actual_directions, effective_speed)
 
         # 快速模式使用更少的采样点
         if fast_mode:
@@ -187,10 +185,15 @@ class IsochroneEngine:
             actual_directions = directions
             max_iterations = BINARY_SEARCH_ITERATIONS
 
+        # 根据速度动态调整搜索半径
+        effective_speed = speed if speed else ISOCHRONE_WALKING_SPEED
+        dynamic_max_radius = effective_speed * max_time * 1.2  # 预留20%余量
+        dynamic_max_radius = max(dynamic_max_radius, MAX_SEARCH_RADIUS)  # 至少2000m
+
         angles = [i * (360 / actual_directions) for i in range(actual_directions)]
 
         tasks = [
-            self._search_boundary_point(center, angle, max_time, max_iterations)
+            self._search_boundary_point(center, angle, max_time, max_iterations, dynamic_max_radius, effective_speed)
             for angle in angles
         ]
 

@@ -37,6 +37,7 @@ class POIAnalyzer:
     ) -> Dict[str, Any]:
         """
         分析指定位置周边的POI覆盖情况（带缓存）
+        优化：使用统一缓存键（不含半径），避免不同模式重复查询
 
         Args:
             location: 中心点坐标 {"lng": x, "lat": y}
@@ -46,7 +47,8 @@ class POIAnalyzer:
             各类设施的覆盖统计
         """
         location_key = self._get_location_key(location)
-        cache_key = f"poi_coverage:{location_key}:{radius}"
+        # 使用不含半径的缓存键，所有模式共享同一份POI数据
+        cache_key = f"poi_coverage:{location_key}"
 
         # 尝试从缓存获取
         cached_result = self.cache.get(cache_key)
@@ -54,7 +56,7 @@ class POIAnalyzer:
             print(f"[缓存命中] POI数据: {location_key}")
             return cached_result
 
-        print(f"[缓存未命中] 查询POI数据: {location_key}")
+        print(f"[缓存未命中] 查询POI数据: {location_key}，半径: {radius}m")
         coverage = {}
 
         for category, queries in POI_TYPES.items():
@@ -62,8 +64,8 @@ class POIAnalyzer:
             facilities = []
 
             for query in queries:
-                # 检查单个查询的缓存
-                query_cache_key = f"poi_query:{location_key}:{query}:{radius}"
+                # 使用不含半径的缓存键
+                query_cache_key = f"poi_query:{location_key}:{query}"
                 cached_pois = self.cache.get(query_cache_key)
 
                 if cached_pois is not None:
@@ -81,12 +83,12 @@ class POIAnalyzer:
                     else:
                         pois = result
                         is_mock = False
-                    # 只缓存真实数据，不缓存模拟数据
-                    if pois is not None and not is_mock:
-                        self.cache.set(query_cache_key, pois, ttl=86400)  # 24小时
-                        print(f"  [API调用-真实] {query}: {len(pois)}条")
-                    elif is_mock:
-                        print(f"  [API调用-模拟] {query}: {len(pois)}条(不缓存)")
+                    # 真实数据永久缓存，模拟数据短期缓存（避免重复调用）
+                    if pois is not None:
+                        ttl = 2592000 if not is_mock else 3600  # 真实30天，模拟1小时
+                        self.cache.set(query_cache_key, pois, ttl=ttl)
+                        label = "真实" if not is_mock else "模拟"
+                        print(f"  [API调用-{label}] {query}: {len(pois)}条")
                     else:
                         print(f"  [API调用] {query}: 0条")
 
@@ -122,11 +124,13 @@ class POIAnalyzer:
             if has_mock:
                 break
 
+        # 真实数据永久缓存，模拟数据短期缓存
         if not has_mock:
-            self.cache.set(cache_key, coverage, ttl=86400)  # 24小时
+            self.cache.set(cache_key, coverage, ttl=2592000)  # 30天
             print(f"[缓存写入] POI数据(全真实): {location_key}")
         else:
-            print(f"[跳过缓存] POI数据含模拟数据: {location_key}")
+            self.cache.set(cache_key, coverage, ttl=3600)  # 模拟数据缓存1小时
+            print(f"[缓存写入] POI数据(含模拟): {location_key}, 1小时后重试")
 
         return coverage
 

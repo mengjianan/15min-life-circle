@@ -37,16 +37,22 @@ class BaiduMapService:
     _global_api_status = {
         "place": None,      # 地点检索
         "direction": None,  # 路线规划
-        "geocoder": None,   # 地理编码
     }
 
     # API状态缓存时间（秒）
-    _api_status_ttl = 300  # 5分钟
+    _api_status_ttl = 3600  # 1小时（减少健康检查频率）
+
+    # 全局路线缓存（所有实例共享，避免重复调用）
+    _route_cache = {}
+    _route_cache_ttl = 2592000  # 30天（永久存储）
     _api_status_last_check = {
         "place": 0,
         "direction": 0,
-        "geocoder": 0,
     }
+    # 全局配额超限标记（所有实例共享，配额超了就不再调API）
+    _quota_exceeded = False
+    _quota_exceeded_time = 0
+    _quota_reset_interval = 3600  # 1小时后重试
 
     # 全局信号量（所有实例共享，避免并发超限）
     _global_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
@@ -64,6 +70,28 @@ class BaiduMapService:
     async def close(self):
         """关闭HTTP客户端"""
         await self.client.aclose()
+
+    def _get_route_cache_key(self, mode: str, origin: Dict, dest: Dict) -> str:
+        """生成路线缓存键（精度到小数点后4位，约11米）"""
+        o_key = f"{round(origin['lat'],4)},{round(origin['lng'],4)}"
+        d_key = f"{round(dest['lat'],4)},{round(dest['lng'],4)}"
+        return f"route:{mode}:{o_key}->{d_key}"
+
+    def _get_cached_route(self, cache_key: str):
+        """获取缓存的路线"""
+        import time
+        if cache_key in self._route_cache:
+            entry = self._route_cache[cache_key]
+            if time.time() - entry["ts"] < self._route_cache_ttl:
+                return entry["data"]
+            else:
+                del self._route_cache[cache_key]
+        return None
+
+    def _set_cached_route(self, cache_key: str, data):
+        """缓存路线结果"""
+        import time
+        self._route_cache[cache_key] = {"data": data, "ts": time.time()}
 
     async def _check_api_type(self, api_type: str) -> bool:
         """
@@ -125,24 +153,6 @@ class BaiduMapService:
                     self._api_status["direction"] = status == 0
                 self._api_status_last_check["direction"] = current_time
 
-            elif api_type == "geocoder":
-                # 检查地理编码API
-                params = {
-                    "address": "南京大学",
-                    "city": "南京",
-                    "ak": self.ak,
-                    "output": "json"
-                }
-                response = await self.client.get(PLACE_API, params=params)
-                data = response.json()
-                status = data.get("status", -1)
-                if status in (401, 402, 302):
-                    print(f"geocoder API: 配额/限流(status={status})，保持可用状态")
-                    self._api_status["geocoder"] = True
-                else:
-                    self._api_status["geocoder"] = status == 0
-                self._api_status_last_check["geocoder"] = current_time
-
         except Exception as e:
             print(f"检查{api_type} API异常: {e}")
             self._api_status[api_type] = False
@@ -157,7 +167,13 @@ class BaiduMapService:
         origin: Dict[str, float],
         destination: Dict[str, float]
     ) -> Optional[float]:
-        """获取步行时间"""
+        """获取步行时间（带缓存）"""
+        # 检查缓存
+        cache_key = self._get_route_cache_key("walking_time", origin, destination)
+        cached = self._get_cached_route(cache_key)
+        if cached is not None:
+            return cached
+
         # 检查路线规划API是否可用
         if not await self._check_api_type("direction"):
             return None
@@ -182,7 +198,9 @@ class BaiduMapService:
                     routes = result.get("routes", [])
                     if routes:
                         duration = routes[0].get("duration", 0)
-                        return duration if isinstance(duration, (int, float)) else duration.get("value", 0)
+                        duration = duration if isinstance(duration, (int, float)) else duration.get("value", 0)
+                        self._set_cached_route(cache_key, duration)
+                        return duration
 
                 return None
             except Exception as e:
@@ -194,7 +212,13 @@ class BaiduMapService:
         origin: Dict[str, float],
         destination: Dict[str, float]
     ) -> Optional[Dict[str, Any]]:
-        """获取步行路线"""
+        """获取步行路线（带缓存）"""
+        # 检查缓存
+        cache_key = self._get_route_cache_key("walking", origin, destination)
+        cached = self._get_cached_route(cache_key)
+        if cached is not None:
+            return cached
+
         if not await self._check_api_type("direction"):
             return None
 
@@ -224,11 +248,13 @@ class BaiduMapService:
                         duration = route.get("duration", 0)
                         if isinstance(duration, dict):
                             duration = duration.get("value", 0)
-                        return {
+                        result = {
                             "distance": distance,
                             "duration": duration,
                             "steps": route.get("steps", [])
                         }
+                        self._set_cached_route(cache_key, result)
+                        return result
 
                 return None
             except Exception as e:
@@ -240,7 +266,12 @@ class BaiduMapService:
         origin: Dict[str, float],
         destination: Dict[str, float]
     ) -> Optional[Dict[str, Any]]:
-        """获取骑行路线"""
+        """获取骑行路线（带缓存）"""
+        cache_key = self._get_route_cache_key("riding", origin, destination)
+        cached = self._get_cached_route(cache_key)
+        if cached is not None:
+            return cached
+
         if not await self._check_api_type("direction"):
             return None
 
@@ -270,11 +301,13 @@ class BaiduMapService:
                         duration = route.get("duration", 0)
                         if isinstance(duration, dict):
                             duration = duration.get("value", 0)
-                        return {
+                        result = {
                             "distance": distance,
                             "duration": duration,
                             "steps": route.get("steps", [])
                         }
+                        self._set_cached_route(cache_key, result)
+                        return result
 
                 # 如果骑行API不可用，使用步行路线估算
                 walking_route = await self.get_walking_route(origin, destination)
@@ -295,7 +328,12 @@ class BaiduMapService:
         origin: Dict[str, float],
         destination: Dict[str, float]
     ) -> Optional[Dict[str, Any]]:
-        """获取驾车路线"""
+        """获取驾车路线（带缓存）"""
+        cache_key = self._get_route_cache_key("driving", origin, destination)
+        cached = self._get_cached_route(cache_key)
+        if cached is not None:
+            return cached
+
         if not await self._check_api_type("direction"):
             return None
 
@@ -325,11 +363,13 @@ class BaiduMapService:
                         duration = route.get("duration", 0)
                         if isinstance(duration, dict):
                             duration = duration.get("value", 0)
-                        return {
+                        result = {
                             "distance": distance,
                             "duration": duration,
                             "steps": route.get("steps", [])
                         }
+                        self._set_cached_route(cache_key, result)
+                        return result
 
                 # 如果驾车API不可用，使用步行路线估算
                 walking_route = await self.get_walking_route(origin, destination)
@@ -350,7 +390,12 @@ class BaiduMapService:
         origin: Dict[str, float],
         destination: Dict[str, float]
     ) -> Optional[Dict[str, Any]]:
-        """获取公交路线"""
+        """获取公交路线（带缓存）"""
+        cache_key = self._get_route_cache_key("transit", origin, destination)
+        cached = self._get_cached_route(cache_key)
+        if cached is not None:
+            return cached
+
         if not await self._check_api_type("direction"):
             return None
 
@@ -380,11 +425,13 @@ class BaiduMapService:
                         duration = route.get("duration", 0)
                         if isinstance(duration, dict):
                             duration = duration.get("value", 0)
-                        return {
+                        result = {
                             "distance": distance,
                             "duration": duration,
                             "steps": route.get("steps", [])
                         }
+                        self._set_cached_route(cache_key, result)
+                        return result
 
                 # 如果公交API不可用，使用步行路线估算
                 walking_route = await self.get_walking_route(origin, destination)
@@ -421,12 +468,21 @@ class BaiduMapService:
         Returns:
             POI列表
         """
+        import time
+
+        # 检查全局配额超限标记（避免无意义的API调用）
+        if BaiduMapService._quota_exceeded:
+            elapsed = time.time() - BaiduMapService._quota_exceeded_time
+            if elapsed < BaiduMapService._quota_reset_interval:
+                return self._generate_mock_poi(location, query), True
+            else:
+                # 超过重试间隔，重置标记
+                BaiduMapService._quota_exceeded = False
+                print(f"[POI搜索] 配额重置间隔已过，重新尝试API调用")
+
         # 检查地点检索API是否可用（使用带TTL的缓存状态）
-        print(f"[POI搜索] 检查API状态: {query}")
         if not await self._check_api_type("place"):
-            print(f"[POI搜索] API不可用，返回模拟数据: {query}")
             return self._generate_mock_poi(location, query), True
-        print(f"[POI搜索] API可用，开始搜索: {query}")
 
         # 重试逻辑
         max_retries = 3
@@ -473,9 +529,11 @@ class BaiduMapService:
                             for poi in results
                         ], False
 
-                    # 如果是配额超限(302)，不重试直接返回模拟数据
+                    # 如果是配额超限(302)，设置全局标记并返回模拟数据
                     if data.get("status") == 302:
-                        print(f"[POI搜索] 天配额超限，直接返回模拟数据: {query}")
+                        BaiduMapService._quota_exceeded = True
+                        BaiduMapService._quota_exceeded_time = time.time()
+                        print(f"[POI搜索] 天配额超限，设置全局标记，后续调用将直接返回模拟数据: {query}")
                         return self._generate_mock_poi(location, query), True
 
                     # 如果是并发限制错误，等待后重试
