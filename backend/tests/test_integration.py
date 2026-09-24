@@ -3,13 +3,33 @@
 测试完整的分析流程
 """
 import asyncio
-import aiohttp
 import json
+import os
+import socket
 import time
 from typing import Dict, Any
+import pytest
 
-# 测试配置
-BASE_URL = "http://localhost:8080"
+# 连真实后端的集成测试：缺 aiohttp 或后端没起时自动跳过
+pytest.importorskip("aiohttp", reason="集成测试需要 aiohttp，未安装则跳过")
+import aiohttp  # noqa: E402
+
+
+def _server_reachable(host: str, port: int) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
+# 测试配置（后端端口已是 8081，可用 BASE_URL 覆盖）
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8081")
+
+pytestmark = pytest.mark.skipif(
+    not _server_reachable("localhost", 8081) and BASE_URL == "http://localhost:8081",
+    reason="后端服务未启动（需要 localhost:8081），跳过集成测试",
+)
 
 
 async def test_full_analysis_flow():

@@ -3,15 +3,35 @@
 测试API响应时间和并发能力
 """
 import asyncio
-import aiohttp
+import os
+import socket
 import time
 import statistics
 from typing import List, Dict
 import json
 import pytest
 
-# 测试配置
-BASE_URL = "http://localhost:8080"
+# 这两个是连真实后端的性能测试，不是单元测试：
+# 缺 aiohttp 时跳过（避免拖进生产依赖），后端没起时也跳过
+pytest.importorskip("aiohttp", reason="性能测试需要 aiohttp，未安装则跳过")
+import aiohttp  # noqa: E402
+
+
+def _server_reachable(host: str, port: int) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
+# 测试配置（后端端口已是 8081，可用 BASE_URL 覆盖）
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8081")
+
+pytestmark = pytest.mark.skipif(
+    not _server_reachable("localhost", 8081) and BASE_URL == "http://localhost:8081",
+    reason="后端服务未启动（需要 localhost:8081），跳过性能测试",
+)
 
 
 async def _test_single_request(
