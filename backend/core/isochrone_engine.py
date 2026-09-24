@@ -115,7 +115,14 @@ class IsochroneEngine:
             return self._api_available
 
         # 复用 baidu_map 的 API 状态缓存，不额外消耗配额
-        self._api_available = self.baidu_map._api_status.get("direction", True)
+        status = self.baidu_map._api_status.get("direction")
+
+        if status is None:
+            # 状态未知（刚启动）：真正检查一次。
+            # 不能把初始值 None 当成"不可用"，否则首次分析必定退回模拟等时圈。
+            status = await self.baidu_map._check_api_type("direction")
+
+        self._api_available = bool(status)
 
         if not self._api_available:
             print("百度地图API不可用，使用模拟等时圈数据")

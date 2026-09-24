@@ -58,10 +58,11 @@ async def generate_analysis_report(request: AnalysisRequest):
         # 2. 分析POI覆盖
         coverage = await poi_analyzer.analyze_coverage(location)
 
-        # 3. 识别盲区
-        blind_spots = await blind_detector.detect_blind_spots(
+        # 3. 识别盲区（复用步骤2的POI数据，避免逐网格点重复检索）
+        blind_spots = await blind_detector.detect_blind_spots_with_data(
             center=location,
-            polygon=isochrone_result.polygon
+            polygon=isochrone_result.polygon,
+            coverage_data=coverage
         )
 
         # 4. 计算评分

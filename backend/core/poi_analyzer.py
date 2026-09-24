@@ -111,7 +111,8 @@ class POIAnalyzer:
             coverage[category] = {
                 "count": len(unique_facilities),
                 "level": level,
-                "facilities": unique_facilities[:10]  # 只返回前10个
+                # 保留更多设施：盲区判定按距离计算，截断过多会漏判
+                "facilities": unique_facilities[:50]
             }
 
         # 只缓存不包含模拟数据的完整结果

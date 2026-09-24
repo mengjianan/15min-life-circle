@@ -26,6 +26,8 @@ from config import (
     YINGYAN_TRACK_API,
     YINGYAN_GEOFENCE_API,
     MAX_CONCURRENT_REQUESTS,
+    MAX_CONCURRENT_PLACE_REQUESTS,
+    PLACE_REQUEST_MIN_INTERVAL,
     REQUEST_TIMEOUT
 )
 
@@ -57,15 +59,66 @@ class BaiduMapService:
     # 全局信号量（所有实例共享，避免并发超限）
     _global_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
+    # 地点检索专用信号量：百度约定并发上限3，这里取2留余量
+    _global_place_semaphore = asyncio.Semaphore(MAX_CONCURRENT_PLACE_REQUESTS)
+
+    # 健康检查单飞锁（并发首查时只允许一个真正发请求）
+    _place_health_lock = asyncio.Lock()
+    _direction_health_lock = asyncio.Lock()
+
+    # 地点检索结果缓存（所有实例共享，避免网格点/关键词重复检索）
+    _poi_cache = {}
+    _poi_cache_ttl = 2592000  # 30天
+
     # 全局请求间隔控制（最小间隔秒数）
-    _min_request_interval = 0.15  # 150ms between requests
-    _last_request_time = 0
+    _min_request_interval = PLACE_REQUEST_MIN_INTERVAL
+    # 下一个可发起请求的时间点（秒，time.time() 基准），用于预留下一档
+    _next_place_slot = 0.0
 
     def __init__(self):
         self.ak = BAIDU_MAP_AK
-        self.semaphore = self._global_semaphore  # 使用全局共享信号量
+        self.semaphore = self._global_semaphore  # 路线规划等接口
+        self.place_semaphore = self._global_place_semaphore  # 地点检索专用
         self.client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT)
         self._api_status = self._global_api_status  # 使用全局缓存
+
+    @staticmethod
+    async def _wait_place_slot():
+        """
+        地点检索全局速率控制。
+
+        通过“预留下一档”的方式排队，调用返回时才真正占用一个发包时机。
+        必须在获取并发额度【之前】调用，否则限速等待会白白占着信号量。
+        """
+        import time
+        while True:
+            now = time.time()
+            slot = BaiduMapService._next_place_slot
+            if now >= slot:
+                # 占位：本协程拿到 now 这一档，下一档顺延
+                BaiduMapService._next_place_slot = now + BaiduMapService._min_request_interval
+                return
+            await asyncio.sleep(slot - now)
+
+    @staticmethod
+    def _poi_cache_key(location: Dict[str, float], query: str, radius: int) -> str:
+        """地点检索缓存键（坐标取3位小数，约100米粒度）"""
+        return f"poi:{query}:{round(location['lat'], 3)},{round(location['lng'], 3)}:{radius}"
+
+    @classmethod
+    def _get_poi_cache(cls, key: str):
+        import time
+        entry = cls._poi_cache.get(key)
+        if entry and time.time() - entry["ts"] < cls._poi_cache_ttl:
+            return entry["data"]
+        if entry:
+            del cls._poi_cache[key]
+        return None
+
+    @classmethod
+    def _set_poi_cache(cls, key: str, data):
+        import time
+        cls._poi_cache[key] = {"data": data, "ts": time.time()}
 
     async def close(self):
         """关闭HTTP客户端"""
@@ -111,52 +164,63 @@ class BaiduMapService:
             current_time - self._api_status_last_check[api_type] < self._api_status_ttl):
             return self._api_status[api_type]
 
-        try:
-            if api_type == "place":
-                # 检查地点检索API
-                params = {
-                    "query": "诊所",
-                    "location": "32.0663,118.7784",
-                    "radius": 1000,
-                    "output": "json",
-                    "ak": self.ak,
-                    "page_num": 0,
-                    "page_size": 1,
-                    "scope": 2
-                }
-                response = await self.client.get(PLACE_API, params=params)
-                data = response.json()
-                status = data.get("status", -1)
-                # 401/402/302 是配额/限流问题，不标记为不可用
-                if status in (401, 402, 302):
-                    print(f"place API: 配额/限流(status={status}, msg={data.get('message','')})，保持可用状态")
-                    self._api_status["place"] = True
-                else:
-                    self._api_status["place"] = status == 0
-                self._api_status_last_check["place"] = current_time
+        health_lock = self._place_health_lock if api_type == "place" else self._direction_health_lock
 
-            elif api_type == "direction":
-                # 检查路线规划API（用步行API测试）
-                params = {
-                    "origin": "32.0663,118.7784",
-                    "destination": "32.0673,118.7794",
-                    "ak": self.ak,
-                    "output": "json"
-                }
-                response = await self.client.get(f"{DIRECTION_API}/walking", params=params)
-                data = response.json()
-                status = data.get("status", -1)
-                if status in (401, 402, 302):
-                    print(f"direction API: 配额/限流(status={status})，保持可用状态")
-                    self._api_status["direction"] = True
-                else:
-                    self._api_status["direction"] = status == 0
-                self._api_status_last_check["direction"] = current_time
+        try:
+            # 单飞：并发首查只允许一个真正发请求，其余拿到锁后直接读缓存
+            async with health_lock:
+                if (self._api_status[api_type] is not None and
+                    time.time() - self._api_status_last_check[api_type] < self._api_status_ttl):
+                    return self._api_status[api_type]
+
+                if api_type == "place":
+                    # 检查地点检索API（专用信号量 + 全局限速）
+                    params = {
+                        "query": "诊所",
+                        "location": "32.0663,118.7784",
+                        "radius": 1000,
+                        "output": "json",
+                        "ak": self.ak,
+                        "page_num": 0,
+                        "page_size": 1,
+                        "scope": 2
+                    }
+                    await self._wait_place_slot()
+                    async with self.place_semaphore:
+                        response = await self.client.get(PLACE_API, params=params)
+                    data = response.json()
+                    status = data.get("status", -1)
+                    # 401/402/302 是配额/限流问题，不标记为不可用
+                    if status in (401, 402, 302):
+                        print(f"place API: 配额/限流(status={status}, msg={data.get('message','')})，保持可用状态")
+                        self._api_status["place"] = True
+                    else:
+                        self._api_status["place"] = status == 0
+                    self._api_status_last_check["place"] = time.time()
+
+                elif api_type == "direction":
+                    # 检查路线规划API（用步行API测试），走通用信号量
+                    params = {
+                        "origin": "32.0663,118.7784",
+                        "destination": "32.0673,118.7794",
+                        "ak": self.ak,
+                        "output": "json"
+                    }
+                    async with self.semaphore:
+                        response = await self.client.get(f"{DIRECTION_API}/walking", params=params)
+                    data = response.json()
+                    status = data.get("status", -1)
+                    if status in (401, 402, 302):
+                        print(f"direction API: 配额/限流(status={status})，保持可用状态")
+                        self._api_status["direction"] = True
+                    else:
+                        self._api_status["direction"] = status == 0
+                    self._api_status_last_check["direction"] = time.time()
 
         except Exception as e:
             print(f"检查{api_type} API异常: {e}")
             self._api_status[api_type] = False
-            self._api_status_last_check[api_type] = current_time
+            self._api_status_last_check[api_type] = time.time()
 
         status = "可用" if self._api_status[api_type] else "不可用"
         print(f"{api_type} API: {status}")
@@ -556,6 +620,13 @@ class BaiduMapService:
         """
         import time
 
+        # 结果缓存：相同坐标(约100米粒度)+关键词+半径直接复用，零API调用
+        cache_key = self._poi_cache_key(location, query, radius) if page_num == 0 else None
+        if cache_key:
+            cached = self._get_poi_cache(cache_key)
+            if cached is not None:
+                return cached, False
+
         # 检查全局配额超限标记（避免无意义的API调用）
         if BaiduMapService._quota_exceeded:
             elapsed = time.time() - BaiduMapService._quota_exceeded_time
@@ -566,6 +637,10 @@ class BaiduMapService:
                 BaiduMapService._quota_exceeded = False
                 print(f"[POI搜索] 配额重置间隔已过，重新尝试API调用")
 
+        # 每日调用上限保护：超限直接用模拟数据，避免反复打API触发302和重试风暴
+        if api_protection.should_use_mock_cached():
+            return self._generate_mock_poi(location, query), True
+
         # 检查地点检索API是否可用（使用带TTL的缓存状态）
         if not await self._check_api_type("place"):
             return self._generate_mock_poi(location, query), True
@@ -573,7 +648,13 @@ class BaiduMapService:
         # 重试逻辑
         max_retries = 3
         for retry in range(max_retries):
-            async with self.semaphore:
+            # 限速放在【获取并发额度之前】：等待期间不占用信号量
+            await self._wait_place_slot()
+
+            data = None
+            err = None
+            # 信号量只包住真正的HTTP请求
+            async with self.place_semaphore:
                 try:
                     params = {
                         "query": query,
@@ -586,58 +667,58 @@ class BaiduMapService:
                         "scope": 2
                     }
 
-                    # 全局请求速率控制
-                    import time
-                    current_time = time.time()
-                    elapsed = current_time - BaiduMapService._last_request_time
-                    if elapsed < BaiduMapService._min_request_interval:
-                        await asyncio.sleep(BaiduMapService._min_request_interval - elapsed)
-                    BaiduMapService._last_request_time = time.time()
-
                     # 增加API调用计数
                     api_protection.increment_usage()
-
                     response = await self.client.get(PLACE_API, params=params)
                     data = response.json()
-
-                    if data.get("status") == 0:
-                        results = data.get("results", [])
-                        return [
-                            {
-                                "name": poi.get("name"),
-                                "address": poi.get("address"),
-                                "location": poi.get("location"),
-                                "type": poi.get("detail_info", {}).get("type"),
-                                "tag": poi.get("detail_info", {}).get("tag"),
-                                "distance": poi.get("detail_info", {}).get("distance"),
-                                "uid": poi.get("uid")
-                            }
-                            for poi in results
-                        ], False
-
-                    # 如果是配额超限(302)，设置全局标记并返回模拟数据
-                    if data.get("status") == 302:
-                        BaiduMapService._quota_exceeded = True
-                        BaiduMapService._quota_exceeded_time = time.time()
-                        print(f"[POI搜索] 天配额超限，设置全局标记，后续调用将直接返回模拟数据: {query}")
-                        return self._generate_mock_poi(location, query), True
-
-                    # 如果是并发限制错误，等待后重试
-                    if data.get("status") in (401, 402) and retry < max_retries - 1:
-                        wait_time = (retry + 1) * 1.5  # 递增等待时间(1.5s, 3s, 4.5s)
-                        print(f"[POI搜索] 并发限制(status={data.get('status')})，等待{wait_time}秒后重试: {query}")
-                        await asyncio.sleep(wait_time)
-                        continue
-
-                    # 其他错误，返回模拟数据
-                    print(f"[POI搜索] API返回失败状态({data.get('status')}): {data.get('message', '')}，返回模拟数据: {query}")
-                    return self._generate_mock_poi(location, query), True
                 except Exception as e:
-                    print(f"POI搜索失败: {e}")
-                    if retry < max_retries - 1:
-                        await asyncio.sleep(0.5)
-                        continue
-                    return self._generate_mock_poi(location, query), True
+                    err = e
+
+            # —— 以下所有 sleep 都在信号量之外，退避时不会堵住其它请求 ——
+            if err is not None:
+                print(f"POI搜索失败: {err}")
+                if retry < max_retries - 1:
+                    await asyncio.sleep(0.5)
+                    continue
+                return self._generate_mock_poi(location, query), True
+
+            status = data.get("status")
+
+            if status == 0:
+                results = data.get("results", [])
+                pois = [
+                    {
+                        "name": poi.get("name"),
+                        "address": poi.get("address"),
+                        "location": poi.get("location"),
+                        "type": poi.get("detail_info", {}).get("type"),
+                        "tag": poi.get("detail_info", {}).get("tag"),
+                        "distance": poi.get("detail_info", {}).get("distance"),
+                        "uid": poi.get("uid")
+                    }
+                    for poi in results
+                ]
+                if cache_key:
+                    self._set_poi_cache(cache_key, pois)
+                return pois, False
+
+            # 如果是配额超限(302)，设置全局标记并返回模拟数据
+            if status == 302:
+                BaiduMapService._quota_exceeded = True
+                BaiduMapService._quota_exceeded_time = time.time()
+                print(f"[POI搜索] 天配额超限，设置全局标记，后续调用将直接返回模拟数据: {query}")
+                return self._generate_mock_poi(location, query), True
+
+            # 如果是并发限制错误，等待后重试（退避在信号量之外）
+            if status in (401, 402) and retry < max_retries - 1:
+                wait_time = (retry + 1) * 1.5  # 递增等待时间(1.5s, 3s, 4.5s)
+                print(f"[POI搜索] 并发限制(status={status})，等待{wait_time}秒后重试: {query}")
+                await asyncio.sleep(wait_time)
+                continue
+
+            # 其他错误，返回模拟数据
+            print(f"[POI搜索] API返回失败状态({status}): {data.get('message', '')}，返回模拟数据: {query}")
+            return self._generate_mock_poi(location, query), True
 
         return self._generate_mock_poi(location, query), True
 

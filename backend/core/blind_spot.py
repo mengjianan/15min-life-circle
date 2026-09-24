@@ -12,7 +12,8 @@ from config import (
     POI_TYPES,
     BLIND_SPOT_GRID_SIZE,
     BLIND_SPOT_RADIUS,
-    BLIND_SPOT_MIN_COUNT
+    BLIND_SPOT_MIN_COUNT,
+    MAX_GRID_POINTS
 )
 
 
@@ -83,6 +84,23 @@ class BlindSpotDetector:
         Returns:
             网格点列表
         """
+        # 网格点超过上限时自动放大间距，避免检测点数量爆炸拖垮分析
+        current_size = grid_size
+        points = self._build_grid_points(polygon, current_size)
+        for _ in range(6):
+            if len(points) <= MAX_GRID_POINTS:
+                break
+            current_size = int(current_size * 1.5)
+            print(f"[盲区] 网格点过多({len(points)})，间距放大到{current_size}m")
+            points = self._build_grid_points(polygon, current_size)
+        return points
+
+    def _build_grid_points(
+        self,
+        polygon: Polygon,
+        grid_size: int
+    ) -> List[Tuple[float, float]]:
+        """按给定间距生成多边形内的网格点"""
         # 获取多边形边界
         minx, miny, maxx, maxy = polygon.bounds
 
@@ -132,12 +150,14 @@ class BlindSpotDetector:
         for category, queries in POI_TYPES.items():
             total_count = 0
             for query in queries:
-                pois = await self.baidu_map.search_poi(
+                result = await self.baidu_map.search_poi(
                     location=location,
                     query=query,
                     radius=radius
                 )
-                total_count += len(pois)
+                # search_poi 返回 (pois, is_mock) 元组，直接 len() 恒为2会让判定失效
+                pois = result[0] if isinstance(result, tuple) else result
+                total_count += len(pois or [])
 
             # 如果某类设施数量不足，标记为盲区
             if total_count < min_count:

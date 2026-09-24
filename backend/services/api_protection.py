@@ -25,6 +25,9 @@ class APIProtection:
 
     def __init__(self):
         self._init_db()
+        # 每日上限判定缓存（避免每次请求都查库）
+        self._decision_ts = 0.0
+        self._decision_value = False
 
     def _init_db(self):
         """初始化数据库"""
@@ -91,6 +94,30 @@ class APIProtection:
 
         print(f"使用真实API数据 (今日已用: {usage}/{DAILY_API_LIMIT})")
         return False
+
+    def should_use_mock_cached(self, ttl: float = 30.0) -> bool:
+        """
+        带缓存的每日上限判断。
+
+        search_poi 每次调用都会走到这里，不能每次都查库+打日志，
+        所以把判定结果缓存 ttl 秒（超限时允许小幅超额，可接受）。
+        """
+        import time
+        now = time.time()
+        if self._decision_ts and now - self._decision_ts < ttl:
+            return self._decision_value
+
+        if USE_MOCK_DATA:
+            value = True
+        else:
+            usage = self.get_today_usage()
+            value = usage >= DAILY_API_LIMIT
+            if value and not self._decision_value:
+                print(f"API调用已达每日限制({DAILY_API_LIMIT})，今日已用 {usage} 次，后续改用模拟数据")
+
+        self._decision_ts = now
+        self._decision_value = value
+        return value
 
     def get_status(self) -> dict:
         """获取API使用状态"""

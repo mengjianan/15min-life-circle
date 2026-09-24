@@ -72,13 +72,20 @@ POI_TYPES = {
 BLIND_SPOT_GRID_SIZE = 100  # 网格大小（米）
 BLIND_SPOT_RADIUS = 1000  # 盲区判定半径（米）
 BLIND_SPOT_MIN_COUNT = 1  # 最少设施数量
+# 网格点上限：超过则自动放大网格间距，避免检测点爆炸
+MAX_GRID_POINTS = int(os.getenv("MAX_GRID_POINTS", "200"))
 
 # 服务配置
 BACKEND_HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
 BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8080"))
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/cache.db")
 CACHE_TTL = int(os.getenv("CACHE_TTL", "86400"))
-MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "5"))
+# 路线规划等非地点检索接口的并发额度
+MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "4"))
+# 地点检索并发额度：百度约定上限为3，留1个余量，避免触发"并发量已接近约定上限"
+MAX_CONCURRENT_PLACE_REQUESTS = int(os.getenv("MAX_CONCURRENT_PLACE_REQUESTS", "2"))
+# 地点检索全局最小请求间隔（秒），在占用并发额度之前执行
+PLACE_REQUEST_MIN_INTERVAL = float(os.getenv("PLACE_REQUEST_MIN_INTERVAL", "0.1"))
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "10"))
 
 # 南京市中心坐标（默认）

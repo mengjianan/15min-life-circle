@@ -80,8 +80,12 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
 
         # 盲区检测（只对步行做，其他复用）
         if mode == "walking":
-            blind_spots_15min = await blind_detector.detect_blind_spots(
-                center=location, polygon=isochrone_15min.polygon
+            # 用已加载的POI数据做距离判定：零额外地点检索。
+            # 旧版 detect_blind_spots 会对每个网格点再发18次检索（约6000+次调用）。
+            blind_spots_15min = await blind_detector.detect_blind_spots_with_data(
+                center=location,
+                polygon=isochrone_15min.polygon,
+                coverage_data=shared_poi_data or coverage_15min
             )
             # 缓存步行盲区数据
             modes_cache["blind_spots"] = blind_spots_15min
