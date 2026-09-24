@@ -28,6 +28,9 @@ from config import (
     MAX_CONCURRENT_REQUESTS,
     MAX_CONCURRENT_PLACE_REQUESTS,
     PLACE_REQUEST_MIN_INTERVAL,
+    MAX_CONCURRENT_DIRECTION_REQUESTS,
+    DIRECTION_REQUEST_MIN_INTERVAL,
+    MATRIX_MAX_DESTINATIONS,
     REQUEST_TIMEOUT
 )
 
@@ -62,6 +65,32 @@ class BaiduMapService:
     # 地点检索专用信号量：百度约定并发上限3，这里取2留余量
     _global_place_semaphore = asyncio.Semaphore(MAX_CONCURRENT_PLACE_REQUESTS)
 
+    # 路线规划专用信号量：
+    # 实测并发1路30%被401、2路90%、3路100%，所以默认串行（1）并配合间隔
+    _global_direction_semaphore = asyncio.Semaphore(MAX_CONCURRENT_DIRECTION_REQUESTS)
+    # 自适应间隔：撞到401就临时拉大，成功后缓慢回落
+    _direction_base_interval = DIRECTION_REQUEST_MIN_INTERVAL
+    _direction_min_interval = DIRECTION_REQUEST_MIN_INTERVAL
+    _next_direction_slot = 0.0
+
+    # 间隔惩罚上限：拉太大会让冷启动退化成串行等待（实测顶到1.0s时体检要43s）
+    _direction_interval_cap = 0.35
+
+    @classmethod
+    def _penalize_direction_interval(cls):
+        """路线规划被限流：临时拉大间隔，避免连续撞墙"""
+        cls._direction_min_interval = min(
+            cls._direction_min_interval * 1.3, cls._direction_interval_cap
+        )
+
+    @classmethod
+    def _relax_direction_interval(cls):
+        """路线规划成功：间隔较快回落到基准值"""
+        cls._direction_min_interval = max(
+            cls._direction_base_interval,
+            cls._direction_min_interval * 0.8,
+        )
+
     # 健康检查单飞锁（并发首查时只允许一个真正发请求）
     _place_health_lock = asyncio.Lock()
     _direction_health_lock = asyncio.Lock()
@@ -77,8 +106,9 @@ class BaiduMapService:
 
     def __init__(self):
         self.ak = BAIDU_MAP_AK
-        self.semaphore = self._global_semaphore  # 路线规划等接口
+        self.semaphore = self._global_semaphore  # 通用
         self.place_semaphore = self._global_place_semaphore  # 地点检索专用
+        self.direction_semaphore = self._global_direction_semaphore  # 路线规划专用
         self.client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT)
         self._api_status = self._global_api_status  # 使用全局缓存
 
@@ -97,6 +127,23 @@ class BaiduMapService:
             if now >= slot:
                 # 占位：本协程拿到 now 这一档，下一档顺延
                 BaiduMapService._next_place_slot = now + BaiduMapService._min_request_interval
+                return
+            await asyncio.sleep(slot - now)
+
+    @staticmethod
+    async def _wait_direction_slot():
+        """
+        路线规划全局速率控制（在【持有】并发额度期间调用）。
+
+        方向规划默认并发就是1，等待期间不会浪费并行度；
+        间隔本身才是真正避免401的手段。
+        """
+        import time
+        while True:
+            now = time.time()
+            slot = BaiduMapService._next_direction_slot
+            if now >= slot:
+                BaiduMapService._next_direction_slot = now + BaiduMapService._direction_min_interval
                 return
             await asyncio.sleep(slot - now)
 
@@ -206,7 +253,8 @@ class BaiduMapService:
                         "ak": self.ak,
                         "output": "json"
                     }
-                    async with self.semaphore:
+                    async with self.direction_semaphore:
+                        await self._wait_direction_slot()  # 串行+间隔，实测最稳
                         response = await self.client.get(f"{DIRECTION_API}/walking", params=params)
                     data = response.json()
                     status = data.get("status", -1)
@@ -226,6 +274,124 @@ class BaiduMapService:
         print(f"{api_type} API: {status}")
         return self._api_status[api_type]
 
+    # 路线方式 -> routematrix/v2 子路径
+    _MATRIX_PATH = {"walking": "walking", "riding": "riding", "driving": "driving"}
+
+    async def get_times_matrix(
+        self,
+        mode: str,
+        origin: Dict[str, float],
+        destinations: List[Dict[str, float]],
+    ) -> List[Optional[float]]:
+        """
+        批量查询行程时长（秒）—— 一次矩阵调用替代多次单发。
+
+        实测 routematrix/v2 单次最多可带64个终点，walking/riding/driving 均支持
+        （transit 返回404，等时圈对公交本就走 driving）。
+
+        Args:
+            mode: walking / riding / driving
+            origin: 起点
+            destinations: 终点列表
+
+        Returns:
+            与 destinations 等长的时长列表；查询失败的元素为 None（不伪造数据）
+        """
+        path = self._MATRIX_PATH.get(mode)
+        if path is None:
+            raise ValueError(f"批量矩阵不支持的出行方式: {mode}")
+        if not destinations:
+            return []
+
+        if not await self._check_api_type("direction"):
+            return [None] * len(destinations)
+
+        cache_mode = f"{mode}_time"
+        results: List[Optional[float]] = [None] * len(destinations)
+        pending = []
+        for idx, dest in enumerate(destinations):
+            key = self._get_route_cache_key(cache_mode, origin, dest)
+            cached = self._get_cached_route(key)
+            if cached is not None:
+                results[idx] = cached
+            else:
+                pending.append((idx, dest, key))
+
+        for start in range(0, len(pending), MATRIX_MAX_DESTINATIONS):
+            batch = pending[start:start + MATRIX_MAX_DESTINATIONS]
+            params = {
+                "origins": f"{origin['lat']},{origin['lng']}",
+                "destinations": "|".join(f"{d['lat']},{d['lng']}" for _, d, _ in batch),
+                "ak": self.ak,
+                "output": "json",
+            }
+
+            data = None
+            # 只重试2次、退避压短：冷启动实测退避睡眠占了近18s。
+            # 单批失败的代价由“整轮重试”兜底（isochrone_engine），
+            # 已成功的探测还能直接命中矩阵缓存，代价很小。
+            for attempt in range(2):
+                async with self.direction_semaphore:
+                    await self._wait_direction_slot()
+                    try:
+                        response = await self.client.get(
+                            f"{DISTANCE_MATRIX_API}/{path}", params=params
+                        )
+                        data = response.json()
+                    except Exception as e:
+                        print(f"[矩阵] 请求异常({mode}): {e}")
+                        data = None
+
+                code = data.get("status") if isinstance(data, dict) else None
+                if code == 0:
+                    self._relax_direction_interval()
+                    break
+
+                # 退避必须在信号量之外，否则限流等待会堵死其它请求
+                if code == 401:
+                    # 撞到限流窗口：临时拉大间隔，让后续调用避开窗口
+                    self._penalize_direction_interval()
+                wait = 0.2 * (2 ** attempt)  # 0.2 / 0.4
+                msg = data.get("message") if isinstance(data, dict) else "no response"
+                print(f"[矩阵] {mode} status={code} msg={msg!r}，{wait:.1f}s后重试 "
+                      f"({attempt + 1}/2) 间隔={self._direction_min_interval:.2f}s")
+                await asyncio.sleep(wait)
+
+            if not isinstance(data, dict) or data.get("status") != 0:
+                # 重试后仍失败：本批如实留 None，调用方据此剔除该方向
+                continue
+
+            items = data.get("result") or []
+            if not isinstance(items, list):
+                items = [items]
+            if len(items) != len(batch):
+                print(f"[矩阵] 返回{len(items)}条与请求{len(batch)}条不符，本批作废")
+                continue
+
+            for (idx, dest, key), item in zip(batch, items):
+                duration = self._extract_matrix_duration(item)
+                if duration is None:
+                    continue
+                results[idx] = duration
+                self._set_cached_route(key, duration)
+
+        return results
+
+    @staticmethod
+    def _extract_matrix_duration(item) -> Optional[float]:
+        """取矩阵元素的 duration（秒）；0 是有效值（起终点相同），不能当失败"""
+        if not isinstance(item, dict):
+            return None
+        elem_status = item.get("status")
+        if elem_status not in (None, 0):
+            return None
+        duration = item.get("duration")
+        if isinstance(duration, dict):
+            duration = duration.get("value")
+        if isinstance(duration, (int, float)):
+            return float(duration)
+        return None
+
     async def get_walking_time(
         self,
         origin: Dict[str, float],
@@ -242,7 +408,8 @@ class BaiduMapService:
         if not await self._check_api_type("direction"):
             return None
 
-        async with self.semaphore:
+        async with self.direction_semaphore:
+            await self._wait_direction_slot()  # 串行+间隔，实测最稳
             try:
                 params = {
                     "origin": f"{origin['lat']},{origin['lng']}",
@@ -285,7 +452,8 @@ class BaiduMapService:
         if not await self._check_api_type("direction"):
             return None
 
-        async with self.semaphore:
+        async with self.direction_semaphore:
+            await self._wait_direction_slot()  # 串行+间隔，实测最稳
             try:
                 params = {
                     "origin": f"{origin['lat']},{origin['lng']}",
@@ -328,7 +496,8 @@ class BaiduMapService:
         if not await self._check_api_type("direction"):
             return None
 
-        async with self.semaphore:
+        async with self.direction_semaphore:
+            await self._wait_direction_slot()  # 串行+间隔，实测最稳
             try:
                 params = {
                     "origin": f"{origin['lat']},{origin['lng']}",
@@ -372,7 +541,8 @@ class BaiduMapService:
         if not await self._check_api_type("direction"):
             return None
 
-        async with self.semaphore:
+        async with self.direction_semaphore:
+            await self._wait_direction_slot()  # 串行+间隔，实测最稳
             try:
                 params = {
                     "origin": f"{origin['lat']},{origin['lng']}",
@@ -425,7 +595,8 @@ class BaiduMapService:
         if not await self._check_api_type("direction"):
             return None
 
-        async with self.semaphore:
+        async with self.direction_semaphore:
+            await self._wait_direction_slot()  # 串行+间隔，实测最稳
             try:
                 params = {
                     "origin": f"{origin['lat']},{origin['lng']}",
@@ -487,7 +658,8 @@ class BaiduMapService:
         if not await self._check_api_type("direction"):
             return None
 
-        async with self.semaphore:
+        async with self.direction_semaphore:
+            await self._wait_direction_slot()  # 串行+间隔，实测最稳
             try:
                 params = {
                     "origin": f"{origin['lat']},{origin['lng']}",
@@ -549,7 +721,8 @@ class BaiduMapService:
         if not await self._check_api_type("direction"):
             return None
 
-        async with self.semaphore:
+        async with self.direction_semaphore:
+            await self._wait_direction_slot()  # 串行+间隔，实测最稳
             try:
                 params = {
                     "origin": f"{origin['lat']},{origin['lng']}",

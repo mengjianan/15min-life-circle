@@ -14,20 +14,20 @@ from services.baidu_map import BaiduMapService
 from config import BAIDU_MAP_AK
 
 POSITIVE_FACILITIES = {
-    "公园": ["公园", "花园", "绿地"],
-    "学校": ["小学", "幼儿园", "中学"],
+    "公园": ["公园"],
+    "学校": ["小学", "幼儿园"],
     "图书馆": ["图书馆"],
-    "体育场馆": ["体育馆", "健身中心"],
+    "体育场馆": ["体育馆"],
 }
 
 NEGATIVE_FACILITIES = {
-    "医院": ["医院", "诊所"],
-    "殡葬": ["殡仪馆", "墓地"],
+    "医院": ["医院"],
+    "殡葬": ["殡仪馆"],
     "垃圾处理": ["垃圾站"],
-    "寺庙": ["寺庙", "教堂"],
+    "寺庙": ["寺庙"],
 }
 
-WATER_KEYWORDS = ["河流", "湖泊", "水库", "河", "湖"]
+WATER_KEYWORDS = ["河流", "湖泊", "水库"]
 EIGHT_HOUSE_AUSPICIOUS = {
     "坎": ["坎", "巽", "震", "离"],
     "离": ["离", "震", "巽", "坎"],
@@ -64,7 +64,7 @@ class FengShuiEngine:
         )
     async def analyze_terrain(self, center, radius):
         """地形分析"""
-        TERRAIN_KEYWORDS = ["山", "高地", "丘陵", "坡", "岭", "峰", "山丘", "土丘"]
+        TERRAIN_KEYWORDS = ["山", "丘陵", "坡", "峰"]
         terrain_features = []
         found_terrain = False
 
@@ -138,7 +138,7 @@ class FengShuiEngine:
         min_dist = float("inf")
         names = []
         water_features = []
-        WATER_KEYWORDS = ["河流", "湖泊", "水库", "池塘", "喷泉", "河", "湖"]
+        WATER_KEYWORDS = ["河流", "湖泊", "水库"]
 
         for kw in WATER_KEYWORDS:
             try:
@@ -242,7 +242,7 @@ class FengShuiEngine:
 
     async def analyze_greenery(self, center, radius):
         """绿化分析"""
-        GREENERY_KEYWORDS = ["公园", "绿地", "花园", "广场", "绿化带", "植物园", "园林", "湿地公园"]
+        GREENERY_KEYWORDS = ["公园", "绿地", "花园", "广场"]
         greenery_features = []
 
         for kw in GREENERY_KEYWORDS:

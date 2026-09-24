@@ -9,6 +9,7 @@ from typing import List, Tuple, Dict, Any
 from dataclasses import dataclass
 
 from services.baidu_map import BaiduMapService
+from services.cache import cache_service, generate_cache_key
 from config import (
     ISOCHRONE_DIRECTIONS,
     ISOCHRONE_MAX_TIME,
@@ -16,7 +17,8 @@ from config import (
     MAX_SEARCH_RADIUS,
     FAST_MODE_DIRECTIONS,
     FAST_MODE_ITERATIONS,
-    ISOCHRONE_WALKING_SPEED
+    ISOCHRONE_WALKING_SPEED,
+    ISOCHRONE_CACHE_TTL
 )
 
 
@@ -129,58 +131,30 @@ class IsochroneEngine:
 
         return self._api_available
 
-    async def _search_boundary_point(
+    @staticmethod
+    def _travel_mode_for_speed(speed: float) -> str:
+        """按速度选择路线规划方式（公交用驾车API近似）"""
+        if speed >= 4.0:
+            return "driving"
+        if speed >= 3.0:
+            return "riding"
+        return "walking"
+
+    def _isochrone_cache_key(
         self,
         center: GeoPoint,
-        direction: float,
-        max_time: int = ISOCHRONE_MAX_TIME,
-        max_iterations: int = BINARY_SEARCH_ITERATIONS,
-        max_radius: float = MAX_SEARCH_RADIUS,
-        speed: float = ISOCHRONE_WALKING_SPEED
-    ) -> GeoPoint:
-        """
-        二分搜索某方向上的边界点
-        根据速度选择合适的出行方式API
-        """
-        low = 0
-        high = max_radius
-        best_point = center
-
-        # 根据速度判断出行方式，选择对应的API
-        if speed >= 7.0:  # 驾车 ~8m/s
-            travel_mode = "driving"
-        elif speed >= 4.0:  # 公交 ~5m/s
-            travel_mode = "driving"  # 公交也用驾车API近似
-        elif speed >= 3.0:  # 骑行 ~3.5m/s
-            travel_mode = "riding"
-        else:  # 步行 ~1.2m/s
-            travel_mode = "walking"
-
-        for _ in range(max_iterations):
-            mid = (low + high) / 2
-            target = self._calculate_destination(center, direction, mid)
-
-            origin_dict = {"lng": center.lng, "lat": center.lat}
-            target_dict = {"lng": target.lng, "lat": target.lat}
-
-            # 根据出行方式获取时间
-            if travel_mode == "walking":
-                travel_time = await self.baidu_map.get_walking_time(origin_dict, target_dict)
-            elif travel_mode == "riding":
-                travel_time = await self.baidu_map.get_riding_time(origin_dict, target_dict)
-            else:  # driving
-                travel_time = await self.baidu_map.get_driving_time(origin_dict, target_dict)
-
-            if travel_time is None:
-                travel_time = mid / speed
-
-            if travel_time < max_time:
-                best_point = target
-                low = mid
-            else:
-                high = mid
-
-        return best_point
+        max_time: int,
+        directions: int,
+        max_iterations: int,
+        speed: float,
+        fast_mode: bool,
+    ) -> str:
+        return generate_cache_key(
+            "isochrone",
+            round(center.lng, 6), round(center.lat, 6),
+            max_time, directions, max_iterations,
+            round(speed, 3), int(fast_mode),
+        )
 
     async def calculate_isochrone(
         self,
@@ -191,18 +165,24 @@ class IsochroneEngine:
         speed: float = None
     ) -> IsochroneResult:
         """
-        计算等时圈（并发优化版）
+        计算等时圈。
+
+        相比旧实现的三处关键改动：
+        1. 按轮次批量推进二分：一轮内所有方向（不论 mid 是否相同）
+           合并成 1 次矩阵调用 —— 矩阵是“1起点×N终点”，天然支持。
+           实测 每方式 6 次矩阵调用（旧：24方向 × 6次 = 144 次单发）
+        2. API失败不再伪装成“理想直线可达”：跳过该轮沿用上一轮状态，
+           全程都没成功的方向直接剔除顶点，并打印统计
+        3. 引擎级缓存（30天）：full-analysis 直接调引擎，
+           旧实现绕过了 /api/isochrone 的缓存，每次体检都重算
         """
-        # 首先检查API可用性
         api_available = await self._check_api_availability()
-        
-        # 如果API不可用，直接返回模拟数据
+
         if not api_available:
             actual_directions = FAST_MODE_DIRECTIONS if fast_mode else directions
             effective_speed = speed if speed else ISOCHRONE_WALKING_SPEED
             return self._generate_mock_isochrone(center, max_time, actual_directions, effective_speed)
 
-        # 快速模式使用更少的采样点
         if fast_mode:
             actual_directions = FAST_MODE_DIRECTIONS
             max_iterations = FAST_MODE_ITERATIONS
@@ -210,39 +190,97 @@ class IsochroneEngine:
             actual_directions = directions
             max_iterations = BINARY_SEARCH_ITERATIONS
 
-        # 根据速度动态调整搜索半径
         effective_speed = speed if speed else ISOCHRONE_WALKING_SPEED
         dynamic_max_radius = effective_speed * max_time * 1.2  # 预留20%余量
         dynamic_max_radius = max(dynamic_max_radius, MAX_SEARCH_RADIUS)  # 至少2000m
 
-        angles = [i * (360 / actual_directions) for i in range(actual_directions)]
+        # 引擎级缓存：full-analysis 直接调引擎，绕过了 /api/isochrone 的缓存
+        cache_key = self._isochrone_cache_key(
+            center, max_time, actual_directions, max_iterations,
+            effective_speed, fast_mode,
+        )
+        cached = cache_service.get(cache_key)
+        if cached:
+            return IsochroneResult(
+                center=center,
+                boundary_points=[
+                    GeoPoint(lng=p["lng"], lat=p["lat"])
+                    for p in cached["boundary_points"]
+                ],
+                max_time=cached["max_time"],
+                polygon=cached["polygon"],
+            )
 
-        tasks = [
-            self._search_boundary_point(center, angle, max_time, max_iterations, dynamic_max_radius, effective_speed)
-            for angle in angles
+        angles = [i * (360 / actual_directions) for i in range(actual_directions)]
+        mode = self._travel_mode_for_speed(effective_speed)
+        origin = {"lng": center.lng, "lat": center.lat}
+
+        states = [
+            {"angle": a, "low": 0.0, "high": float(dynamic_max_radius),
+             "mid": 0.0, "best": center, "ok": False}
+            for a in angles
         ]
 
-        try:
-            boundary_points = await asyncio.gather(*tasks, return_exceptions=True)
+        for round_idx in range(max_iterations):
+            dests = []
+            for st in states:
+                mid = (st["low"] + st["high"]) / 2.0
+                st["mid"] = mid
+                dests.append(self._calculate_destination(center, st["angle"], mid))
 
-            valid_points = []
-            for i, point in enumerate(boundary_points):
-                if isinstance(point, Exception):
-                    estimated = self._calculate_destination(
-                        center, angles[i], MAX_SEARCH_RADIUS * 0.7
-                    )
-                    valid_points.append(estimated)
+            # 一轮所有方向合并为1次矩阵调用
+            dest_dicts = [{"lng": d.lng, "lat": d.lat} for d in dests]
+            times = await self.baidu_map.get_times_matrix(mode, origin, dest_dicts)
+
+            if all(t is None for t in times):
+                # 整轮被限流打空：这一轮的精度就全丢了，等限流窗口过去重跑一次。
+                # 已成功的探测会被矩阵缓存直接命中，重跑代价很小。
+                print(f"[等时圈] 第{round_idx + 1}/{max_iterations}轮整批失败，"
+                      f"1.0s后重试")
+                await asyncio.sleep(1.0)
+                times = await self.baidu_map.get_times_matrix(mode, origin, dest_dicts)
+
+            for i, (st, t) in enumerate(zip(states, times)):
+                if t is None:
+                    # 查询失败：跳过本轮，沿用上一轮状态（绝不伪造理想时长）
+                    continue
+                st["ok"] = True
+                if t < max_time:
+                    st["best"] = dests[i]
+                    st["low"] = st["mid"]
                 else:
-                    valid_points.append(point)
-        except Exception as e:
-            print(f"并发计算异常: {e}")
-            return self._generate_mock_isochrone(center, max_time, actual_directions)
+                    st["high"] = st["mid"]
 
-        polygon = self._build_polygon(valid_points)
+        valid_states = [st for st in states if st["ok"]]
+        dropped = len(states) - len(valid_states)
+
+        if len(valid_states) < 3:
+            print(f"[等时圈] 有效方向仅{len(valid_states)}/{len(states)}"
+                  f"（剔除{dropped}），改用模拟数据")
+            return self._generate_mock_isochrone(
+                center, max_time, actual_directions, effective_speed
+            )
+
+        if dropped:
+            print(f"[等时圈] {mode} {max_time // 60}min 有效方向"
+                  f"{len(valid_states)}/{len(states)}，剔除{dropped}个"
+                  f"（API始终失败，不伪造数据）")
+
+        boundary_points = [st["best"] for st in valid_states]
+        polygon = self._build_polygon(boundary_points)
+
+        try:
+            cache_service.set(cache_key, {
+                "boundary_points": [{"lng": p.lng, "lat": p.lat} for p in boundary_points],
+                "polygon": polygon,
+                "max_time": max_time,
+            }, ttl=ISOCHRONE_CACHE_TTL)
+        except Exception as e:
+            print(f"[等时圈] 写缓存失败: {e}")
 
         return IsochroneResult(
             center=center,
-            boundary_points=valid_points,
+            boundary_points=boundary_points,
             max_time=max_time,
             polygon=polygon
         )

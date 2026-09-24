@@ -33,8 +33,11 @@ RIDING_DIRECTION_API = f"{DIRECTION_API}/riding"
 DRIVING_DIRECTION_API = f"{DIRECTION_API}/driving"
 TRANSIT_DIRECTION_API = f"{DIRECTION_API}/transit"
 
-# 距离矩阵
-DISTANCE_MATRIX_API = f"{BAIDU_MAP_API_BASE}/routematrix/v1"
+# 距离矩阵（批量路线规划）
+# 注意：v1 返回302等于没配，必须用 v2；实测单次最多可带64个终点
+# walking / riding / driving 支持，transit 返回404（等时圈对公交本就走 driving）
+DISTANCE_MATRIX_API = f"{BAIDU_MAP_API_BASE}/routematrix/v2"
+MATRIX_MAX_DESTINATIONS = int(os.getenv("MATRIX_MAX_DESTINATIONS", "64"))
 
 # IP定位
 IP_LOCATION_API = f"{BAIDU_MAP_API_BASE}/location/ip"
@@ -46,10 +49,18 @@ YINGYAN_TRACK_API = f"{YINGYAN_API_BASE}/track"
 YINGYAN_GEOFENCE_API = f"{YINGYAN_API_BASE}/geofence"
 
 # 等时圈计算配置（优化版）
-ISOCHRONE_DIRECTIONS = 16  # 采样方向数（每15度一个，从36减少到24）
+# 采样方向数 / 二分迭代次数
+#
+# 精度只由迭代次数决定（量化步长 = 搜索范围 / 2^迭代），与方向数无关：
+#   4次 -> 驾车540m步长（半径只有5个取值，形状明显块状）
+#   6次 -> 驾车135m步长
+# 方向数只决定多边形顶点数和单次矩阵携带的终点数，保持16以免单次
+# 请求过重触发401。改用 routematrix 批量后每轮固定1次调用，
+# 提精度从4->6 只让调用数 4->6 次/方式（旧实现是 16*4=64 次单发）。
+ISOCHRONE_DIRECTIONS = 16  # 采样方向数（多边形顶点数）
 ISOCHRONE_MAX_TIME = 15 * 60  # 15分钟（秒）
 ISOCHRONE_WALKING_SPEED = 1.2  # 步行速度（米/秒）
-BINARY_SEARCH_ITERATIONS = 4  # 二分搜索迭代次数（从8减少到6）
+BINARY_SEARCH_ITERATIONS = 6  # 二分迭代：驾车量化步长 540m -> 135m
 MAX_SEARCH_RADIUS = 2000  # 最大搜索半径（米）
 
 # 快速模式配置（用于预览）
@@ -86,6 +97,15 @@ MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "4"))
 MAX_CONCURRENT_PLACE_REQUESTS = int(os.getenv("MAX_CONCURRENT_PLACE_REQUESTS", "2"))
 # 地点检索全局最小请求间隔（秒），在占用并发额度之前执行
 PLACE_REQUEST_MIN_INTERVAL = float(os.getenv("PLACE_REQUEST_MIN_INTERVAL", "0.1"))
+
+# 路线规划并发/限速
+# 实测：并发1路30%被401、2路90%、3路100%，串行+间隔最稳
+MAX_CONCURRENT_DIRECTION_REQUESTS = int(os.getenv("MAX_CONCURRENT_DIRECTION_REQUESTS", "1"))
+DIRECTION_REQUEST_MIN_INTERVAL = float(os.getenv("DIRECTION_REQUEST_MIN_INTERVAL", "0.15"))
+
+# 等时圈结果缓存时长（路网短期不变），下沉到引擎层让 full-analysis 也能命中
+ISOCHRONE_CACHE_TTL = int(os.getenv("ISOCHRONE_CACHE_TTL", "2592000"))
+
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "10"))
 
 # 南京市中心坐标（默认）

@@ -384,7 +384,12 @@ async def generate_full_analysis(request: FullAnalysisRequest):
                     "count": fengshui_result.greenery.count,
                     "description": fengshui_result.greenery.description,
                     "greenery_features": [f.dict() for f in fengshui_result.greenery.greenery_features]
-                }
+                },
+                # 补齐顶层评分/建议，使本接口与 /api/fengshui/analyze 结构一致。
+                # 前端 FengShuiRadar 靠 data.score.terrain 取值，缺了会拿到对象而非数字。
+                # 补上之后前端就不必在体检结束后再单独调一次风水接口。
+                "score": fengshui_result.score.dict(),
+                "suggestions": [s.dict() for s in fengshui_result.suggestions],
             }
         except Exception as e:
             print(f"风水分析失败: {e}")

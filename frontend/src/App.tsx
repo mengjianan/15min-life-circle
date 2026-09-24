@@ -114,7 +114,11 @@ function App() {
     { id: 'report', label: '生成报告', status: 'pending' },
   ]);
   const [showProgress, setShowProgress] = useState(false);
-  const [fengshuiScore, setFengshuiScore] = useState<any>(null);
+
+  // 风水数据直接取自 full-analysis 的返回。
+  // full-analysis 内部已经跑过风水，之前体检结束后又单独请求一次
+  // /api/fengshui/analyze 属于重复调用，白烧地点检索配额。
+  const fengshuiData = fullResult?.fengshui || null;
 
 
   // 获取当前出行方式数据
@@ -196,22 +200,6 @@ function App() {
 
   // 延迟函数
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-  const fetchFengshuiScore = async (lng: number, lat: number) => {
-    try {
-      const response = await fetch('/api/fengshui/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lng, lat }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFengshuiScore(data);
-      }
-    } catch (err) {
-      console.error('获取风水分析失败:', err);
-    }
-  };
 
   const handleAnalyze = async () => {
     const center = getCurrentCenter();
@@ -307,8 +295,6 @@ function App() {
       setAnalysisMessage(null);
       setLoading(false);
       setShowProgress(false);
-      // 获取风水评分
-      fetchFengshuiScore(center.lng, center.lat);
     }
   };
 
@@ -464,7 +450,7 @@ function App() {
                 selectedFacility={selectedFacility}
                 activeTimeSlot={activeTimeSlot}
                 activeMode={activeMode}
-                fengshuiData={fullResult?.fengshui || fengshuiScore}
+                fengshuiData={fengshuiData}
                 routesData={modeData?.routes || []}
                 multiTimeData={modeData?.time_slots ? {
                   layers: Object.entries(modeData.time_slots).map(([key, slot]: [string, any]) => ({
@@ -529,7 +515,7 @@ function App() {
                 <Report
                   communityName={fullResult.community_name || ''}
                   fullResult={fullResult}
-                  fengshuiResult={fengshuiScore}
+                  fengshuiResult={fengshuiData}
                   activeMode={activeMode}
                   activeTimeSlot={activeTimeSlot}
                 />
@@ -539,10 +525,10 @@ function App() {
 
 
               {/* 风水评分 */}
-              {fengshuiScore && (
+              {fengshuiData && (
                 <div className="fengshui-card">
                   <div className="fengshui-card-header">风水评分</div>
-                  <FengShuiRadar data={fengshuiScore} showLabels={true} />
+                  <FengShuiRadar data={fengshuiData} showLabels={true} />
                 </div>
               )}
 
