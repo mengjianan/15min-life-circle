@@ -34,11 +34,24 @@ jobs:
     - name: Run unit tests
       run: |
         cd backend
-        pytest tests/test_graph.py tests/test_poi.py tests/test_isochrone.py -v --cov=. --cov-report=xml
+        set -o pipefail
+        python -VV
+        python -m pytest --version
+        pip list | grep -Ei 'pytest|coverage|asyncio' || true
+        python -m pytest tests/test_graph.py tests/test_poi.py tests/test_isochrone.py -v --cov=. --cov-report=xml 2>&1 | tee "$GITHUB_WORKSPACE/pytest-output.txt"
       env:
         BAIDU_MAP_AK: ${{ secrets.BAIDU_MAP_AK }}
 
+    - name: Upload test log
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pytest-log
+        path: pytest-output.txt
+        if-no-files-found: ignore
+
     - name: Upload coverage
+      if: always()
       uses: codecov/codecov-action@v3
       with:
         file: ./backend/coverage.xml
