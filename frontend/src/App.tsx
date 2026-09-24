@@ -401,7 +401,7 @@ function App() {
             )}
           </div>
           <div className="header-right">
-            <a href="./" className="back-button">
+            <a href="../" className="back-button">
               <Icons.ArrowLeft />
               返回首页
             </a>
