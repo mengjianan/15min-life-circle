@@ -49,10 +49,10 @@ export const CHART_COLORS = {
 
 // 设施图标配置
 export const FACILITY_ICONS: Record<string, string> = {
-  '医疗': '🏥',
-  '教育': '🏫',
-  '购物': '🛒',
-  '养老': '👴',
-  '文体': '🏃',
-  '餐饮': '🍜',
+  '医疗': 'hospital',
+  '教育': 'school',
+  '购物': 'cart',
+  '养老': 'elder',
+  '文体': 'walk',
+  '餐饮': 'utensils',
 };

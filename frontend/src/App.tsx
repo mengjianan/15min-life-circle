@@ -8,6 +8,7 @@ import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
 import FengShuiRadar from './components/FengShuiRadar';
 import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
+import { Ico } from './icons';
 import type { TravelMode, FullAnalysisResult, TravelModeData, POIItem, POICategoryData } from './types';
 
 // 出行方式配置
@@ -101,7 +102,8 @@ function App() {
   const [selectedFacility, setSelectedFacility] = useState<POIItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
+  // 消息带 SVG 图标（不再使用 emoji）
+  const [analysisMessage, setAnalysisMessage] = useState<{ icon: string; text: string } | null>(null);
   const [showCustomCenter, setShowCustomCenter] = useState(false);
   const [reportExpanded, setReportExpanded] = useState(true);
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([
@@ -245,25 +247,25 @@ function App() {
 
       // 更新步骤状态 - 逐步显示
       updateStepStatus('walking', 'completed', '步行范围计算完成');
-      setAnalysisMessage('🚶 步行分析完成，正在计算骑行范围...');
+      setAnalysisMessage({ icon: 'walk', text: '步行分析完成，正在计算骑行范围...' });
       await delay(300);
 
       updateStepStatus('cycling', 'active', '正在计算骑行范围...');
       await delay(200);
       updateStepStatus('cycling', 'completed', '骑行范围计算完成');
-      setAnalysisMessage('🚲 骑行分析完成，正在计算公交范围...');
+      setAnalysisMessage({ icon: 'bike', text: '骑行分析完成，正在计算公交范围...' });
       await delay(300);
 
       updateStepStatus('transit', 'active', '正在计算公交范围...');
       await delay(200);
       updateStepStatus('transit', 'completed', '公交范围计算完成');
-      setAnalysisMessage('🚌 公交分析完成，正在计算驾车范围...');
+      setAnalysisMessage({ icon: 'bus', text: '公交分析完成，正在计算驾车范围...' });
       await delay(300);
 
       updateStepStatus('driving', 'active', '正在计算驾车范围...');
       await delay(200);
       updateStepStatus('driving', 'completed', '驾车范围计算完成');
-      setAnalysisMessage('🚗 驾车分析完成，正在生成报告...');
+      setAnalysisMessage({ icon: 'car', text: '驾车分析完成，正在生成报告...' });
       await delay(300);
 
       updateStepStatus('report', 'active', '生成综合报告...');
@@ -288,7 +290,7 @@ function App() {
         .join('、');
 
       if (summaryText) {
-        setAnalysisMessage(`🔍 发现${totalFacilities}处设施：${summaryText}`);
+        setAnalysisMessage({ icon: 'search', text: `发现${totalFacilities}处设施：${summaryText}` });
         await delay(500);
       }
 
@@ -296,7 +298,7 @@ function App() {
       await delay(300);
 
       updateStepStatus('report', 'completed', '报告生成完成');
-      setAnalysisMessage('✅ 分析完成！');
+      setAnalysisMessage({ icon: 'check', text: '分析完成！' });
 
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析过程中出现错误');
@@ -431,8 +433,8 @@ function App() {
         {/* 分析消息提示 */}
         {analysisMessage && (
           <div className="analysis-message-banner">
-            <span className="message-icon">ℹ️</span>
-            <span className="message-text">{analysisMessage}</span>
+            <span className="message-icon"><Ico n={analysisMessage.icon} /></span>
+            <span className="message-text">{analysisMessage.text}</span>
           </div>
         )}
 

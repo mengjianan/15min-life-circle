@@ -4,6 +4,7 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import type { AnalysisResult, MultiTimeData } from './types';
+import { iconSvg } from './icons';
 
 /**
  * 生成可打印的报告HTML
@@ -48,13 +49,13 @@ export function generatePrintableReport(
     ? blind_spots
         .map(spot => `
           <div class="blind-spot-item">
-            <span class="spot-icon">⚠️</span>
+            <span class="spot-icon">${iconSvg('warning')}</span>
             <span class="spot-category">${spot.category}:</span>
             <span class="spot-description">${spot.description}</span>
           </div>
         `)
         .join('')
-    : '<p class="no-spots">✅ 未发现明显服务盲区</p>';
+    : '<p class="no-spots">' + iconSvg('check') + ' 未发现明显服务盲区</p>';
 
   // 多时间数据HTML
   let multiTimeHTML = '';
@@ -70,7 +71,7 @@ export function generatePrintableReport(
 
     multiTimeHTML = `
       <div class="section">
-        <h2>⏱️ 多时间维度分析</h2>
+        <h2>${iconSvg('clock')} 多时间维度分析</h2>
         <div class="time-layers">${layersHTML}</div>
       </div>
     `;
@@ -331,7 +332,7 @@ export function generatePrintableReport(
 <body>
   <div class="report-container">
     <div class="report-header">
-      <h1>🏘️ 15分钟生活圈体检报告</h1>
+      <h1>${iconSvg('building', 22)} 15分钟生活圈体检报告</h1>
       <p>${community_name}</p>
     </div>
 
@@ -348,19 +349,19 @@ export function generatePrintableReport(
     </div>
 
     <div class="section">
-      <h2>📊 各类设施评分</h2>
+      <h2>${iconSvg('chart')} 各类设施评分</h2>
       ${categoryScoresHTML}
     </div>
 
     ${multiTimeHTML}
 
     <div class="section">
-      <h2>💡 改善建议</h2>
+      <h2>${iconSvg('bulb')} 改善建议</h2>
       ${suggestionsHTML}
     </div>
 
     <div class="section">
-      <h2>⚠️ 服务盲区</h2>
+      <h2>${iconSvg('warning')} 服务盲区</h2>
       ${blindSpotsHTML}
     </div>
 

@@ -2,6 +2,7 @@ import React from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
+import { Ico } from '../icons';
 
 interface TimeSlotData {
   time: string;
@@ -118,15 +119,15 @@ const TimeSlotChart: React.FC<TimeSlotChartProps> = ({
             <div className="detail-time">{item.time}</div>
             <div className="detail-stats">
               <span className="stat-item">
-                <span className="stat-icon">📐</span>
+                <span className="stat-icon"><Ico n="ruler" /></span>
                 {item.area} km²
               </span>
               <span className="stat-item">
-                <span className="stat-icon">🏢</span>
+                <span className="stat-icon"><Ico n="building" /></span>
                 {item.facilities} 个
               </span>
               <span className="stat-item">
-                <span className="stat-icon">⚠️</span>
+                <span className="stat-icon"><Ico n="warning" /></span>
                 {item.blindSpots} 个
               </span>
             </div>

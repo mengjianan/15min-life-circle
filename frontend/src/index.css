@@ -3729,3 +3729,21 @@ body {
 .radar-bar {
   height: 16px;
 }
+
+/* SVG 图标（替代 emoji）：跟随容器 font-size 缩放 */
+.ico {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: -0.15em;
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
+.section-title .ico,
+h1 .ico,
+h2 .ico,
+h3 .ico,
+h4 .ico {
+  margin-right: 0.35em;
+}

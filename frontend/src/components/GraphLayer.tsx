@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Ico } from '../icons';
 
 interface GraphLayerProps {
   map: any;  // 百度地图实例
@@ -226,13 +227,13 @@ const GraphLayer: React.FC<GraphLayerProps> = ({ map, center, visible }) => {
     <div className="graph-info">
       <div className="graph-stats">
         <span className="stat-item">
-          🛣️ 路段: {routeData.features.length}
+          <Ico n="road" /> 路段: {routeData.features.length}
         </span>
         <span className="stat-item">
-          📏 总距离: {(routeData.total_distance / 1000).toFixed(1)}km
+          <Ico n="ruler" /> 总距离: {(routeData.total_distance / 1000).toFixed(1)}km
         </span>
         <span className="stat-item">
-          ⏱️ 总时间: {Math.round(routeData.total_duration / 60)}min
+          <Ico n="clock" /> 总时间: {Math.round(routeData.total_duration / 60)}min
         </span>
       </div>
     </div>

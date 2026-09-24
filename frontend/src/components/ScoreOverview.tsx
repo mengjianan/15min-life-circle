@@ -1,3 +1,5 @@
+import { Ico } from '../icons';
+
 interface ScoreOverviewProps {
   fullResult: any;
   communityName: string;
@@ -17,10 +19,10 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
   };
 
   const modeIcons: Record<string, string> = {
-    walking: '🚶',
-    cycling: '🚲',
-    transit: '🚌',
-    driving: '🚗'
+    walking: 'walk',
+    cycling: 'bike',
+    transit: 'bus',
+    driving: 'car'
   };
 
   const getScoreColor = (score: number) => {
@@ -34,7 +36,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
     <div className="report-container">
       {/* 综合评分 */}
       <section className="report-section compact">
-        <h3 className="section-title">📈 综合评分</h3>
+        <h3 className="section-title"><Ico n="trend" /> 综合评分</h3>
         <div className="comprehensive-score-vertical">
           <div className="total-score-vertical">
             <span className="score-number" style={{ color: getScoreColor(comprehensiveScore.total || 0) }}>
@@ -47,7 +49,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
         </div>
         <div className="category-coverage-compact">
           <div className="category-item-compact">
-            <span className="category-icon-small">🏢</span>
+            <span className="category-icon-small"><Ico n="building" /></span>
             <span className="category-name-small">设施覆盖</span>
             <div className="category-bar-small">
               <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.facility_coverage || 0) }} />
@@ -55,7 +57,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
             <span className="category-score-small">{comprehensiveScore.facility_coverage || 0}</span>
           </div>
           <div className="category-item-compact">
-            <span className="category-icon-small">🚶</span>
+            <span className="category-icon-small"><Ico n="walk" /></span>
             <span className="category-name-small">可达性</span>
             <div className="category-bar-small">
               <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.accessibility || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.accessibility || 0) }} />
@@ -63,7 +65,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
             <span className="category-score-small">{comprehensiveScore.accessibility || 0}</span>
           </div>
           <div className="category-item-compact">
-            <span className="category-icon-small">🚌</span>
+            <span className="category-icon-small"><Ico n="bus" /></span>
             <span className="category-name-small">出行适配</span>
             <div className="category-bar-small">
               <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.mode_adaptability || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.mode_adaptability || 0) }} />
@@ -71,7 +73,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
             <span className="category-score-small">{comprehensiveScore.mode_adaptability || 0}</span>
           </div>
           <div className="category-item-compact">
-            <span className="category-icon-small">⚠️</span>
+            <span className="category-icon-small"><Ico n="warning" /></span>
             <span className="category-name-small">盲区识别</span>
             <div className="category-bar-small">
               <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.blind_spot || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.blind_spot || 0) }} />
@@ -79,7 +81,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
             <span className="category-score-small">{comprehensiveScore.blind_spot || 0}</span>
           </div>
           <div className="category-item-compact">
-            <span className="category-icon-small">🔮</span>
+            <span className="category-icon-small"><Ico n="crystal" /></span>
             <span className="category-name-small">风水评分</span>
             <div className="category-bar-small">
               <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.fengshui || 0}%`, backgroundColor: getScoreColor(comprehensiveScore.fengshui || 0) }} />
@@ -91,13 +93,13 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
 
       {/* 出行方式对比 */}
       <section className="report-section compact">
-        <h3 className="section-title">📊 出行方式对比</h3>
+        <h3 className="section-title"><Ico n="chart" /> 出行方式对比</h3>
         <div className="category-coverage-compact">
           {Object.entries(modes).map(([mode, modeData]: [string, any]) => {
             const score = modeData.score?.total || 0;
             return (
               <div key={mode} className="category-item-compact">
-                <span className="category-icon-small">{modeIcons[mode]}</span>
+                <span className="category-icon-small"><Ico n={modeIcons[mode]} /></span>
                 <span className="category-name-small">{modeNames[mode]}</span>
                 <div className="category-bar-small">
                   <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(score) }} />
@@ -111,7 +113,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
 
       {/* 体检总结 */}
       <section className="report-section compact">
-        <h3 className="section-title">📊 体检总结</h3>
+        <h3 className="section-title"><Ico n="chart" /> 体检总结</h3>
         <div className="conclusion-vertical">
           <p className="conclusion-text">
             <strong>{communityName}</strong> 综合评分

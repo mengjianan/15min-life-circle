@@ -23,10 +23,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v4
+      # GitHub Pages 从仓库根目录解析：/ 是介绍首页，/app/ 是应用
+      - name: Trim workspace before upload
+        run: rm -rf frontend/node_modules frontend/dist backend/__pycache__ .tmp_landing
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: app
+          path: .
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

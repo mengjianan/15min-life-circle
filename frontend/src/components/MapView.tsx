@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import LoadingOverlay from './LoadingOverlay';
+import { iconSvg } from '../icons';
 
 // 判断点是否在多边形内
 const isPointInPolygon = (point: {lng: number, lat: number}, polygon: {lng: number, lat: number}[]) => {
@@ -284,8 +285,8 @@ const MapView: React.FC<MapViewProps> = ({
                       '<span style="font-size: 13px; color: ' + routeColor + ';">' + (routeInfo.category || '') + '</span>' +
                     '</div>' +
                     '<div style="font-size: 12px; color: #666;">' +
-                      '📍 距离: ' + (route.distance ? (route.distance / 1000).toFixed(1) + 'km' : '未知') + '<br>' +
-                      '⏱️ 时间: ' + (route.duration ? Math.round(route.duration / 60) + '分钟' : '未知') +
+                      iconSvg('pin') + ' 距离: ' + (route.distance ? (route.distance / 1000).toFixed(1) + 'km' : '未知') + '<br>' +
+                      iconSvg('clock') + ' 时间: ' + (route.duration ? Math.round(route.duration / 60) + '分钟' : '未知') +
                     '</div>' +
                   '</div>',
                   { width: 220, height: 100 }
@@ -365,10 +366,10 @@ const MapView: React.FC<MapViewProps> = ({
                       '<span style="font-size: 13px; color: ' + color + ';">' + category + '</span>' +
                     '</div>' +
                     '<div style="display: grid; grid-template-columns: repeat(2, gap: 8px; font-size: 12px; color: #666;">' +
-                      '<div>📍 距离: ' + distance + '米</div>' +
-                      '<div>🚶 步行: ' + walkingTime + '分钟</div>' +
-                      '<div>🚲 骑行: ' + cyclingTime + '分钟</div>' +
-                      '<div>🚗 驾车: ' + drivingTime + '分钟</div>' +
+                      '<div>' + iconSvg('pin') + ' 距离: ' + distance + '米</div>' +
+                      '<div>' + iconSvg('walk') + ' 步行: ' + walkingTime + '分钟</div>' +
+                      '<div>' + iconSvg('bike') + ' 骑行: ' + cyclingTime + '分钟</div>' +
+                      '<div>' + iconSvg('car') + ' 驾车: ' + drivingTime + '分钟</div>' +
                     '</div>' +
                     (facility.address ? '<div style="margin-top: 8px; font-size: 12px; color: #999;">' + facility.address + '</div>' : '') +
                   '</div>',
@@ -424,7 +425,7 @@ const MapView: React.FC<MapViewProps> = ({
 
               const infoWindow = new BMap.InfoWindow(
                 '<div style="padding: 8px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
-                  '<div style="font-weight: 600; color: #1890ff;">💧 ' + feature.name + '</div>' +
+                  '<div style="font-weight: 600; color: #1890ff;">' + iconSvg('droplet', 16) + ' ' + feature.name + '</div>' +
                   '<div style="font-size: 12px; color: #666; margin-top: 4px;">' +
                     '类型: ' + (feature.type || '水系') + '<br>' +
                     '距离: ' + (feature.distance ? Math.round(feature.distance) + '米' : '未知') +
@@ -460,7 +461,7 @@ const MapView: React.FC<MapViewProps> = ({
 
               const infoWindow = new BMap.InfoWindow(
                 '<div style="padding: 8px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
-                  '<div style="font-weight: 600; color: #52c41a;">⛰️ ' + feature.name + '</div>' +
+                  '<div style="font-weight: 600; color: #52c41a;">' + iconSvg('mountain', 16) + ' ' + feature.name + '</div>' +
                   '<div style="font-size: 12px; color: #666; margin-top: 4px;">' +
                     '类型: ' + (feature.type || '地形') + '<br>' +
                     '距离: ' + (feature.distance ? Math.round(feature.distance) + '米' : '未知') +
@@ -496,7 +497,7 @@ const MapView: React.FC<MapViewProps> = ({
 
               const infoWindow = new BMap.InfoWindow(
                 '<div style="padding: 8px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
-                  '<div style="font-weight: 600; color: #389e0d;">🌳 ' + feature.name + '</div>' +
+                  '<div style="font-weight: 600; color: #389e0d;">' + iconSvg('tree', 16) + ' ' + feature.name + '</div>' +
                   '<div style="font-size: 12px; color: #666; margin-top: 4px;">' +
                     '类型: ' + (feature.type || '绿化') + '<br>' +
                     '距离: ' + (feature.distance ? Math.round(feature.distance) + '米' : '未知') +

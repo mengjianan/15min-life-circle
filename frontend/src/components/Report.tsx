@@ -1,3 +1,5 @@
+import { Ico } from '../icons';
+
 interface ReportProps {
   communityName: string;
   fullResult: any;
@@ -29,13 +31,13 @@ const Report: React.FC<ReportProps> = ({
   const blindSpots = currentSlot.blind_spots || [];
 
   const categoryIcons: Record<string, string> = {
-    '医疗': '🏥',
-    '教育': '📚',
-    '购物': '🛒',
-    '养老': '👴',
-    '文体': '🎭',
-    '餐饮': '🍽️',
-    '交通': '🚌'
+    '医疗': 'hospital',
+    '教育': 'book',
+    '购物': 'cart',
+    '养老': 'elder',
+    '文体': 'star',
+    '餐饮': 'utensils',
+    '交通': 'bus'
   };
 
   const getScoreColor = (score: number) => {
@@ -73,11 +75,11 @@ const Report: React.FC<ReportProps> = ({
     <div className="report-container">
       {/* 基础覆盖评分 - 根据出行方式和时间切换 */}
       <section className="report-section compact">
-        <h3 className="section-title">🏢 {timeLabel}覆盖评分</h3>
+        <h3 className="section-title"><Ico n="building" /> {timeLabel}覆盖评分</h3>
         <div className="category-coverage-compact">
           {Object.entries(currentCategories).map(([cat, score]: [string, any]) => (
             <div key={cat} className="category-item-compact">
-              <span className="category-icon-small">{categoryIcons[cat] || '📍'}</span>
+              <span className="category-icon-small"><Ico n={categoryIcons[cat] || 'pin'} /></span>
               <span className="category-name-small">{cat}</span>
               <div className="category-bar-small">
                 <div
@@ -101,7 +103,7 @@ const Report: React.FC<ReportProps> = ({
 
       {/* 可达性效率 - 根据出行方式和时间切换 */}
       <section className="report-section compact">
-        <h3 className="section-title">🚶 {timeLabel}可达性</h3>
+        <h3 className="section-title"><Ico n="walk" /> {timeLabel}可达性</h3>
         <div className="accessibility-compact">
           <div className="metric-compact">
             <span className="metric-value-compact">{avgTime.toFixed(1)}</span>
@@ -124,14 +126,14 @@ const Report: React.FC<ReportProps> = ({
 
       {/* 服务盲区 - 根据出行方式和时间切换 */}
       <section className="report-section compact">
-        <h3 className="section-title">⚠️ {timeLabel}盲区</h3>
+        <h3 className="section-title"><Ico n="warning" /> {timeLabel}盲区</h3>
         {blindSpots.length === 0 ? (
-          <div className="no-blind-spot-compact">✅ 无服务盲区</div>
+          <div className="no-blind-spot-compact"><Ico n="check" /> 无服务盲区</div>
         ) : (
           <div className="blind-spots-compact">
             {blindSpots.slice(0, 3).map((spot: any, idx: number) => (
               <div key={idx} className="blind-spot-item-compact">
-                <span className="spot-icon-small">📍</span>
+                <span className="spot-icon-small"><Ico n="pin" /></span>
                 <span className="spot-category-small">{spot.category}</span>
                 <span className="spot-desc-small">{spot.description || `${spot.category}覆盖不足`}</span>
               </div>
@@ -143,7 +145,7 @@ const Report: React.FC<ReportProps> = ({
       {/* 风水/居住适宜性 - 不随时间切换 */}
       {comprehensiveScore.fengshui_detail && (
         <section className="report-section compact">
-          <h3 className="section-title">🔮 风水/居住适宜性</h3>
+          <h3 className="section-title"><Ico n="crystal" /> 风水/居住适宜性</h3>
           <div className="fengshui-compact">
             <div className="fengshui-total-compact">
               <span className="fengshui-score-compact" style={{ color: getScoreColor(comprehensiveScore.fengshui_detail.total || 0) }}>
@@ -153,19 +155,19 @@ const Report: React.FC<ReportProps> = ({
             </div>
             <div className="fengshui-items-compact">
               <div className="fengshui-item-compact">
-                <span>⛰️ 地势</span>
+                <span><Ico n="mountain" /> 地势</span>
                 <span>{comprehensiveScore.fengshui_detail.terrain || 0}</span>
               </div>
               <div className="fengshui-item-compact">
-                <span>🧭 朝向</span>
+                <span><Ico n="compass" /> 朝向</span>
                 <span>{comprehensiveScore.fengshui_detail.orientation || 0}</span>
               </div>
               <div className="fengshui-item-compact">
-                <span>💧 水系</span>
+                <span><Ico n="droplet" /> 水系</span>
                 <span>{comprehensiveScore.fengshui_detail.water || 0}</span>
               </div>
               <div className="fengshui-item-compact">
-                <span>🌳 绿化</span>
+                <span><Ico n="tree" /> 绿化</span>
                 <span>{comprehensiveScore.fengshui_detail.greenery || 0}</span>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Ico } from '../icons';
 
 interface ComprehensiveReportProps {
   report: any;
@@ -35,7 +36,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
     <div className="comprehensive-report">
       {/* 1. 报告封面与基本信息 */}
       <section className="report-cover">
-        <h1>🏘️ 15分钟生活圈智能体检报告</h1>
+        <h1><Ico n="building" /> 15分钟生活圈智能体检报告</h1>
         <div className="meta-info">
           <div className="meta-item">
             <span className="meta-label">社区/街道：</span>
@@ -68,10 +69,10 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
       {/* 2. 核心结论摘要 */}
       <section className="report-section conclusion-section">
-        <h2>📋 核心结论摘要</h2>
+        <h2><Ico n="clipboard" /> 核心结论摘要</h2>
         <div className="conclusion-grid">
           <div className="conclusion-card overall">
-            <div className="conclusion-icon">🏆</div>
+            <div className="conclusion-icon"><Ico n="trophy" /></div>
             <div className="conclusion-content">
               <div className="conclusion-label">整体水平</div>
               <div className="conclusion-value" style={{ color: getScoreColor(conclusion?.overall_score) }}>
@@ -81,7 +82,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
           </div>
 
           <div className="conclusion-card best-mode">
-            <div className="conclusion-icon">🚀</div>
+            <div className="conclusion-icon"><Ico n="rocket" /></div>
             <div className="conclusion-content">
               <div className="conclusion-label">最佳出行方式</div>
               <div className="conclusion-value">
@@ -91,7 +92,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
           </div>
 
           <div className="conclusion-card blind-spots">
-            <div className="conclusion-icon">🔍</div>
+            <div className="conclusion-icon"><Ico n="search" /></div>
             <div className="conclusion-content">
               <div className="conclusion-label">服务盲区</div>
               <div className="conclusion-value">
@@ -101,7 +102,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
           </div>
 
           <div className="conclusion-card fengshui">
-            <div className="conclusion-icon">🌊</div>
+            <div className="conclusion-icon"><Ico n="waves" /></div>
             <div className="conclusion-content">
               <div className="conclusion-label">风水评分</div>
               <div className="conclusion-value">{conclusion?.fengshui_level}</div>
@@ -111,7 +112,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
         <div className="conclusion-details">
           <div className="detail-item">
-            <h4>✅ 设施充足</h4>
+            <h4><Ico n="check" /> 设施充足</h4>
             <div className="tag-list">
               {conclusion?.sufficient_facilities?.map((item: string, idx: number) => (
                 <span key={idx} className="tag success">{item}</span>
@@ -120,7 +121,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
           </div>
 
           <div className="detail-item">
-            <h4>⚠️ 设施匮乏</h4>
+            <h4><Ico n="warning" /> 设施匮乏</h4>
             <div className="tag-list">
               {conclusion?.insufficient_facilities?.length > 0 ? (
                 conclusion.insufficient_facilities.map((item: string, idx: number) => (
@@ -133,7 +134,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
           </div>
 
           <div className="detail-item">
-            <h4>🎯 最需要改进</h4>
+            <h4><Ico n="target" /> 最需要改进</h4>
             <ul className="improvement-list">
               {conclusion?.top3_improvements?.map((item: string, idx: number) => (
                 <li key={idx}>{item}</li>
@@ -145,7 +146,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
       {/* 3. 设施覆盖统计 */}
       <section className="report-section">
-        <h2>📊 设施覆盖统计</h2>
+        <h2><Ico n="chart" /> 设施覆盖统计</h2>
         <table className="facility-table">
           <thead>
             <tr>
@@ -178,13 +179,13 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
       {/* 4. 出行方式对比 */}
       <section className="report-section">
-        <h2>🚗 出行方式对比</h2>
+        <h2><Ico n="car" /> 出行方式对比</h2>
         <div className="mode-comparison-grid">
           {mode_comparisons?.map((mode: any, idx: number) => (
             <div key={idx} className="mode-card">
               <div className="mode-header">
                 <span className="mode-icon">
-                  {mode.mode === 'walking' ? '🚶' : mode.mode === 'cycling' ? '🚲' : mode.mode === 'transit' ? '🚌' : '🚗'}
+                  {mode.mode === 'walking' ? <Ico n="walk" /> : mode.mode === 'cycling' ? <Ico n="bike" /> : mode.mode === 'transit' ? <Ico n="bus" /> : <Ico n="car" />}
                 </span>
                 <span className="mode-name">{mode.mode_name}</span>
                 <span className="mode-score" style={{ color: getScoreColor(mode.score) }}>
@@ -212,7 +213,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
       {/* 5. 服务盲区识别 */}
       <section className="report-section">
-        <h2>🔍 服务盲区识别</h2>
+        <h2><Ico n="search" /> 服务盲区识别</h2>
         {blind_spots?.length > 0 ? (
           <div className="blind-spot-list">
             {blind_spots.map((spot: any, idx: number) => (
@@ -240,7 +241,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
           </div>
         ) : (
           <div className="no-blind-spots">
-            <span className="icon">✅</span>
+            <span className="icon"><Ico n="check" /></span>
             <span>未发现明显服务盲区</span>
           </div>
         )}
@@ -248,7 +249,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
       {/* 6. 风水评分报告 */}
       <section className="report-section">
-        <h2>🌊 风水评分报告</h2>
+        <h2><Ico n="waves" /> 风水评分报告</h2>
         <div className="fengshui-report">
           <div className="fengshui-total">
             <div className="fengshui-score" style={{ color: getScoreColor(fengshui?.total_score) }}>
@@ -260,49 +261,49 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
           <div className="fengshui-breakdown">
             <div className="fengshui-item">
-              <span className="item-label">🏔️ 地势</span>
+              <span className="item-label"><Ico n="mountain" /> 地势</span>
               <div className="item-bar">
                 <div className="bar-fill" style={{ width: `${fengshui?.terrain}%`, backgroundColor: getScoreColor(fengshui?.terrain) }}></div>
               </div>
               <span className="item-score">{fengshui?.terrain}</span>
             </div>
             <div className="fengshui-item">
-              <span className="item-label">🧭 朝向</span>
+              <span className="item-label"><Ico n="compass" /> 朝向</span>
               <div className="item-bar">
                 <div className="bar-fill" style={{ width: `${fengshui?.orientation}%`, backgroundColor: getScoreColor(fengshui?.orientation) }}></div>
               </div>
               <span className="item-score">{fengshui?.orientation}</span>
             </div>
             <div className="fengshui-item">
-              <span className="item-label">💧 水系</span>
+              <span className="item-label"><Ico n="droplet" /> 水系</span>
               <div className="item-bar">
                 <div className="bar-fill" style={{ width: `${fengshui?.water}%`, backgroundColor: getScoreColor(fengshui?.water) }}></div>
               </div>
               <span className="item-score">{fengshui?.water}</span>
             </div>
             <div className="fengshui-item">
-              <span className="item-label">🛣️ 道路形态</span>
+              <span className="item-label"><Ico n="road" /> 道路形态</span>
               <div className="item-bar">
                 <div className="bar-fill" style={{ width: `${fengshui?.road_form}%`, backgroundColor: getScoreColor(fengshui?.road_form) }}></div>
               </div>
               <span className="item-score">{fengshui?.road_form}</span>
             </div>
             <div className="fengshui-item">
-              <span className="item-label">⚠️ 敏感设施</span>
+              <span className="item-label"><Ico n="warning" /> 敏感设施</span>
               <div className="item-bar">
                 <div className="bar-fill" style={{ width: `${fengshui?.sensitive_facilities}%`, backgroundColor: getScoreColor(fengshui?.sensitive_facilities) }}></div>
               </div>
               <span className="item-score">{fengshui?.sensitive_facilities}</span>
             </div>
             <div className="fengshui-item">
-              <span className="item-label">🌳 绿化</span>
+              <span className="item-label"><Ico n="tree" /> 绿化</span>
               <div className="item-bar">
                 <div className="bar-fill" style={{ width: `${fengshui?.greenery}%`, backgroundColor: getScoreColor(fengshui?.greenery) }}></div>
               </div>
               <span className="item-score">{fengshui?.greenery}</span>
             </div>
             <div className="fengshui-item">
-              <span className="item-label">👥 人气</span>
+              <span className="item-label"><Ico n="users" /> 人气</span>
               <div className="item-bar">
                 <div className="bar-fill" style={{ width: `${fengshui?.popularity}%`, backgroundColor: getScoreColor(fengshui?.popularity) }}></div>
               </div>
@@ -325,11 +326,11 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
       {/* 7. 规划建议 */}
       <section className="report-section">
-        <h2>📝 规划建议</h2>
+        <h2><Ico n="edit" /> 规划建议</h2>
         <div className="suggestions-container">
           {suggestions?.priority_facilities?.length > 0 && (
             <div className="suggestion-group">
-              <h4>🏥 优先补齐的设施</h4>
+              <h4><Ico n="hospital" /> 优先补齐的设施</h4>
               <div className="suggestion-list">
                 {suggestions.priority_facilities.map((item: any, idx: number) => (
                   <div key={idx} className="suggestion-item">
@@ -346,7 +347,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
           {suggestions?.new_locations?.length > 0 && (
             <div className="suggestion-group">
-              <h4>📍 建议新增点位</h4>
+              <h4><Ico n="pin" /> 建议新增点位</h4>
               <div className="suggestion-list">
                 {suggestions.new_locations.map((item: any, idx: number) => (
                   <div key={idx} className="suggestion-item">
@@ -361,7 +362,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
           {suggestions?.mode_optimization?.length > 0 && (
             <div className="suggestion-group">
-              <h4>🚗 出行方式优化</h4>
+              <h4><Ico n="car" /> 出行方式优化</h4>
               <ul className="optimization-list">
                 {suggestions.mode_optimization.map((item: string, idx: number) => (
                   <li key={idx}>{item}</li>
@@ -372,7 +373,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
           {suggestions?.fengshui_improvements?.length > 0 && (
             <div className="suggestion-group">
-              <h4>🌊 风水改善建议</h4>
+              <h4><Ico n="waves" /> 风水改善建议</h4>
               <ul className="optimization-list">
                 {suggestions.fengshui_improvements.map((item: string, idx: number) => (
                   <li key={idx}>{item}</li>
@@ -385,7 +386,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
 
       {/* 8. 技术说明与局限性 */}
       <section className="report-section">
-        <h2>📚 技术说明与局限性</h2>
+        <h2><Ico n="book" /> 技术说明与局限性</h2>
         <ul className="technical-notes">
           {technical_notes?.map((note: string, idx: number) => (
             <li key={idx}>{note}</li>

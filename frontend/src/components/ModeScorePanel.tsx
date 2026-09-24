@@ -1,4 +1,5 @@
 import React from 'react';
+import { Ico } from '../icons';
 
 interface ModeScorePanelProps {
   fullResult: any;
@@ -22,20 +23,20 @@ const ModeScorePanel: React.FC<ModeScorePanelProps> = ({ fullResult, activeMode 
   };
 
   const modeIcons: Record<string, string> = {
-    walking: '🚶',
-    cycling: '🚲',
-    transit: '🚌',
-    driving: '🚗'
+    walking: 'walk',
+    cycling: 'bike',
+    transit: 'bus',
+    driving: 'car'
   };
 
   const categoryIcons: Record<string, string> = {
-    '医疗': '🏥',
-    '教育': '📚',
-    '购物': '🛒',
-    '养老': '👴',
-    '文体': '🎭',
-    '餐饮': '🍽️',
-    '交通': '🚌'
+    '医疗': 'hospital',
+    '教育': 'book',
+    '购物': 'cart',
+    '养老': 'elder',
+    '文体': 'star',
+    '餐饮': 'utensils',
+    '交通': 'bus'
   };
 
   const getScoreColor = (score: number) => {
@@ -62,7 +63,7 @@ const ModeScorePanel: React.FC<ModeScorePanelProps> = ({ fullResult, activeMode 
     <div className="mode-score-panel">
       {/* 当前出行方式总分 */}
       <div className="mode-total-score">
-        <div className="mode-icon-large">{modeIcons[activeMode]}</div>
+        <div className="mode-icon-large"><Ico n={modeIcons[activeMode]} /></div>
         <div className="mode-info">
           <div className="mode-name">{modeNames[activeMode]}</div>
           <div className="mode-score-value" style={{ color: getScoreColor(currentScore.total || 0) }}>
@@ -78,12 +79,12 @@ const ModeScorePanel: React.FC<ModeScorePanelProps> = ({ fullResult, activeMode 
       {/* 等时圈信息 */}
       <div className="isochrone-info">
         <div className="info-item">
-          <span className="info-icon">📐</span>
+          <span className="info-icon"><Ico n="ruler" /></span>
           <span className="info-label">15分钟等时圈</span>
           <span className="info-value">{(area / 1000000).toFixed(2)} km²</span>
         </div>
         <div className="info-item">
-          <span className="info-icon">🔍</span>
+          <span className="info-icon"><Ico n="search" /></span>
           <span className="info-label">服务盲区</span>
           <span className="info-value">{blindSpots.length} 个</span>
         </div>
@@ -91,12 +92,12 @@ const ModeScorePanel: React.FC<ModeScorePanelProps> = ({ fullResult, activeMode 
 
       {/* 设施覆盖评分 */}
       <div className="score-section">
-        <h4 className="section-title">📊 设施覆盖评分</h4>
+        <h4 className="section-title"><Ico n="chart" /> 设施覆盖评分</h4>
         <div className="category-scores">
           {Object.entries(currentCategories).map(([category, score]: [string, any]) => (
             <div key={category} className="category-item">
               <div className="category-header">
-                <span className="category-icon">{categoryIcons[category] || '📍'}</span>
+                <span className="category-icon"><Ico n={categoryIcons[category] || 'pin'} /></span>
                 <span className="category-name">{category}</span>
                 <span className="category-score" style={{ color: getScoreColor(score) }}>
                   {score}分
@@ -118,7 +119,7 @@ const ModeScorePanel: React.FC<ModeScorePanelProps> = ({ fullResult, activeMode 
 
       {/* 综合评分构成 */}
       <div className="score-section">
-        <h4 className="section-title">📈 综合评分构成</h4>
+        <h4 className="section-title"><Ico n="trend" /> 综合评分构成</h4>
         <div className="score-composition">
           <div className="composition-item">
             <span className="composition-label">设施覆盖率</span>
@@ -159,7 +160,7 @@ const ModeScorePanel: React.FC<ModeScorePanelProps> = ({ fullResult, activeMode 
 
       {/* 四种出行方式对比 */}
       <div className="score-section">
-        <h4 className="section-title">🚗 出行方式对比</h4>
+        <h4 className="section-title"><Ico n="car" /> 出行方式对比</h4>
         <div className="mode-comparison">
           {Object.entries(modes).map(([mode, modeData]: [string, any]) => {
             const score = modeData.score?.total || 0;
@@ -169,7 +170,7 @@ const ModeScorePanel: React.FC<ModeScorePanelProps> = ({ fullResult, activeMode 
                 key={mode}
                 className={`comparison-item ${isActive ? 'active' : ''}`}
               >
-                <span className="comparison-icon">{modeIcons[mode]}</span>
+                <span className="comparison-icon"><Ico n={modeIcons[mode]} /></span>
                 <span className="comparison-name">{modeNames[mode]}</span>
                 <div className="comparison-bar">
                   <div
@@ -192,7 +193,7 @@ const ModeScorePanel: React.FC<ModeScorePanelProps> = ({ fullResult, activeMode 
       {/* 风水评分摘要 */}
       {comprehensiveScore.fengshui_detail && (
         <div className="score-section">
-          <h4 className="section-title">🌊 风水评分</h4>
+          <h4 className="section-title"><Ico n="waves" /> 风水评分</h4>
           <div className="fengshui-summary">
             <div className="fengshui-total">
               <span className="fengshui-score" style={{ color: getScoreColor(comprehensiveScore.fengshui_detail.total || 0) }}>
@@ -202,19 +203,19 @@ const ModeScorePanel: React.FC<ModeScorePanelProps> = ({ fullResult, activeMode 
             </div>
             <div className="fengshui-items">
               <div className="fengshui-mini-item">
-                <span>🏔️ 地势</span>
+                <span><Ico n="mountain" /> 地势</span>
                 <span>{comprehensiveScore.fengshui_detail.terrain || 0}</span>
               </div>
               <div className="fengshui-mini-item">
-                <span>🧭 朝向</span>
+                <span><Ico n="compass" /> 朝向</span>
                 <span>{comprehensiveScore.fengshui_detail.orientation || 0}</span>
               </div>
               <div className="fengshui-mini-item">
-                <span>💧 水系</span>
+                <span><Ico n="droplet" /> 水系</span>
                 <span>{comprehensiveScore.fengshui_detail.water || 0}</span>
               </div>
               <div className="fengshui-mini-item">
-                <span>🌳 绿化</span>
+                <span><Ico n="tree" /> 绿化</span>
                 <span>{comprehensiveScore.fengshui_detail.greenery || 0}</span>
               </div>
             </div>
