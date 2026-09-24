@@ -13,7 +13,7 @@ import time
 from core.isochrone_engine import IsochroneEngine, GeoPoint
 from core.poi_analyzer import POIAnalyzer
 from core.blind_spot import BlindSpotDetector
-from core.scoring import calculate_comprehensive_score
+from core.scoring import calculate_comprehensive_score, calculate_accessibility_blind_spots
 from core.report_generator import generate_comprehensive_report, report_to_dict
 from core.feng_shui_engine import feng_shui_engine
 
@@ -121,6 +121,20 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
                 coverage_data=coverage,
             )
 
+            # 可达性盲区：该模式该时段「能到达的设施数量」是否达标。
+            # 报告只展示这个口径 —— 它能直接体现出行方式差异（圈越大能到的越多），
+            # 而空间盲区（画在地图上的红圈）圈越大反而越多，容易让人误解。
+            #
+            # 必须按等时圈过滤而不是按 MODE_POI_RADIUS：后者是检索半径
+            # （步行1500m），远大于实际等时圈（步行约700m），会把走不到的
+            # 设施也算进来，15分钟就全都"达标"了、看不出差异。
+            coverage_reachable = poi_analyzer.filter_coverage_by_polygon(
+                coverage, isochrone_result.polygon
+            )
+            accessibility_blind_spots = calculate_accessibility_blind_spots(
+                coverage_reachable, f"{time_minutes}分钟"
+            )
+
             time_slots[str(time_seconds)] = {
                 "time": time_seconds,
                 "area": area,
@@ -128,6 +142,7 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
                 "polygon": isochrone_result.polygon,
                 "poi_coverage": coverage,
                 "blind_spots": blind_spots,
+                "accessibility_blind_spots": accessibility_blind_spots,
             }
 
         # 中心到设施的路线不再在这里取：改由 /api/graph/facility-routes 按需提供
@@ -356,6 +371,7 @@ async def generate_full_analysis(request: FullAnalysisRequest):
         slot_15min = walking_data.get("time_slots", {}).get("900", {})
         poi_coverage = slot_15min.get("poi_coverage", {})
         blind_spots_data = slot_15min.get("blind_spots", [])
+        accessibility_blind_spots = slot_15min.get("accessibility_blind_spots", [])
 
         report = generate_comprehensive_report(
             community_name=request.community_name,
@@ -363,6 +379,7 @@ async def generate_full_analysis(request: FullAnalysisRequest):
             comprehensive_score=comprehensive_score,
             modes_data=modes,
             blind_spots=blind_spots_data,
+            accessibility_blind_spots=accessibility_blind_spots,
             fengshui_data=fengshui_data,
             poi_coverage=poi_coverage
         )

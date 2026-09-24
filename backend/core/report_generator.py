@@ -95,7 +95,10 @@ class ComprehensiveReport:
     conclusion: CoreConclusion
     facility_stats: List[FacilityStat]
     mode_comparisons: List[ModeComparison]
+    # 空间盲区（有坐标，地图红圈；规划建议的“新增点位”用它）
     blind_spots: List[BlindSpotInfo]
+    # 可达性盲区（按类别，报告正文展示口径）
+    accessibility_blind_spots: List[Dict]
     fengshui: FengShuiReport
     suggestions: PlanningSuggestion
     technical_notes: List[str]
@@ -438,6 +441,7 @@ def generate_comprehensive_report(
     comprehensive_score: Any,
     modes_data: Dict[str, Dict],
     blind_spots: List[Dict],
+    accessibility_blind_spots: Optional[List[Dict]],
     fengshui_data: Optional[Dict],
     poi_coverage: Dict[str, Any]
 ) -> ComprehensiveReport:
@@ -449,7 +453,8 @@ def generate_comprehensive_report(
         center: 中心点坐标
         comprehensive_score: 综合评分
         modes_data: 各出行方式数据
-        blind_spots: 盲区列表
+        blind_spots: 空间盲区列表（有坐标）
+        accessibility_blind_spots: 可达性盲区列表（按类别，报告正文展示）
         fengshui_data: 风水数据
         poi_coverage: POI覆盖数据
 
@@ -458,8 +463,9 @@ def generate_comprehensive_report(
     """
     # 生成各部分
     meta = generate_report_meta(community_name, center)
+    # 结论里的「服务盲区 N 个」要和报告正文展示的可达性盲区对得上
     conclusion = generate_core_conclusion(
-        comprehensive_score, modes_data, blind_spots, fengshui_data
+        comprehensive_score, modes_data, accessibility_blind_spots, fengshui_data
     )
     facility_stats = generate_facility_stats(modes_data)
     mode_comparisons = generate_mode_comparisons(comprehensive_score, modes_data)
@@ -478,6 +484,7 @@ def generate_comprehensive_report(
         facility_stats=facility_stats,
         mode_comparisons=mode_comparisons,
         blind_spots=blind_spot_infos,
+        accessibility_blind_spots=accessibility_blind_spots or [],
         fengshui=fengshui_report,
         suggestions=suggestions,
         technical_notes=technical_notes

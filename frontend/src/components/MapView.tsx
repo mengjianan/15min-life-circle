@@ -679,7 +679,7 @@ const MapView: React.FC<MapViewProps> = ({
         {showBlindSpots && blindSpots && blindSpots.length > 0 && (
           <div className="legend-item">
             <span className="legend-color" style={{ backgroundColor: '#ff4d4f' }}></span>
-            <span>盲区</span>
+            <span>空间盲区</span>
           </div>
         )}
         {showFengshui && (

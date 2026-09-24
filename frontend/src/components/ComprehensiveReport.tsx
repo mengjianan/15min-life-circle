@@ -14,7 +14,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
     return <div className="report-container">暂无报告数据</div>;
   }
 
-  const { meta, conclusion, facility_stats, mode_comparisons, blind_spots, fengshui, suggestions, technical_notes } = report;
+  const { meta, conclusion, facility_stats, mode_comparisons, blind_spots, accessibility_blind_spots, fengshui, suggestions, technical_notes } = report;
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return '#52c41a';
@@ -94,7 +94,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
           <div className="conclusion-card blind-spots">
             <div className="conclusion-icon"><Ico n="search" /></div>
             <div className="conclusion-content">
-              <div className="conclusion-label">服务盲区</div>
+              <div className="conclusion-label">可达性盲区</div>
               <div className="conclusion-value">
                 {conclusion?.blind_spot_count} 个
               </div>
@@ -211,40 +211,88 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
         </div>
       </section>
 
-      {/* 5. 服务盲区识别 */}
+      {/* 5. 服务盲区识别：空间盲区 / 可达性盲区 两个口径并列 */}
       <section className="report-section">
         <h2><Ico n="search" /> 服务盲区识别</h2>
-        {blind_spots?.length > 0 ? (
-          <div className="blind-spot-list">
-            {blind_spots.map((spot: any, idx: number) => (
-              <div key={idx} className="blind-spot-item">
-                <div className="spot-header">
-                  <span className="spot-number">{spot.category || '综合'}盲区 #{idx + 1}</span>
-                  <span className="spot-location">
-                    位置: ({spot.location?.lng?.toFixed(4)}, {spot.location?.lat?.toFixed(4)})
-                  </span>
-                </div>
-                <div className="spot-content">
-                  <div className="missing-facilities">
-                    <span className="label">缺失设施：</span>
-                    {spot.missing_facilities?.map((f: string, i: number) => (
-                      <span key={i} className="tag warning">{f}</span>
-                    ))}
-                  </div>
-                  <div className="suggestion">
-                    <span className="label">建议：</span>
-                    <span className="value">{spot.suggestion}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+
+        {/* 5.1 空间盲区 */}
+        <div className="blind-block">
+          <div className="blind-block-head">
+            <span className="blind-block-title"><Ico n="pin" /> 空间盲区</span>
+            <span className="blind-block-count">{blind_spots?.length || 0} 个</span>
           </div>
-        ) : (
-          <div className="no-blind-spots">
-            <span className="icon"><Ico n="check" /></span>
-            <span>未发现明显服务盲区</span>
+          <p className="blind-explain">
+            等时圈内<b>连续的设施空白地带</b>——站在这些位置 1 公里内找不到该类设施。
+            按网格逐点检测后聚类，<b>等时圈越大覆盖到的空白越多</b>，
+            所以骑行/驾车的空间盲区反而比步行多。有具体坐标，画在地图上（红圈）。
+          </p>
+          {blind_spots?.length > 0 ? (
+            <div className="blind-spot-list">
+              {blind_spots.map((spot: any, idx: number) => (
+                <div key={idx} className="blind-spot-item">
+                  <div className="spot-header">
+                    <span className="spot-number">{spot.category || '综合'}盲区 #{idx + 1}</span>
+                    <span className="spot-location">
+                      位置: ({spot.location?.lng?.toFixed(4)}, {spot.location?.lat?.toFixed(4)})
+                    </span>
+                  </div>
+                  <div className="spot-content">
+                    <div className="missing-facilities">
+                      <span className="label">缺失设施：</span>
+                      {spot.missing_facilities?.map((f: string, i: number) => (
+                        <span key={i} className="tag warning">{f}</span>
+                      ))}
+                    </div>
+                    <div className="suggestion">
+                      <span className="label">建议：</span>
+                      <span className="value">{spot.suggestion}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="no-blind-spots">
+              <span className="icon"><Ico n="check" /></span>
+              <span>等时圈内无连续空白地带</span>
+            </div>
+          )}
+        </div>
+
+        {/* 5.2 可达性盲区 */}
+        <div className="blind-block">
+          <div className="blind-block-head">
+            <span className="blind-block-title"><Ico n="search" /> 可达性盲区</span>
+            <span className="blind-block-count">{accessibility_blind_spots?.length || 0} 个</span>
           </div>
-        )}
+          <p className="blind-explain">
+            15 分钟内<b>能到达</b>的某类设施数量未达推荐标准
+            （养老 2 个、医疗 3 个、教育 3 个…），按类别判定、与位置无关。
+            <b>等时圈越大能到达的设施越多</b>，所以骑行/驾车通常比步行更少。
+          </p>
+          {accessibility_blind_spots?.length > 0 ? (
+            <div className="access-blind-list">
+              {accessibility_blind_spots.map((spot: any, idx: number) => (
+                <div key={idx} className="access-blind-item">
+                  <div className="access-blind-head">
+                    <span className="access-blind-cat">{spot.category}</span>
+                    <span className="access-blind-count">
+                      到达 {spot.count} / 标准 {spot.standard} 个
+                    </span>
+                    <span className="access-blind-deficit">缺 {spot.deficit} 个</span>
+                  </div>
+                  <div className="access-blind-desc">{spot.description}</div>
+                  <div className="access-blind-sug"><Ico n="bulb" /> {spot.suggestion}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="no-blind-spots">
+              <span className="icon"><Ico n="check" /></span>
+              <span>各类设施均达标</span>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* 6. 风水评分报告 */}

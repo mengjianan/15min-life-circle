@@ -166,6 +166,51 @@ class POIAnalyzer:
 
         return filtered
 
+    def filter_coverage_by_polygon(
+        self,
+        coverage: Dict[str, Any],
+        polygon: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        只保留真正落在等时圈多边形内的设施 —— 即该时段「能到达」的。
+
+        与 filter_coverage_by_distance 的区别：distance 用的是检索半径
+        （MODE_POI_RADIUS，步行1500m），远大于实际等时圈（步行约700m），
+        会把走不到的设施也算进来，导致可达性盲区被低估。
+
+        Args:
+            coverage: POI覆盖数据 {类别: {count, facilities, ...}}
+            polygon: 等时圈GeoJSON Feature
+
+        Returns:
+            按等时圈过滤后的覆盖数据
+        """
+        ring = polygon.get("geometry", {}).get("coordinates", [[]])[0]
+        if len(ring) < 3:
+            return coverage
+
+        from shapely.geometry import Point, Polygon as ShapelyPolygon
+
+        poly = ShapelyPolygon([(c[0], c[1]) for c in ring])
+        filtered: Dict[str, Any] = {}
+
+        for category, data in coverage.items():
+            inside = []
+            for fac in data.get("facilities", []):
+                loc = fac.get("location") or {}
+                if loc.get("lng") is None or loc.get("lat") is None:
+                    continue
+                if poly.contains(Point(float(loc["lng"]), float(loc["lat"]))):
+                    inside.append(fac)
+
+            filtered[category] = {
+                "count": len(inside),
+                "level": self._evaluate_level(len(inside)),
+                "facilities": inside,
+            }
+
+        return filtered
+
     def _evaluate_level(self, count: int) -> str:
         """
         评估设施覆盖等级

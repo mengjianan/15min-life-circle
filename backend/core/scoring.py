@@ -264,6 +264,64 @@ def calculate_blind_spot_score(
     return score
 
 
+def calculate_accessibility_blind_spots(
+    coverage: Dict[str, Any],
+    time_label: str = "15分钟"
+) -> List[Dict]:
+    """
+    可达性盲区：该出行方式在该时段**能到达**的设施数量未达标准的类别。
+
+    与空间盲区的区别（两者不要混用）：
+    - 空间盲区：等时圈内存在连续的设施空白地带，站在那里 1 公里内找不到该类设施
+      （有具体坐标，画在地图上）
+    - 可达性盲区：能到达的设施**总量**不达标，例如养老标准 2 个、实际只到得了 0 个
+      （没有坐标，按类别列出）
+
+    等时圈越大能到达的设施越多，所以骑行/驾车的可达性盲区通常比步行少。
+
+    Args:
+        coverage: 某时段的 POI 覆盖数据 {类别: {count, facilities, ...}}
+        time_label: 用于文案，如 "15分钟"
+
+    Returns:
+        可达性盲区列表，按缺口从大到小排序
+    """
+    # 延迟导入：scoring 被多处引用，避免顶层引入 sklearn/shapely 依赖
+    from core.blind_spot import CATEGORY_SUGGESTION
+
+    blind_spots: List[Dict] = []
+    for category, std in FACILITY_STANDARDS.items():
+        # 交通等标准类别不在 POI 分类里，没有覆盖数据就跳过
+        if category not in coverage:
+            continue
+
+        count = coverage[category].get("count", 0) or 0
+        standard = std["标准"]
+        if count >= standard:
+            continue
+
+        deficit = standard - count
+        blind_spots.append({
+            "type": "accessibility",
+            "category": category,
+            "count": count,
+            "standard": standard,
+            "deficit": deficit,
+            "weight": std["权重"],
+            "description": (
+                f"{time_label}内可到达{count}个{category}设施，"
+                f"标准{standard}个，缺口{deficit}个"
+            ),
+            "suggestion": CATEGORY_SUGGESTION.get(
+                category, f"建议增设{category}设施"
+            ),
+        })
+
+    # 缺口大的优先，其次权重高
+    blind_spots.sort(key=lambda s: (-s["deficit"], -s["weight"]))
+    return blind_spots
+
+
 def calculate_mode_adaptability_score(
     modes: Dict[str, ModeScore]
 ) -> float:

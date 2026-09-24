@@ -82,12 +82,25 @@ export interface POICoverage {
   [category: string]: POICategoryData;
 }
 
-// 盲区数据
+// 空间盲区：等时圈内连续的设施空白地带（有坐标，画在地图上）
 export interface BlindSpot {
   center: GeoPoint;
   radius: number;
   category: string;
   description: string;
+}
+
+// 可达性盲区：该出行方式能到达的设施数量未达15分钟生活圈标准（按类别，无坐标）
+// 报告正文展示的是这个口径 —— 它能直接体现出行方式差异
+export interface AccessibilityBlindSpot {
+  type: 'accessibility';
+  category: string;
+  count: number;      // 实际能到达的数量
+  standard: number;   // 推荐标准数量
+  deficit: number;    // 缺口
+  weight?: number;
+  description: string;
+  suggestion: string;
 }
 
 // 评分数据
@@ -145,6 +158,7 @@ export interface TimeSlotData {
   polygon: any;
   poi_coverage: POICoverage;
   blind_spots: BlindSpot[];
+  accessibility_blind_spots?: AccessibilityBlindSpot[];
 }
 
 // 面积对比数据

@@ -1,4 +1,5 @@
 import { Ico } from '../icons';
+import type { AccessibilityBlindSpot } from '../types';
 
 interface ReportProps {
   communityName: string;
@@ -28,7 +29,11 @@ const Report: React.FC<ReportProps> = ({
   const timeSlotKey = String(activeTimeSlot);
   const currentSlot = currentMode.time_slots?.[timeSlotKey] || {};
   const coverage = currentSlot.poi_coverage || {};
+  // 两个口径并列展示，各自带解释（它们随出行方式的变化方向是相反的）：
+  //   空间盲区   —— 等时圈内的设施空白地带，有坐标，画在地图上
+  //   可达性盲区 —— 能到达的设施数量是否达标，按类别，无坐标
   const blindSpots = currentSlot.blind_spots || [];
+  const accessSpots: AccessibilityBlindSpot[] = currentSlot.accessibility_blind_spots || [];
 
   const categoryIcons: Record<string, string> = {
     '医疗': 'hospital',
@@ -97,7 +102,8 @@ const Report: React.FC<ReportProps> = ({
         <div className="mode-stats-compact">
           <span>面积: {((currentSlot.area || 0) / 1000000).toFixed(2)} km²</span>
           <span>设施: {Object.values(coverage).reduce((sum: number, cat: any) => sum + (cat.count || 0), 0)} 个</span>
-          <span>盲区: {blindSpots.length} 个</span>
+          <span>空间盲区: {blindSpots.length}</span>
+          <span>可达性盲区: {accessSpots.length}</span>
         </div>
       </section>
 
@@ -124,22 +130,70 @@ const Report: React.FC<ReportProps> = ({
         </div>
       </section>
 
-      {/* 服务盲区 - 根据出行方式和时间切换 */}
+      {/* 盲区：空间盲区 / 可达性盲区 两个口径并列 */}
       <section className="report-section compact">
         <h3 className="section-title"><Ico n="warning" /> {timeLabel}盲区</h3>
-        {blindSpots.length === 0 ? (
-          <div className="no-blind-spot-compact"><Ico n="check" /> 无服务盲区</div>
-        ) : (
-          <div className="blind-spots-compact">
-            {blindSpots.slice(0, 3).map((spot: any, idx: number) => (
-              <div key={idx} className="blind-spot-item-compact">
-                <span className="spot-icon-small"><Ico n="pin" /></span>
-                <span className="spot-category-small">{spot.category}</span>
-                <span className="spot-desc-small">{spot.description || `${spot.category}覆盖不足`}</span>
-              </div>
-            ))}
+
+        {/* 1. 空间盲区 */}
+        <div className="blind-block">
+          <div className="blind-block-head">
+            <span className="blind-block-title"><Ico n="pin" /> 空间盲区</span>
+            <span className="blind-block-count">{blindSpots.length} 个</span>
           </div>
-        )}
+          <p className="blind-explain">
+            等时圈内<b>连续的设施空白地带</b>——站在这些位置 1 公里内找不到该类设施。
+            按网格逐点检测后聚类，<b>等时圈越大覆盖到的空白越多</b>，
+            所以骑行/驾车的空间盲区反而比步行多。有具体坐标，画在地图上（红圈）。
+          </p>
+          {blindSpots.length === 0 ? (
+            <div className="no-blind-spot-compact"><Ico n="check" /> 等时圈内无连续空白地带</div>
+          ) : (
+            <div className="blind-spots-compact">
+              {blindSpots.slice(0, 3).map((spot: any, idx: number) => (
+                <div key={idx} className="blind-spot-item-compact">
+                  <span className="spot-icon-small"><Ico n="pin" /></span>
+                  <span className="spot-category-small">{spot.category}</span>
+                  <span className="spot-desc-small">{spot.description || `${spot.category}覆盖不足`}</span>
+                </div>
+              ))}
+              {blindSpots.length > 3 && (
+                <div className="blind-block-more">还有 {blindSpots.length - 3} 个，见地图红圈</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 2. 可达性盲区 */}
+        <div className="blind-block">
+          <div className="blind-block-head">
+            <span className="blind-block-title"><Ico n="search" /> 可达性盲区</span>
+            <span className="blind-block-count">{accessSpots.length} 个</span>
+          </div>
+          <p className="blind-explain">
+            <b>{timeLabel}内能到达</b>的某类设施数量未达 15 分钟生活圈推荐标准
+            （养老 2 个、医疗 3 个、教育 3 个…），按类别判定、与位置无关。
+            <b>等时圈越大能到达的设施越多</b>，所以骑行/驾车通常比步行更少。
+          </p>
+          {accessSpots.length === 0 ? (
+            <div className="no-blind-spot-compact"><Ico n="check" /> 各类设施均达标</div>
+          ) : (
+            <div className="access-blind-list">
+              {accessSpots.map((spot: AccessibilityBlindSpot, idx: number) => (
+                <div key={idx} className="access-blind-item">
+                  <div className="access-blind-head">
+                    <span className="access-blind-cat">{spot.category}</span>
+                    <span className="access-blind-count">
+                      到达 {spot.count} / 标准 {spot.standard} 个
+                    </span>
+                    <span className="access-blind-deficit">缺 {spot.deficit}</span>
+                  </div>
+                  <div className="access-blind-desc">{spot.description}</div>
+                  <div className="access-blind-sug"><Ico n="bulb" /> {spot.suggestion}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* 风水/居住适宜性 - 不随时间切换 */}
