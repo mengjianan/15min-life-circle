@@ -107,6 +107,10 @@ jobs:
       run: |
         docker build -f Dockerfile.frontend -t life-circle-frontend:latest -t 15min-life-circle-frontend:latest .
 
+    - name: Prepare compose env file
+      # .env 被 gitignore，仓库里没有；不先生成的话 compose 会报 "env file .env not found"
+      run: cp .env.example .env
+
     - name: Test Docker Compose
       run: |
         set -x
@@ -125,10 +129,22 @@ jobs:
         if [ "$ok" != "1" ]; then
           echo "::error::后端健康检查失败（http://localhost:8081/health）"
           docker compose ps || true
-          docker compose logs --tail=200 || true
+          docker compose logs --tail=200 | tee compose-logs.txt || true
           docker compose down || true
           exit 1
         fi
         # 前端也应可访问
         curl -fsS -o /dev/null -w "frontend HTTP %{http_code}\n" http://localhost:3001/
         docker compose down
+
+    - name: Collect compose logs
+      if: failure()
+      run: docker compose logs --tail=500 > compose-logs.txt 2>&1 || true
+
+    - name: Upload compose log
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: compose-logs
+        path: compose-logs.txt
+        if-no-files-found: ignore
