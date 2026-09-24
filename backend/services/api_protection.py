@@ -30,8 +30,11 @@ class APIProtection:
         self._decision_value = False
 
     def _init_db(self):
-        """初始化数据库"""
+        """初始化数据库（目录缺失则创建）"""
         try:
+            parent = os.path.dirname(DB_PATH)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             cursor.execute("""

@@ -12,6 +12,25 @@ def event_loop():
     yield loop
     loop.close()
 
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    """
+    每个测试前后清空缓存。
+
+    test_poi 里所有用例共用同一个 sample_location，缓存键完全相同，
+    上一个用例写入的 POI 结果会被下一个用例直接命中，导致 mock 数据失效。
+    """
+    try:
+        from services.cache import cache_service
+    except Exception:
+        yield
+        return
+
+    cache_service.clear_all()
+    yield
+    cache_service.clear_all()
+
 @pytest.fixture
 def sample_community():
     """示例社区数据"""

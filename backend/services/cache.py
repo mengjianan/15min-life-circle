@@ -3,6 +3,7 @@
 提供内存缓存和SQLite持久化缓存
 """
 import json
+import os
 import sqlite3
 from typing import Any, Optional
 from datetime import datetime, timedelta
@@ -13,27 +14,48 @@ from config import CACHE_TTL, DATABASE_URL
 
 
 class CacheService:
-    """缓存服务"""
+    """缓存服务（SQLite 不可用时自动降级为仅内存缓存，绝不阻断启动）"""
 
     def __init__(self):
         self.memory_cache = {}
         self.db_path = DATABASE_URL.replace("sqlite:///", "")
-        self._init_db()
+        self._db_ok = self._init_db()
 
-    def _init_db(self):
-        """初始化缓存数据库"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS cache (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                expires_at TIMESTAMP NOT NULL
-            )
-        """)
-        conn.commit()
-        conn.close()
+    def _init_db(self) -> bool:
+        """初始化缓存数据库；目录缺失则创建，失败返回False走内存缓存"""
+        try:
+            parent = os.path.dirname(self.db_path)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            conn = sqlite3.connect(self.db_path)
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS cache (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        expires_at TIMESTAMP NOT NULL
+                    )
+                """)
+                conn.commit()
+            finally:
+                conn.close()
+            return True
+        except Exception as e:
+            print(f"初始化缓存数据库失败(降级为内存缓存): {e}")
+            return False
+
+    def _connect(self):
+        """获取数据库连接；不可用时返回None（调用方走内存缓存分支）"""
+        if not self._db_ok:
+            return None
+        try:
+            return sqlite3.connect(self.db_path)
+        except Exception as e:
+            self._db_ok = False
+            print(f"缓存数据库不可用(降级为内存缓存): {e}")
+            return None
 
     def get(self, key: str) -> Optional[Any]:
         """
@@ -54,7 +76,9 @@ class CacheService:
                 del self.memory_cache[key]
 
         # 再查SQLite缓存
-        conn = sqlite3.connect(self.db_path)
+        conn = self._connect()
+        if conn is None:
+            return None
         cursor = conn.cursor()
         cursor.execute(
             "SELECT value, expires_at FROM cache WHERE key = ?",
@@ -97,8 +121,10 @@ class CacheService:
             "expires_at": expires_at
         }
 
-        # 写入SQLite缓存
-        conn = sqlite3.connect(self.db_path)
+        # 写入SQLite缓存（失败不影响内存缓存）
+        conn = self._connect()
+        if conn is None:
+            return
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -122,7 +148,9 @@ class CacheService:
             del self.memory_cache[key]
 
         # 删除SQLite缓存
-        conn = sqlite3.connect(self.db_path)
+        conn = self._connect()
+        if conn is None:
+            return
         cursor = conn.cursor()
         cursor.execute("DELETE FROM cache WHERE key = ?", (key,))
         conn.commit()
@@ -140,7 +168,9 @@ class CacheService:
             del self.memory_cache[key]
 
         # 清理SQLite缓存
-        conn = sqlite3.connect(self.db_path)
+        conn = self._connect()
+        if conn is None:
+            return
         cursor = conn.cursor()
         cursor.execute(
             "DELETE FROM cache WHERE expires_at <= ?",
@@ -153,7 +183,9 @@ class CacheService:
         """清空所有缓存"""
         self.memory_cache.clear()
 
-        conn = sqlite3.connect(self.db_path)
+        conn = self._connect()
+        if conn is None:
+            return
         cursor = conn.cursor()
         cursor.execute("DELETE FROM cache")
         conn.commit()
