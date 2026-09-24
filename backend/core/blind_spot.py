@@ -17,6 +17,17 @@ from config import (
 )
 
 
+# 各类设施缺失时的改善建议（盲区分项直接展示，答辩时更有说服力）
+CATEGORY_SUGGESTION = {
+    "医疗": "建议增设社区卫生服务站或24小时药店",
+    "教育": "建议增设幼儿园、托育点或社区自习空间",
+    "养老": "建议增设日间照料中心或老年活动站",
+    "购物": "建议增设便利店或社区菜店",
+    "文体": "建议增设社区公园或文体活动室",
+    "餐饮": "建议引入便民餐饮业态或社区食堂",
+}
+
+
 class BlindSpotDetector:
     """盲区识别器"""
 
@@ -55,19 +66,16 @@ class BlindSpotDetector:
         # 生成网格点
         grid_points = self._generate_grid_points(poly, grid_size)
 
-        # 检查每个网格点
-        blind_points = []
+        # 按类别独立判定：每个网格点对每个设施类别单独判断是否为盲区
+        blind_by_category: Dict[str, List[Tuple[float, float]]] = {}
         for point in grid_points:
-            is_blind = await self._check_blind_spot(
-                point, radius, min_count
-            )
-            if is_blind:
-                blind_points.append(point)
+            for category in POI_TYPES:
+                if await self._check_blind_spot(point, category, radius, min_count):
+                    blind_by_category.setdefault(category, []).append(point)
 
-        # 聚类相邻的盲区点
-        blind_spots = self._cluster_blind_spots(blind_points)
-
-        return blind_spots
+        return self._cluster_by_category(
+            blind_by_category, self._estimate_grid_step(grid_points)
+        )
 
     def _generate_grid_points(
         self,
@@ -130,40 +138,38 @@ class BlindSpotDetector:
     async def _check_blind_spot(
         self,
         point: Tuple[float, float],
+        category: str,
         radius: int,
         min_count: int
     ) -> bool:
         """
-        检查某个点是否是盲区
+        检查某个点在【指定类别】上是否为盲区
 
         Args:
             point: 坐标点
+            category: 设施类别（医疗/教育/养老等，各类独立判定）
             radius: 检查半径
-            min_count: 最少设施数量
+            min_count: 该类别最少设施数量
 
         Returns:
-            是否是盲区
+            该类别在此点是否为盲区
         """
         location = {"lng": point[0], "lat": point[1]}
 
-        # 检查各类设施
-        for category, queries in POI_TYPES.items():
-            total_count = 0
-            for query in queries:
-                result = await self.baidu_map.search_poi(
-                    location=location,
-                    query=query,
-                    radius=radius
-                )
-                # search_poi 返回 (pois, is_mock) 元组，直接 len() 恒为2会让判定失效
-                pois = result[0] if isinstance(result, tuple) else result
-                total_count += len(pois or [])
+        total_count = 0
+        for query in POI_TYPES.get(category, []):
+            result = await self.baidu_map.search_poi(
+                location=location,
+                query=query,
+                radius=radius
+            )
+            # search_poi 返回 (pois, is_mock) 元组，直接 len() 恒为2会让判定失效
+            pois = result[0] if isinstance(result, tuple) else result
+            total_count += len(pois or [])
+            if total_count >= min_count:
+                return False  # 该类别已达标，提前结束，少打几次检索
 
-            # 如果某类设施数量不足，标记为盲区
-            if total_count < min_count:
-                return True
-
-        return False
+        return True  # 该类别设施不足，此点是该类别的盲区
 
 
     async def detect_blind_spots_with_data(
@@ -176,7 +182,10 @@ class BlindSpotDetector:
         min_count: int = BLIND_SPOT_MIN_COUNT
     ) -> List[Dict[str, Any]]:
         """
-        使用已有的POI数据检测盲区（避免重复API调用）
+        使用已有的POI数据按【类别】检测盲区（零额外API调用）
+
+        医疗/教育/养老等类别各自独立判定：某网格点在1km内
+        某一类别设施少于 min_count，该点即为该类别的盲区。
 
         Args:
             center: 中心点坐标
@@ -184,10 +193,10 @@ class BlindSpotDetector:
             coverage_data: 已获取的POI覆盖数据
             grid_size: 网格大小（米）
             radius: 检查半径（米）
-            min_count: 最少设施数量
+            min_count: 该类别最少设施数量
 
         Returns:
-            盲区列表
+            盲区列表（每项带 category / description / suggestion）
         """
         # 解析多边形
         coordinates = polygon.get("geometry", {}).get("coordinates", [[]])[0]
@@ -197,31 +206,31 @@ class BlindSpotDetector:
         # 创建Shapely多边形
         poly = Polygon([(c[0], c[1]) for c in coordinates])
 
-        # 收集所有POI位置
-        all_pois = []
+        # 按类别分组收集POI坐标（不再混在一起判断）
+        pois_by_category: Dict[str, List[Tuple[float, float]]] = {}
         for category, data in coverage_data.items():
-            facilities = data.get("facilities", [])
-            for poi in facilities:
-                loc = poi.get("location", {})
-                if loc:
-                    all_pois.append((loc.get("lng", 0), loc.get("lat", 0)))
+            coords = []
+            for poi in data.get("facilities", []):
+                loc = poi.get("location") or {}
+                lng, lat = loc.get("lng"), loc.get("lat")
+                if lng is not None and lat is not None:
+                    coords.append((float(lng), float(lat)))
+            pois_by_category[category] = coords
 
         # 生成网格点
         grid_points = self._generate_grid_points(poly, grid_size)
 
-        # 检查每个网格点（使用距离计算而非API调用）
-        blind_points = []
+        # 逐点、逐类别判定（只做距离计算，不发API）
+        blind_by_category: Dict[str, List[Tuple[float, float]]] = {}
         for point in grid_points:
-            is_blind = self._check_blind_spot_with_data(
-                point, all_pois, radius, min_count
-            )
-            if is_blind:
-                blind_points.append(point)
+            for category, coords in pois_by_category.items():
+                # coords 为空表示该类别一个设施都没有，整片判定为盲区
+                if self._check_blind_spot_with_data(point, coords, radius, min_count):
+                    blind_by_category.setdefault(category, []).append(point)
 
-        # 聚类相邻的盲区点
-        blind_spots = self._cluster_blind_spots(blind_points)
-
-        return blind_spots
+        return self._cluster_by_category(
+            blind_by_category, self._estimate_grid_step(grid_points)
+        )
 
     def _check_blind_spot_with_data(
         self,
@@ -235,12 +244,12 @@ class BlindSpotDetector:
 
         Args:
             point: 检查点
-            all_pois: 所有POI坐标列表
+            all_pois: 同一类别下的POI坐标列表
             radius: 检查半径（米）
-            min_count: 最少设施数量
+            min_count: 该类别最少设施数量
 
         Returns:
-            是否是盲区
+            该类别在此点是否为盲区
         """
         from math import radians, cos, sin, asin, sqrt
 
@@ -265,31 +274,59 @@ class BlindSpotDetector:
 
         return True  # 设施不足，是盲区
 
+    @staticmethod
+    def _estimate_grid_step(grid_points: List[Tuple[float, float]]) -> float:
+        """估算网格点最小间距（度），用于让 DBSCAN 的 eps 跟随实际网格密度"""
+        if len(grid_points) < 2:
+            return 0.001
+        pts = np.array(sorted(grid_points))
+        diffs = np.diff(pts, axis=0)
+        diffs = diffs[diffs > 0]
+        return float(np.min(diffs)) if diffs.size else 0.001
+
+    def _cluster_by_category(
+        self,
+        blind_by_category: Dict[str, List[Tuple[float, float]]],
+        grid_step: float = 0.001
+    ) -> List[Dict[str, Any]]:
+        """按类别分别聚类，合并成带 category 的盲区列表（重要类别排前面）"""
+        # eps 必须大于网格间距，否则相邻点连不成簇，DBSCAN 全判为噪声被丢掉
+        eps = max(grid_step * 1.5, 0.0005)
+        blind_spots: List[Dict[str, Any]] = []
+        for category, points in blind_by_category.items():
+            blind_spots.extend(
+                self._cluster_blind_spots(points, eps=eps, category=category)
+            )
+
+        important = {"医疗", "教育", "养老"}
+        blind_spots.sort(key=lambda s: 0 if s.get("category") in important else 1)
+        return blind_spots
+
     def _cluster_blind_spots(
         self,
         blind_points: List[Tuple[float, float]],
         eps: float = 0.001,  # 约100米
-        min_samples: int = 2
+        min_samples: int = 2,
+        category: str = "综合"
     ) -> List[Dict[str, Any]]:
         """
-        聚类相邻的盲区点
+        聚类相邻的盲区点（同一类别内聚类）
 
         Args:
-            blind_points: 盲区点列表
+            blind_points: 某一类别下的盲区点列表
             eps: DBSCAN聚类参数
             min_samples: 最小样本数
+            category: 这批盲区点所属的设施类别
 
         Returns:
             聚类后的盲区区域列表
         """
+        if not blind_points:
+            return []
+
         if len(blind_points) < min_samples:
             return [
-                {
-                    "center": {"lng": p[0], "lat": p[1]},
-                    "radius": 200,
-                    "category": "综合",
-                    "description": "该区域服务设施覆盖不足"
-                }
+                self._make_blind_spot(p[0], p[1], 200, 1, category)
                 for p in blind_points
             ]
 
@@ -322,14 +359,40 @@ class BlindSpotDetector:
             )
             radius = float(np.max(distances)) * 111000  # 转换为米
 
-            blind_spots.append({
-                "center": {"lng": float(center_lng), "lat": float(center_lat)},
-                "radius": max(radius, 200),  # 最小200米
-                "category": "综合",
-                "description": f"该区域服务设施覆盖不足，包含{len(points)}个检测点"
-            })
+            blind_spots.append(
+                self._make_blind_spot(
+                    float(center_lng), float(center_lat),
+                    max(radius, 200),  # 最小200米
+                    len(points), category
+                )
+            )
 
         return blind_spots
+
+    def _make_blind_spot(
+        self,
+        lng: float,
+        lat: float,
+        radius: float,
+        point_count: int,
+        category: str
+    ) -> Dict[str, Any]:
+        """
+        构造单个盲区对象。
+
+        同时输出 location / missing_facilities / suggestion，
+        供综合报告与评分模块直接使用（center/radius 供地图打点）。
+        """
+        suggestion = CATEGORY_SUGGESTION.get(category, f"建议增设{category}设施")
+        return {
+            "center": {"lng": lng, "lat": lat},
+            "radius": float(radius),
+            "category": category,
+            "description": f"{category}覆盖不足，含{point_count}个检测点",
+            "location": {"lng": lng, "lat": lat},
+            "missing_facilities": [category],
+            "suggestion": suggestion,
+        }
 
     async def get_blind_spot_details(
         self,
@@ -351,12 +414,14 @@ class BlindSpotDetector:
         for category, queries in POI_TYPES.items():
             total_count = 0
             for query in queries:
-                pois = await self.baidu_map.search_poi(
+                result = await self.baidu_map.search_poi(
                     location=center,
                     query=query,
                     radius=radius
                 )
-                total_count += len(pois)
+                # search_poi 返回 (pois, is_mock) 元组
+                pois = result[0] if isinstance(result, tuple) else result
+                total_count += len(pois or [])
 
             details[category] = {
                 "count": total_count,

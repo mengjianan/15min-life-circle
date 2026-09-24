@@ -175,8 +175,8 @@ async def test_poi_cache():
     await svc.close()
 
 
-async def test_blind_spot_zero_api():
-    """盲区检测改用已有数据后，不应再发地点检索请求"""
+async def test_blind_spot_per_category():
+    """盲区按类别独立判定：养老缺失要标盲区、医疗充足不能标"""
     reset_state()
     fake = FakeClient(delay=0.01)
     svc = make_service(fake)
@@ -185,22 +185,26 @@ async def test_blind_spot_zero_api():
     det = BlindSpotDetector()
     det.baidu_map = svc
 
-    # 构造一个半径约1km的圆形多边形（等时圈）
+    # 半径约330米的小圆（等时圈），网格点全部落在中心1km内
     import math
     coords = [
-        [118.7784 + 0.009 * math.cos(a), 32.0663 + 0.009 * math.sin(a)]
+        [118.7784 + 0.003 * math.cos(a), 32.0663 + 0.003 * math.sin(a)]
         for a in [i * math.pi / 18 for i in range(36)]
     ]
     polygon = {"geometry": {"coordinates": [coords]}}
 
     coverage = {
+        # 医疗：设施在中心 -> 覆盖充足 -> 不应判为盲区
         "医疗": {"count": 3, "level": "充足", "facilities": [
-            {"name": "A", "location": {"lng": 118.779, "lat": 32.066}},
-            {"name": "B", "location": {"lng": 118.780, "lat": 32.067}},
+            {"name": "社区卫生站", "location": {"lng": 118.7784, "lat": 32.0663}},
+            {"name": "药店", "location": {"lng": 118.7786, "lat": 32.0665}},
         ]},
-        "教育": {"count": 2, "level": "一般", "facilities": [
-            {"name": "C", "location": {"lng": 118.777, "lat": 32.065}},
+        # 教育：设施全在5km外 -> 覆盖不到 -> 应判为盲区
+        "教育": {"count": 1, "level": "匮乏", "facilities": [
+            {"name": "远郊小学", "location": {"lng": 118.83, "lat": 32.12}},
         ]},
+        # 养老：一个设施都没有 -> 应判为盲区
+        "养老": {"count": 0, "level": "匮乏", "facilities": []},
     }
 
     t0 = time.time()
@@ -208,9 +212,17 @@ async def test_blind_spot_zero_api():
         center=CENTER, polygon=polygon, coverage_data=coverage
     )
     elapsed = time.time() - t0
+    cats = sorted({s.get("category") for s in spots})
 
-    check("盲区检测零地点检索", fake.place_calls == 0,
-          f"place调用={fake.place_calls}, 网格检测耗时={elapsed:.3f}s, 盲区={len(spots)}个")
+    check("零地点检索", fake.place_calls == 0,
+          f"place调用={fake.place_calls}, 耗时={elapsed:.3f}s")
+    check("按类别判定：养老缺失 -> 标为盲区", "养老" in cats, f"盲区类别={cats}")
+    check("按类别判定：教育够不到 -> 标为盲区", "教育" in cats, f"盲区类别={cats}")
+    check("按类别判定：医疗充足 -> 不标", "医疗" not in cats, f"盲区类别={cats}")
+    check("盲区带 category/description/suggestion/location",
+          all(all(k in s for k in ("category", "description", "suggestion", "location", "center", "radius"))
+              for s in spots),
+          f"{len(spots)}个盲区")
     await svc.close()
 
 
@@ -221,7 +233,7 @@ async def main():
     await test_place_concurrency()
     await test_backoff_does_not_block()
     await test_poi_cache()
-    await test_blind_spot_zero_api()
+    await test_blind_spot_per_category()
 
     failed = [r for r in results if not r[1]]
     print(f"\n结果: {len(results) - len(failed)}/{len(results)} 通过")

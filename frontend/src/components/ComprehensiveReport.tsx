@@ -219,7 +219,7 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
             {blind_spots.map((spot: any, idx: number) => (
               <div key={idx} className="blind-spot-item">
                 <div className="spot-header">
-                  <span className="spot-number">盲区 #{idx + 1}</span>
+                  <span className="spot-number">{spot.category || '综合'}盲区 #{idx + 1}</span>
                   <span className="spot-location">
                     位置: ({spot.location?.lng?.toFixed(4)}, {spot.location?.lat?.toFixed(4)})
                   </span>

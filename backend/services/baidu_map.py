@@ -828,7 +828,8 @@ class BaiduMapService:
         if not await self._check_api_type("place"):
             return None
 
-        async with self.semaphore:
+        # 地址检索同样走地点检索专用信号量，避免把并发顶到约定上限
+        async with self.place_semaphore:
             try:
                 # 使用Place API搜索地址
                 params = {
@@ -872,7 +873,8 @@ class BaiduMapService:
         if not await self._check_api_type("place"):
             return None
 
-        async with self.semaphore:
+        # 逆地理编码也是地点检索，走专用信号量
+        async with self.place_semaphore:
             try:
                 # 使用Place API搜索附近地点
                 params = {
