@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MapView from './components/MapView';
 import Report from './components/Report';
 import ComprehensiveReport from './components/ComprehensiveReport';
@@ -9,7 +9,7 @@ import AnalysisProgress from './components/AnalysisProgress';
 import FengShuiRadar from './components/FengShuiRadar';
 import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
 import { Ico } from './icons';
-import type { TravelMode, FullAnalysisResult, TravelModeData, POIItem, POICategoryData } from './types';
+import type { TravelMode, FullAnalysisResult, TravelModeData, POIItem, POICategoryData, FacilityRoute } from './types';
 
 // 出行方式配置
 const TRAVEL_MODES: { mode: TravelMode; name: string; speed: number }[] = [
@@ -115,6 +115,13 @@ function App() {
   ]);
   const [showProgress, setShowProgress] = useState(false);
 
+  // 「中心 -> 等时圈内每个设施」的真实路线，按出行方式缓存。
+  // directionlite 必须串行+限速（全量预取4个模式会让体检多花30秒以上），
+  // 所以：分析时并行预取当前模式，其余模式切到才拉；服务端路线缓存30天。
+  const [routesByMode, setRoutesByMode] = useState<Partial<Record<TravelMode, FacilityRoute[]>>>({});
+  const [routesLoading, setRoutesLoading] = useState<Partial<Record<TravelMode, boolean>>>({});
+  const [routesError, setRoutesError] = useState<Partial<Record<TravelMode, string | null>>>({});
+
   // 风水数据直接取自 full-analysis 的返回。
   // full-analysis 内部已经跑过风水，之前体检结束后又单独请求一次
   // /api/fengshui/analyze 属于重复调用，白烧地点检索配额。
@@ -201,6 +208,44 @@ function App() {
   // 延迟函数
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+  // 按出行方式拉取「等时圈内所有设施」的真实路线。
+  // 已缓存或正在拉取则直接返回，保证同一模式不会重复请求。
+  const ensureFacilityRoutes = async (center: { lng: number; lat: number }, mode: TravelMode) => {
+    if (routesByMode[mode] || routesLoading[mode]) return;
+
+    setRoutesLoading(prev => ({ ...prev, [mode]: true }));
+    setRoutesError(prev => ({ ...prev, [mode]: null }));
+    try {
+      const response = await fetch(`${API_BASE_URL}/graph/facility-routes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lng: center.lng, lat: center.lat, mode }),
+      });
+      if (!response.ok) throw new Error('路线加载失败');
+      const data = await response.json();
+      setRoutesByMode(prev => ({ ...prev, [mode]: (data.routes as FacilityRoute[]) || [] }));
+      setRoutesError(prev => ({ ...prev, [mode]: null }));
+    } catch (err) {
+      setRoutesError(prev => ({
+        ...prev,
+        [mode]: err instanceof Error ? err.message : '路线加载失败',
+      }));
+    } finally {
+      setRoutesLoading(prev => ({ ...prev, [mode]: false }));
+    }
+  };
+
+  // 切换出行方式：缓存命中就直接换（零请求），否则按需拉取该模式
+  useEffect(() => {
+    if (!fullResult) return;
+    const center = getCurrentCenter();
+    if (!center) return;
+    ensureFacilityRoutes(center, activeMode);
+    // 换模式时清掉选中：设施集合随模式半径变化，旧选中的可能不在新等时圈里
+    setSelectedFacility(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMode, fullResult]);
+
   const handleAnalyze = async () => {
     const center = getCurrentCenter();
     if (!center) return;
@@ -216,6 +261,11 @@ function App() {
     try {
       // 调用全出行方式分析API
       updateStepStatus('walking', 'active', '正在计算步行范围...');
+
+      // 与体检并行预取当前出行方式的路线（默认步行）。
+      // 两者共用方向API限速闸门，但路线不阻塞分析结果返回 ——
+      // 分析完成时路线基本也就绪，地图开箱即有路线。
+      ensureFacilityRoutes(center, activeMode);
 
       const response = await fetch(`${API_BASE_URL}/analysis/full-analysis`, {
         method: 'POST',
@@ -451,7 +501,10 @@ function App() {
                 activeTimeSlot={activeTimeSlot}
                 activeMode={activeMode}
                 fengshuiData={fengshuiData}
-                routesData={modeData?.routes || []}
+                routesData={routesByMode[activeMode] || []}
+                routesLoading={!!routesLoading[activeMode]}
+                routesError={routesError[activeMode] || null}
+                onFacilitySelect={f => setSelectedFacility(f as POIItem | null)}
                 multiTimeData={modeData?.time_slots ? {
                   layers: Object.entries(modeData.time_slots).map(([key, slot]: [string, any]) => ({
                     time: Number(key),
@@ -561,7 +614,7 @@ function App() {
                   <div
                     key={index}
                     className={`facility-card ${selectedFacility?.name === facility.name ? 'selected' : ''}`}
-                    onClick={() => setSelectedFacility(facility)}
+                    onClick={() => setSelectedFacility(prev => (prev?.name === facility.name ? null : facility))}
                   >
                     <div className="facility-card-header">
                       <div

@@ -595,6 +595,9 @@ class BaiduMapService:
         if not await self._check_api_type("direction"):
             return None
 
+        # 信号量只包住HTTP请求：降级到步行时 get_walking_route 会再申请同一把
+        # 容量为1的信号量，若不先释放就会死锁（骑行/驾车/公交三处同理）
+        data = None
         async with self.direction_semaphore:
             await self._wait_direction_slot()  # 串行+间隔，实测最稳
             try:
@@ -610,39 +613,39 @@ class BaiduMapService:
                     params=params
                 )
                 data = response.json()
-
-                if data.get("status") == 0:
-                    result = data.get("result", {})
-                    routes = result.get("routes", [])
-                    if routes:
-                        route = routes[0]
-                        distance = route.get("distance", 0)
-                        if isinstance(distance, dict):
-                            distance = distance.get("value", 0)
-                        duration = route.get("duration", 0)
-                        if isinstance(duration, dict):
-                            duration = duration.get("value", 0)
-                        result = {
-                            "distance": distance,
-                            "duration": duration,
-                            "steps": route.get("steps", [])
-                        }
-                        self._set_cached_route(cache_key, result)
-                        return result
-
-                # 如果骑行API不可用，使用步行路线估算
-                walking_route = await self.get_walking_route(origin, destination)
-                if walking_route:
-                    return {
-                        "distance": walking_route["distance"],
-                        "duration": walking_route["duration"] // 3,  # 骑行约为步行1/3时间
-                        "steps": walking_route["steps"]
-                    }
-
-                return None
             except Exception as e:
                 print(f"骑行路线查询失败: {e}")
-                return None
+                data = None
+
+        if isinstance(data, dict) and data.get("status") == 0:
+            result = data.get("result", {})
+            routes = result.get("routes", [])
+            if routes:
+                route = routes[0]
+                distance = route.get("distance", 0)
+                if isinstance(distance, dict):
+                    distance = distance.get("value", 0)
+                duration = route.get("duration", 0)
+                if isinstance(duration, dict):
+                    duration = duration.get("value", 0)
+                parsed = {
+                    "distance": distance,
+                    "duration": duration,
+                    "steps": route.get("steps", [])
+                }
+                self._set_cached_route(cache_key, parsed)
+                return parsed
+
+        # 骑行API不可用，用步行路线估算（必须在信号量之外调用）
+        walking_route = await self.get_walking_route(origin, destination)
+        if walking_route:
+            return {
+                "distance": walking_route["distance"],
+                "duration": walking_route["duration"] // 3,  # 骑行约为步行1/3时间
+                "steps": walking_route["steps"]
+            }
+
+        return None
 
     async def get_driving_route(
         self,
@@ -658,6 +661,7 @@ class BaiduMapService:
         if not await self._check_api_type("direction"):
             return None
 
+        data = None
         async with self.direction_semaphore:
             await self._wait_direction_slot()  # 串行+间隔，实测最稳
             try:
@@ -673,39 +677,79 @@ class BaiduMapService:
                     params=params
                 )
                 data = response.json()
-
-                if data.get("status") == 0:
-                    result = data.get("result", {})
-                    routes = result.get("routes", [])
-                    if routes:
-                        route = routes[0]
-                        distance = route.get("distance", 0)
-                        if isinstance(distance, dict):
-                            distance = distance.get("value", 0)
-                        duration = route.get("duration", 0)
-                        if isinstance(duration, dict):
-                            duration = duration.get("value", 0)
-                        result = {
-                            "distance": distance,
-                            "duration": duration,
-                            "steps": route.get("steps", [])
-                        }
-                        self._set_cached_route(cache_key, result)
-                        return result
-
-                # 如果驾车API不可用，使用步行路线估算
-                walking_route = await self.get_walking_route(origin, destination)
-                if walking_route:
-                    return {
-                        "distance": walking_route["distance"],
-                        "duration": walking_route["duration"] // 4,  # 驾车约为步行1/4时间
-                        "steps": walking_route["steps"]
-                    }
-
-                return None
             except Exception as e:
                 print(f"驾车路线查询失败: {e}")
-                return None
+                data = None
+
+        if isinstance(data, dict) and data.get("status") == 0:
+            result = data.get("result", {})
+            routes = result.get("routes", [])
+            if routes:
+                route = routes[0]
+                distance = route.get("distance", 0)
+                if isinstance(distance, dict):
+                    distance = distance.get("value", 0)
+                duration = route.get("duration", 0)
+                if isinstance(duration, dict):
+                    duration = duration.get("value", 0)
+                parsed = {
+                    "distance": distance,
+                    "duration": duration,
+                    "steps": route.get("steps", [])
+                }
+                self._set_cached_route(cache_key, parsed)
+                return parsed
+
+        # 驾车API不可用，用步行路线估算（必须在信号量之外调用）
+        walking_route = await self.get_walking_route(origin, destination)
+        if walking_route:
+            return {
+                "distance": walking_route["distance"],
+                "duration": walking_route["duration"] // 4,  # 驾车约为步行1/4时间
+                "steps": walking_route["steps"]
+            }
+
+        return None
+
+    @staticmethod
+    def _flatten_steps(raw_steps) -> list:
+        """
+        铺平路线 steps。
+
+        directionlite/transit 返回的是分组结构 [[step, ...], [step, ...]]，
+        而 walking/riding/driving 返回 [step, ...]。统一成后者，
+        否则调用方按 step['path'] 取值会拿到 undefined。
+        """
+        if not isinstance(raw_steps, list):
+            return []
+        flattened = []
+        for item in raw_steps:
+            if isinstance(item, list):
+                flattened.extend(s for s in item if isinstance(s, dict))
+            elif isinstance(item, dict):
+                flattened.append(item)
+        return flattened
+
+    @staticmethod
+    def _fill_transit_paths(steps: list) -> list:
+        """
+        公交段（type=3）约一半 path 是空字符串，但都带起终点站坐标。
+        没有 path 时用两个站点连一条直线补上，否则画出来的折线会在
+        公交段断开（实测37/154个step受影响）。步行段的 path 是真实路网。
+        """
+        for step in steps:
+            if step.get("path"):
+                continue
+            start, end = step.get("start_location"), step.get("end_location")
+            if (
+                isinstance(start, dict) and isinstance(end, dict)
+                and start.get("lng") is not None and start.get("lat") is not None
+                and end.get("lng") is not None and end.get("lat") is not None
+            ):
+                step["path"] = (
+                    f"{start['lng']},{start['lat']};{end['lng']},{end['lat']}"
+                )
+        return steps
 
     async def get_transit_route(
         self,
@@ -721,6 +765,7 @@ class BaiduMapService:
         if not await self._check_api_type("direction"):
             return None
 
+        data = None
         async with self.direction_semaphore:
             await self._wait_direction_slot()  # 串行+间隔，实测最稳
             try:
@@ -736,39 +781,44 @@ class BaiduMapService:
                     params=params
                 )
                 data = response.json()
-
-                if data.get("status") == 0:
-                    result = data.get("result", {})
-                    routes = result.get("routes", [])
-                    if routes:
-                        route = routes[0]
-                        distance = route.get("distance", 0)
-                        if isinstance(distance, dict):
-                            distance = distance.get("value", 0)
-                        duration = route.get("duration", 0)
-                        if isinstance(duration, dict):
-                            duration = duration.get("value", 0)
-                        result = {
-                            "distance": distance,
-                            "duration": duration,
-                            "steps": route.get("steps", [])
-                        }
-                        self._set_cached_route(cache_key, result)
-                        return result
-
-                # 如果公交API不可用，使用步行路线估算
-                walking_route = await self.get_walking_route(origin, destination)
-                if walking_route:
-                    return {
-                        "distance": walking_route["distance"],
-                        "duration": walking_route["duration"] // 2,  # 公交约为步行1/2时间
-                        "steps": walking_route["steps"]
-                    }
-
-                return None
             except Exception as e:
                 print(f"公交路线查询失败: {e}")
-                return None
+                data = None
+
+        if isinstance(data, dict) and data.get("status") == 0:
+            result = data.get("result", {})
+            routes = result.get("routes", [])
+            if routes:
+                route = routes[0]
+                distance = route.get("distance", 0)
+                if isinstance(distance, dict):
+                    distance = distance.get("value", 0)
+                duration = route.get("duration", 0)
+                if isinstance(duration, dict):
+                    duration = duration.get("value", 0)
+                parsed = {
+                    "distance": distance,
+                    "duration": duration,
+                    # 公交接口的 steps 是「分组的列表的列表」，步行/骑行/驾车才是
+                    # 扁平的 step 对象列表。不铺平的话 steps[0].path 是 undefined，
+                    # 前端就画不出折线。
+                    "steps": self._fill_transit_paths(
+                        self._flatten_steps(route.get("steps", []))
+                    ),
+                }
+                self._set_cached_route(cache_key, parsed)
+                return parsed
+
+        # 公交API不可用，用步行路线估算（必须在信号量之外调用）
+        walking_route = await self.get_walking_route(origin, destination)
+        if walking_route:
+            return {
+                "distance": walking_route["distance"],
+                "duration": walking_route["duration"] // 2,  # 公交约为步行1/2时间
+                "steps": walking_route["steps"]
+            }
+
+        return None
 
     async def search_poi(
         self,

@@ -3730,6 +3730,12 @@ body {
   height: 16px;
 }
 
+/* 路线加载指示器的旋转动画（app-styles.css 没有被 main.tsx 引入，所以放这里） */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* SVG 图标（替代 emoji）：跟随容器 font-size 缩放 */
 .ico {
   width: 1em;

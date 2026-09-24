@@ -16,7 +16,6 @@ from core.blind_spot import BlindSpotDetector
 from core.scoring import calculate_comprehensive_score
 from core.report_generator import generate_comprehensive_report, report_to_dict
 from core.feng_shui_engine import feng_shui_engine
-from services.baidu_map import BaiduMapService
 
 router = APIRouter()
 
@@ -51,9 +50,6 @@ MODE_POI_RADIUS = {
 }
 
 
-# 共享数据字典
-modes_cache = {}
-
 async def analyze_single_mode(mode, mode_config, center, location, community_name, shared_poi_data=None):
     """分析单种出行方式（共享POI数据，按距离过滤）"""
     engine = IsochroneEngine()
@@ -62,7 +58,6 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
 
     try:
         time_slots = {}
-        blind_spots_15min = []
 
         # 使用共享的POI数据（最大半径查询一次，按距离过滤）
         if shared_poi_data:
@@ -78,22 +73,9 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
         mode_speed = mode_config["speed"]  # 步行1.2, 骑行3.5, 公交5.0, 驾车8.0 m/s
         isochrone_15min = await engine.calculate_isochrone(center, max_time=900, speed=mode_speed)
 
-        # 盲区检测（只对步行做，其他复用）
-        if mode == "walking":
-            # 用已加载的POI数据做距离判定：零额外地点检索。
-            # 旧版 detect_blind_spots 会对每个网格点再发18次检索（约6000+次调用）。
-            blind_spots_15min = await blind_detector.detect_blind_spots_with_data(
-                center=location,
-                polygon=isochrone_15min.polygon,
-                coverage_data=shared_poi_data or coverage_15min
-            )
-            # 缓存步行盲区数据
-            modes_cache["blind_spots"] = blind_spots_15min
-        else:
-            # 复用步行的盲区数据，按距离过滤
-            walking_blind = modes_cache.get("blind_spots", [])
-            max_dist = MODE_POI_RADIUS.get(mode, 1500)
-            blind_spots_15min = [s for s in walking_blind if s.get("distance", 0) <= max_dist]
+        # 盲区在下面的时段循环里，按「本模式 + 本时段」的等时圈和设施集独立计算。
+        # 旧实现只对步行算一次，其它模式复用时按 distance 过滤 —— 但盲区对象没有
+        # distance 字段，过滤恒真，导致四个模式的盲区完全一样。
 
         for time_minutes in [5, 10, 15]:
             time_seconds = time_minutes * 60
@@ -127,17 +109,17 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
             # 根据时间点过滤设施（而不是重新查询）
             if time_minutes == 15:
                 coverage = coverage_15min
-                blind_spots = blind_spots_15min
             else:
-                # 根据距离过滤
                 max_distance = mode_speed * time_seconds
                 coverage = poi_analyzer.filter_coverage_by_distance(coverage_15min, max_distance)
 
-                # 过滤盲区
-                blind_spots = [
-                    spot for spot in blind_spots_15min
-                    if spot.get("distance", 0) <= max_distance
-                ]
+            # 盲区按「本时段的等时圈 + 本时段的设施集」独立判定，零API调用。
+            # 时段越短圈越小、设施越少，盲区自然随之变化。
+            blind_spots = await blind_detector.detect_blind_spots_with_data(
+                center=location,
+                polygon=isochrone_result.polygon,
+                coverage_data=coverage,
+            )
 
             time_slots[str(time_seconds)] = {
                 "time": time_seconds,
@@ -146,38 +128,10 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
                 "polygon": isochrone_result.polygon,
                 "poi_coverage": coverage,
                 "blind_spots": blind_spots,
-                "routes": []
             }
 
-        # 获取从中心到主要设施的路线
-        routes_to_facilities = []
-        slot_15min = time_slots.get("900", {})
-        coverage_15min_data = slot_15min.get("poi_coverage", {})
-        for category, data in coverage_15min_data.items():
-            facilities = data.get("facilities", [])[:1]  # 每类只取前1个（减少API调用）
-            for fac in facilities:
-                if fac.get("location"):
-                    try:
-                        baidu_map_temp = BaiduMapService()
-                        origin = {"lng": center.lng, "lat": center.lat}
-                        dest = {"lng": fac["location"]["lng"], "lat": fac["location"]["lat"]}
-                        if mode == "walking":
-                            route = await baidu_map_temp.get_walking_route(origin, dest)
-                        elif mode == "cycling":
-                            route = await baidu_map_temp.get_riding_route(origin, dest)
-                        elif mode == "driving":
-                            route = await baidu_map_temp.get_driving_route(origin, dest)
-                        else:
-                            route = await baidu_map_temp.get_walking_route(origin, dest)
-                        if route:
-                            routes_to_facilities.append({
-                                "facility_name": fac.get("name", ""),
-                                "category": category,
-                                "route": route
-                            })
-                        await baidu_map_temp.close()
-                    except Exception as e:
-                        print(f"获取路线失败: {e}")
+        # 中心到设施的路线不再在这里取：改由 /api/graph/facility-routes 按需提供
+        # （directionlite 必须串行+限速，全量预取会让体检多花 30 秒以上）
 
         score = calculate_mode_score(time_slots, mode_config)
         suggestions = generate_mode_suggestions(time_slots, mode_config)
@@ -189,7 +143,6 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
             "score": score,
             "time_slots": time_slots,
             "suggestions": suggestions,
-            "routes": routes_to_facilities
         }
     except Exception as e:
         print(f"分析出行方式 {mode} 失败: {e}")

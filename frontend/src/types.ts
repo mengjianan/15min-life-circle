@@ -117,11 +117,24 @@ export interface TravelModeData {
     900: TimeSlotData;
   };
   suggestions: Suggestion[];
-  routes?: Array<{
-    facility_name: string;
-    category: string;
-    route: any;
-  }>;
+}
+
+// 中心 -> 设施的真实路线（由 POST /api/graph/facility-routes 按出行方式提供）
+// 不再塞进 full-analysis：directionlite 必须串行限速，全量预取会拖慢体检 30 秒以上
+export interface FacilityRoute {
+  facility_name: string;
+  category: string;
+  location: GeoPoint;
+  route: {
+    distance: number;
+    duration: number;
+    steps: Array<{
+      path: string;              // "lng,lat;lng,lat;..."
+      distance?: number;
+      duration?: number;
+      instruction?: string;
+    }>;
+  };
 }
 
 // 时段数据
@@ -132,7 +145,6 @@ export interface TimeSlotData {
   polygon: any;
   poi_coverage: POICoverage;
   blind_spots: BlindSpot[];
-  routes: RouteFeature[];
 }
 
 // 面积对比数据

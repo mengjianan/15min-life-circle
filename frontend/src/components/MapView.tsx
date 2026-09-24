@@ -32,7 +32,13 @@ interface MapViewProps {
   activeTimeSlot?: number;
   fengshuiData?: any;
   activeMode?: string;
-  routesData?: any[];  // 从中心到设施的路线数据
+  routesData?: any[];  // 从中心到设施的路线数据（按出行方式）
+  routesLoading?: boolean;
+  routesError?: string | null;
+  // 选中设施的唯一出口：地图设施点击 / 折线点击 / 右侧卡片点击都收敛到这里
+  onFacilitySelect?: (
+    facility: { name: string; category: string; location: { lng: number; lat: number } } | null
+  ) => void;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -47,7 +53,10 @@ const MapView: React.FC<MapViewProps> = ({
   activeTimeSlot = 900,
   fengshuiData,
   activeMode = 'walking',
-  routesData = []
+  routesData = [],
+  routesLoading = false,
+  routesError = null,
+  onFacilitySelect,
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -59,12 +68,22 @@ const MapView: React.FC<MapViewProps> = ({
   const [showRoutes, setShowRoutes] = useState(true);
   const [showFengshui, setShowFengshui] = useState(true);
   const [clickMode, setClickMode] = useState(false);
-  const [selectedRouteIndex, setSelectedRouteIndex] = useState<number | null>(null);
+  // 路线选中状态只有一个来源：selectedFacility（地图设施点击 / 折线点击 /
+  // 右侧卡片点击都收敛到它）。这里派生而不是存 state —— 切出行方式或换路线数据时
+  // 自然失效，不需要手动 reset。
+  const selectedRouteIndex = selectedFacility
+    ? routesData.findIndex((r: any) => r.facility_name === selectedFacility.name)
+    : -1;
 
-  // 切换出行方式时重置选中的路线
-  useEffect(() => {
-    setSelectedRouteIndex(null);
-  }, [activeMode]);
+  // 再次点击同一个设施 = 取消选中（高亮变回浅灰）
+  const toggleFacility = (
+    facility: { name: string; category: string; location: { lng: number; lat: number } } | null
+  ) => {
+    if (!onFacilitySelect) return;
+    const next =
+      facility && selectedFacility && selectedFacility.name === facility.name ? null : facility;
+    onFacilitySelect(next);
+  };
 
   const checkBaiduMapAPI = useCallback(() => {
     return new Promise<void>((resolve, reject) => {
@@ -217,8 +236,8 @@ const MapView: React.FC<MapViewProps> = ({
         });
       }
 
-      // 绘制路线（从中心到设施的路线，按出行方式）
-      // 默认显示所有路线（半透明），点击设施时高亮对应路线
+      // 绘制路线：中心 -> 等时圈内每个设施的真实折线（按出行方式）
+      // 未选中：浅灰；选中：出行方式色 + 加粗高亮；再点同一设施变回浅灰
       if (showRoutes && routesData && routesData.length > 0) {
         const modeColors: Record<string, string> = {
           'walking': '#52c41a',    // 绿色
@@ -227,6 +246,7 @@ const MapView: React.FC<MapViewProps> = ({
           'driving': '#ff4d4f'     // 红色
         };
         const routeColor = modeColors[activeMode] || '#667eea';
+        const IDLE_COLOR = '#c9ced9';   // 浅灰
 
         routesData.forEach((routeInfo: any, index: number) => {
           const route = routeInfo.route;
@@ -243,55 +263,23 @@ const MapView: React.FC<MapViewProps> = ({
             });
 
             if (allPoints.length > 1) {
-              // 判断是否是选中的路线
               const isSelected = selectedRouteIndex === index;
 
               const polyline = new BMap.Polyline(allPoints, {
-                strokeColor: routeColor,
+                strokeColor: isSelected ? routeColor : IDLE_COLOR,
                 strokeWeight: isSelected ? 6 : 3,
-                strokeOpacity: isSelected ? 1.0 : 0.3,
-              });
+                strokeOpacity: isSelected ? 1.0 : 0.85,
+                strokeClickable: true,
+              } as any);
               map.addOverlay(polyline);
 
-              // 存储路线信息到polyline对象
-              (polyline as any)._routeIndex = index;
-              (polyline as any)._routeInfo = routeInfo;
-
-              // 点击路线时高亮
+              // 点击折线 = 切换该设施的选中状态（再点取消高亮）
               polyline.addEventListener('click', () => {
-                setSelectedRouteIndex(index);
-              });
-
-              // 添加设施标记
-              const lastPoint = allPoints[allPoints.length - 1];
-              const facilityIcon = new BMap.Icon(
-                'data:image/svg+xml,' + encodeURIComponent(
-                  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="' + routeColor + '" stroke="white" stroke-width="2" opacity="' + (isSelected ? '1' : '0.6') + '"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="11">' + (index + 1) + '</text></svg>'
-                ),
-                new BMap.Size(24, 24),
-                { anchor: new BMap.Size(12, 12) }
-              );
-              const marker = new BMap.Marker(lastPoint, { icon: facilityIcon });
-              map.addOverlay(marker);
-
-              // 点击设施标记时高亮对应路线
-              marker.addEventListener('click', () => {
-                setSelectedRouteIndex(index);
-                const infoWindow = new BMap.InfoWindow(
-                  '<div style="padding: 12px; font-family: PingFang SC, Microsoft YaHei, sans-serif; min-width: 180px;">' +
-                    '<div style="font-weight: 600; color: #333; font-size: 14px; margin-bottom: 8px;">' + (routeInfo.facility_name || '设施') + '</div>' +
-                    '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">' +
-                      '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ' + routeColor + ';"></span>' +
-                      '<span style="font-size: 13px; color: ' + routeColor + ';">' + (routeInfo.category || '') + '</span>' +
-                    '</div>' +
-                    '<div style="font-size: 12px; color: #666;">' +
-                      iconSvg('pin') + ' 距离: ' + (route.distance ? (route.distance / 1000).toFixed(1) + 'km' : '未知') + '<br>' +
-                      iconSvg('clock') + ' 时间: ' + (route.duration ? Math.round(route.duration / 60) + '分钟' : '未知') +
-                    '</div>' +
-                  '</div>',
-                  { width: 220, height: 100 }
-                );
-                map.openInfoWindow(infoWindow, lastPoint);
+                toggleFacility({
+                  name: routeInfo.facility_name || '',
+                  category: routeInfo.category || '',
+                  location: routeInfo.location || { lng: 0, lat: 0 },
+                });
               });
             }
           }
@@ -377,6 +365,12 @@ const MapView: React.FC<MapViewProps> = ({
                 );
                 marker.addEventListener('click', () => {
                   map.openInfoWindow(infoWindow, point);
+                  // 点击设施 = 切换该设施对应路线的高亮，再点一次取消
+                  toggleFacility({
+                    name: facility.name,
+                    category: facility.category || category,
+                    location: { lng: point.lng, lat: point.lat },
+                  });
                 });
               }
             });
@@ -569,6 +563,36 @@ const MapView: React.FC<MapViewProps> = ({
     <div className="map-container" style={{ position: 'relative' }}>
       <div ref={mapRef} className="map-view" />
 
+      {/* 当前出行方式的设施路线还在拉取（directionlite 需串行限速，首次几秒） */}
+      {showRoutes && routesLoading && (
+        <div
+          style={{
+            position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 12, display: 'flex', alignItems: 'center', gap: 8,
+            padding: '6px 14px', borderRadius: 20, background: 'rgba(255,255,255,0.95)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)', fontSize: 13, color: '#667eea',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="2" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+          </svg>
+          加载路线...
+        </div>
+      )}
+      {showRoutes && routesError && (
+        <div
+          style={{
+            position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 12, padding: '6px 14px', borderRadius: 20,
+            background: 'rgba(255,255,255,0.95)', boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            fontSize: 13, color: '#ff4d4f',
+          }}
+        >
+          {routesError}
+        </div>
+      )}
+
       <LoadingOverlay loading={loading} />
 
       {/* 地图控制按钮 */}
@@ -648,8 +672,14 @@ const MapView: React.FC<MapViewProps> = ({
         </div>
         {showRoutes && (
           <div className="legend-item">
-            <span className="legend-color" style={{ backgroundColor: activeMode === 'walking' ? '#52c41a' : activeMode === 'cycling' ? '#1890ff' : activeMode === 'transit' ? '#faad14' : '#ff4d4f' }}></span>
+            <span className="legend-color" style={{ backgroundColor: '#c9ced9' }}></span>
             <span>路线</span>
+          </div>
+        )}
+        {showBlindSpots && blindSpots && blindSpots.length > 0 && (
+          <div className="legend-item">
+            <span className="legend-color" style={{ backgroundColor: '#ff4d4f' }}></span>
+            <span>盲区</span>
           </div>
         )}
         {showFengshui && (
