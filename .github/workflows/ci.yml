@@ -99,16 +99,36 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Build Backend Image
+      # 同时打上 compose 默认会用的镜像名（项目名=目录名），避免重复构建
       run: |
-        docker build -f Dockerfile.backend -t life-circle-backend:latest .
+        docker build -f Dockerfile.backend -t life-circle-backend:latest -t 15min-life-circle-backend:latest .
 
     - name: Build Frontend Image
       run: |
-        docker build -f Dockerfile.frontend -t life-circle-frontend:latest .
+        docker build -f Dockerfile.frontend -t life-circle-frontend:latest -t 15min-life-circle-frontend:latest .
 
     - name: Test Docker Compose
       run: |
-        docker-compose up -d
-        sleep 10
-        curl -f http://localhost:8080/health || exit 1
-        docker-compose down
+        set -x
+        # 用 compose v2（v1 的 docker-compose 已从 runner 移除）
+        docker compose up -d
+        # 后端端口是 8081（compose 映射 8081:8000），轮询等待就绪
+        ok=0
+        for i in $(seq 1 60); do
+          if curl -fsS http://localhost:8081/health; then
+            echo " backend health OK (第${i}次)"
+            ok=1
+            break
+          fi
+          sleep 3
+        done
+        if [ "$ok" != "1" ]; then
+          echo "::error::后端健康检查失败（http://localhost:8081/health）"
+          docker compose ps || true
+          docker compose logs --tail=200 || true
+          docker compose down || true
+          exit 1
+        fi
+        # 前端也应可访问
+        curl -fsS -o /dev/null -w "frontend HTTP %{http_code}\n" http://localhost:3001/
+        docker compose down
