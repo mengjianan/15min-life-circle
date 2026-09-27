@@ -85,6 +85,7 @@ type HoverFacility = {
   category: string;
   location: { lng: number; lat: number };
   straight?: number;   // 直线距离（米），只有悬浮时才填
+  address?: string;
 };
 
 const TRAVEL_MODE_LIST = ['walking', 'cycling', 'transit', 'driving'] as const;
@@ -133,6 +134,18 @@ const MODE_RANK: Record<string, number> = {
   driving: 3,
 };
 
+// 两点间直线距离（米），用于卡片上的「直线 xxx 米」
+function haversineMeters(a: { lng: number; lat: number }, b: { lng: number; lat: number }): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 // 判断点是否在多边形内
 const isPointInPolygon = (point: {lng: number, lat: number}, polygon: {lng: number, lat: number}[]) => {
   const x = point.lng;
@@ -159,7 +172,7 @@ interface MapViewProps {
   multiTimeData?: any;
   loading?: boolean;
   onCenterChange?: (lng: number, lat: number) => void;
-  selectedFacility?: {name: string; category: string; location: {lng: number; lat: number}} | null;
+  selectedFacility?: {name: string; category: string; location: {lng: number; lat: number}; address?: string} | null;
   activeTimeSlot?: number;
   fengshuiData?: any;
   activeMode?: string;
@@ -167,7 +180,7 @@ interface MapViewProps {
   modeIsochrones?: Record<string, { lng: number; lat: number }[]>;
   // 选中设施的唯一出口：地图设施点击 / 折线点击 / 右侧卡片点击都收敛到这里
   onFacilitySelect?: (
-    facility: { name: string; category: string; location: { lng: number; lat: number } } | null
+    facility: { name: string; category: string; location: { lng: number; lat: number }; address?: string } | null
   ) => void;
 }
 
@@ -287,7 +300,7 @@ const MapView: React.FC<MapViewProps> = ({
 
   // 再次点击同一个设施 = 取消选中
   const toggleFacility = (
-    facility: { name: string; category: string; location: { lng: number; lat: number } } | null
+    facility: { name: string; category: string; location: { lng: number; lat: number }; address?: string } | null
   ) => {
     if (!onFacilitySelect) return;
     const prev = selectedFacilityRef.current;
@@ -302,7 +315,8 @@ const MapView: React.FC<MapViewProps> = ({
     setHoverFacility(null);
     setHoverTimes(null);
     setHoverModes([]);
-    setHoverPixel(null);
+    // 不在这里清 hoverPixel：像素归「卡片位置」effect 管。
+    // 若清空后 activeFacility 仍是选中的那个（effect 依赖没变），卡片会永久消失。
     setHoverLoading(false);
   };
 
@@ -689,35 +703,16 @@ const MapView: React.FC<MapViewProps> = ({
                   )
                 );
 
-                // 估算出行时间
-                const walkingTime = Math.round(distance / 1.2 / 60);
-                const cyclingTime = Math.round(distance / 3.5 / 60);
-                const drivingTime = Math.round(distance / 8 / 60);
-
-                const infoWindow = new BMap.InfoWindow(
-                  '<div style="padding: 12px; font-family: PingFang SC, Microsoft YaHei, sans-serif; min-width: 200px;">' +
-                    '<div style="font-weight: 600; color: #333; font-size: 14px; margin-bottom: 8px;">' + facility.name + '</div>' +
-                    '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">' +
-                      '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ' + color + ';"></span>' +
-                      '<span style="font-size: 13px; color: ' + color + ';">' + category + '</span>' +
-                    '</div>' +
-                    '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px; color: #666;">' +
-                      '<div>' + iconSvg('pin') + ' 距离: ' + distance + '米</div>' +
-                      '<div>' + iconSvg('walk') + ' 步行: ' + walkingTime + '分钟</div>' +
-                      '<div>' + iconSvg('bike') + ' 骑行: ' + cyclingTime + '分钟</div>' +
-                      '<div>' + iconSvg('car') + ' 驾车: ' + drivingTime + '分钟</div>' +
-                    '</div>' +
-                    (facility.address ? '<div style="margin-top: 8px; font-size: 12px; color: #999;">' + facility.address + '</div>' : '') +
-                  '</div>',
-                  { width: 280, height: 120 }
-                );
+                // 不再弹 InfoWindow：悬浮和点击都用同一张卡片，
+                // 卡片内容是它的超集（名称/类别/地址/直线距离/4种方式真实耗时/推荐），
+                // 两个都弹会重叠。
                 marker.addEventListener('click', () => {
-                  map.openInfoWindow(infoWindow, point);
-                  // 点击设施 = 切换该设施对应路线的高亮，再点一次取消
+                  // 点击 = 显示卡片 + 高亮该路线，再点一次取消
                   toggleFacility({
                     name: facility.name,
                     category: facility.category || category,
                     location: { lng: point.lng, lat: point.lat },
+                    address: facility.address,
                   });
                 });
 
@@ -948,12 +943,13 @@ const MapView: React.FC<MapViewProps> = ({
     polyline.addEventListener('click', () => toggleFacility(activeFacility));
   }, [mapReady, overlayEpoch, showRoutes, activeFacility, activeKey, routeState, selectedFacility, activeMode]);
 
-  // 悬浮时把其余 POI 标记先隐藏，只留「当前设施 + 它的路线」。
-  // 用 hide/show 而不是重绘 —— 重绘会让标记在光标下销毁重建、来回抖。
+  // 悬浮 或 选中（点右侧设施卡片 / 点地图）时，把其余 POI 标记先隐藏，
+  // 只留「当前设施 + 它的路线」—— 两种交互效果一致。
+  // 用 hide/show 而不是重绘：重绘会让标记在光标下销毁重建、来回抖。
   useEffect(() => {
     const list = poiMarkersRef.current;
     if (!list.length) return;
-    const target = hoverFacility ? hoverFacility.name : null;
+    const target = activeFacility ? activeFacility.name : null;
     list.forEach(({ marker, name }) => {
       try {
         if (!target || name === target) marker.show();
@@ -962,7 +958,51 @@ const MapView: React.FC<MapViewProps> = ({
         // 标记可能已被地图回收，忽略
       }
     });
-  }, [hoverFacility, overlayEpoch]);
+  }, [activeFacility, overlayEpoch]);
+
+  // 卡片位置由 activeFacility（悬浮或选中）驱动。
+  // 相机推近/缩放后必须重算，否则点了设施、镜头一动卡片就留在旧的屏幕坐标。
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current || !activeFacility) {
+      setHoverPixel(null);
+      return;
+    }
+    const map = mapInstanceRef.current;
+    const BMap = (window as any).BMap;
+    const place = () => {
+      const px = map.pointToPixel(
+        new BMap.Point(activeFacility.location.lng, activeFacility.location.lat)
+      );
+      setHoverPixel({ x: px.x, y: px.y });
+    };
+    place();
+    map.addEventListener('moveend', place);
+    map.addEventListener('zoomend', place);
+    return () => {
+      map.removeEventListener('moveend', place);
+      map.removeEventListener('zoomend', place);
+    };
+  }, [mapReady, activeFacility]);
+
+  // 「选中」也要有和悬浮一样的卡片（点右侧设施卡片时就是这条路）。
+  // 悬浮路径已在 mouseover 里触发，这里只在「没有悬浮、但有选中」时补上。
+  useEffect(() => {
+    if (!showRoutes || hoverFacility || !selectedFacility) return;
+    // 已经为这个设施加载过就别重复触发
+    if (hoverModes.length && activeFacility && activeFacility.name === selectedFacility.name) return;
+
+    const target: HoverFacility = {
+      name: selectedFacility.name,
+      category: selectedFacility.category,
+      location: selectedFacility.location,
+      straight: center ? haversineMeters(center, selectedFacility.location) : undefined,
+    };
+    setHoverTimes(null);
+    setHoverModes([]);
+    setHoverLoading(true);
+    loadHoverTimes(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoverFacility, selectedFacility, showRoutes, hoverModes, activeFacility, center]);
 
   // 处理选中的设施：集中画面（推近 + 弹窗）。取消选中时把镜头还原到中心。
   useEffect(() => {
@@ -981,15 +1021,7 @@ const MapView: React.FC<MapViewProps> = ({
     const point = new BMap.Point(selectedFacility.location.lng, selectedFacility.location.lat);
     map.panTo(point);
     map.setZoom(16);
-
-    const infoWindow = new BMap.InfoWindow(
-      '<div style="padding: 12px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
-        '<div style="font-weight: 600; font-size: 14px; color: #333; margin-bottom: 8px;">' + selectedFacility.name + '</div>' +
-        '<div style="font-size: 12px; color: #667eea;">' + selectedFacility.category + '</div>' +
-      '</div>',
-      { width: 220, height: 70 }
-    );
-    map.openInfoWindow(infoWindow, point);
+    // 不再弹 InfoWindow —— 卡片就是这个设施的信息面，弹窗会和卡片重叠
   }, [mapReady, selectedFacility, center]);
 
   if (mapError) {
@@ -1008,7 +1040,7 @@ const MapView: React.FC<MapViewProps> = ({
       {/* 悬浮 POI：各出行方式耗时 + 推荐方式。
           全部走百度 JS SDK 客户端规划，零后端配额；pointer-events:none
           让鼠标离开 marker 时直接隐藏，不会因为滑到卡片上而抖动 */}
-      {showRoutes && hoverFacility && hoverPixel && (
+      {showRoutes && activeFacility && hoverPixel && (
         <div
           style={{
             position: 'absolute',
@@ -1030,18 +1062,33 @@ const MapView: React.FC<MapViewProps> = ({
             <span
               style={{
                 width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                background: CATEGORY_COLOR[hoverFacility.category] || '#666',
+                background: CATEGORY_COLOR[activeFacility.category] || '#666',
               }}
             />
             <span style={{ fontWeight: 600, fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {hoverFacility.name}
+              {activeFacility.name}
             </span>
-            <span style={{ color: '#6b7280', flexShrink: 0 }}>{hoverFacility.category}</span>
+            <span style={{ color: '#6b7280', flexShrink: 0 }}>{activeFacility.category}</span>
           </div>
 
-          {hoverFacility.straight != null && (
-            <div style={{ color: '#6b7280', marginBottom: 6 }}>
-              <Ico n="pin" /> 直线 {Math.round(hoverFacility.straight)} 米
+          {activeFacility.straight != null && (
+            <div style={{ color: '#6b7280', marginBottom: 4 }}>
+              <Ico n="pin" /> 直线 {Math.round(activeFacility.straight)} 米
+            </div>
+          )}
+
+          {activeFacility.address && (
+            <div
+              style={{
+                color: '#9ca3af',
+                marginBottom: 6,
+                fontSize: 11,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {activeFacility.address}
             </div>
           )}
 
