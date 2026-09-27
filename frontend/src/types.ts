@@ -332,7 +332,7 @@ export interface LayerVisibility {
 export type TimeDimension = 5 | 10 | 15;
 
 // 设施类别
-export type FacilityCategory = '医疗' | '教育' | '购物' | '养老' | '文体' | '餐饮';
+export type FacilityCategory = '医疗' | '教育' | '购物' | '养老' | '文体' | '餐饮' | '交通';
 
 // 设施图标配置
 export interface FacilityIconConfig {

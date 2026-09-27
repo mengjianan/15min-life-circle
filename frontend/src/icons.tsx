@@ -350,6 +350,7 @@ export const getFacilityColor = (category: string): string => {
     '养老': '#8b5cf6',
     '文体': '#06b6d4',
     '餐饮': '#f59e0b',
+    '交通': '#14b8a6',
     '综合': '#6b7280',
   };
   return colorMap[category] || '#6b7280';
@@ -364,6 +365,7 @@ export const getFacilityBgColor = (category: string): string => {
     '养老': '#f5f3ff',
     '文体': '#ecfeff',
     '餐饮': '#fffbeb',
+    '交通': '#f0fdfa',
     '综合': '#f9fafb',
   };
   return colorMap[category] || '#f9fafb';

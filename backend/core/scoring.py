@@ -385,8 +385,9 @@ def calculate_fengshui_detail_score(
     # 敏感设施评分（医院、殡仪馆等距离）
     sensitive = fengshui_data.get("environment", {}).get("score", 80)
 
-    # 绿化评分
-    greenery = 75.0
+    # 绿化评分（读风水引擎的真实结果；之前写死75，导致改绿化关键词
+    # 只影响前端雷达、完全不影响综合评分）
+    greenery = fengshui_data.get("greenery", {}).get("score", 75.0)
 
     # 人气评分（POI密度）
     popularity = 80.0

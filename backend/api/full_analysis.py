@@ -320,7 +320,14 @@ async def generate_full_analysis(request: FullAnalysisRequest):
         # 获取风水评分（包含完整的水系、地形、绿化数据）
         fengshui_data = None
         try:
-            fengshui_result = await feng_shui_engine.analyze(center, radius=1500)
+            # 复用步行15分钟的POI覆盖（radius=1500，与 analyze(radius=1500) 一致），
+            # 让风水的正/负向设施直接从已有数据取，不再重复打地点检索
+            walking_coverage = (
+                modes.get("walking", {}).get("time_slots", {}).get("900", {}) or {}
+            ).get("poi_coverage") or {}
+            fengshui_result = await feng_shui_engine.analyze(
+                center, radius=1500, coverage_data=walking_coverage
+            )
             fengshui_data = {
                 "terrain": {
                     "score": fengshui_result.terrain.score,

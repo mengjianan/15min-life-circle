@@ -25,10 +25,11 @@ export const SAMPLE_COMMUNITIES: Community[] = [
 export const POI_CATEGORIES: Record<string, string[]> = {
   '医疗': ['诊所', '药店', '医院'],
   '教育': ['小学', '幼儿园', '培训机构'],
-  '购物': ['菜市场', '超市', '便利店'],
+  '购物': ['菜市场', '超市', '便利店', '商场'],
   '养老': ['养老院', '老年活动中心'],
-  '文体': ['公园', '图书馆', '体育场馆'],
+  '文体': ['公园', '图书馆', '体育场馆', '景点'],
   '餐饮': ['餐厅', '早餐店'],
+  '交通': ['地铁站', '公交站'],
 };
 
 // 等时圈配置
@@ -55,4 +56,5 @@ export const FACILITY_ICONS: Record<string, string> = {
   '养老': 'elder',
   '文体': 'walk',
   '餐饮': 'utensils',
+  '交通': 'bus',
 };

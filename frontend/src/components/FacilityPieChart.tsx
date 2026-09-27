@@ -20,6 +20,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   '养老': '#722ed1',
   '文体': '#fa8c16',
   '餐饮': '#eb2f96',
+  '交通': '#13c2c2',
 };
 
 const RADIAN = Math.PI / 180;

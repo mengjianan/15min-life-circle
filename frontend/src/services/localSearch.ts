@@ -129,7 +129,9 @@ export const planRoute = (
     }
 
     const route = new RouteClass(map, {
-      renderOptions: { map: map, autoViewport: false },
+      // map: null —— 只让 SDK 算路线，不让它自己往地图上画一条线，
+      // 否则悬浮时地图会同时出现 SDK 画的线和我们自己绘制的线
+      renderOptions: { map: null, autoViewport: false },
       onSearchComplete: (results: any) => {
         if (route.getStatus() === 0) {
           const plan = results.getPlan(0);
@@ -166,15 +168,29 @@ export const getRoutePoints = (route: any): { lng: number; lat: number }[] => {
         const numRoutes = plan.getNumRoutes();
         for (let i = 0; i < numRoutes; i++) {
           const subRoute = plan.getRoute(i);
-          if (subRoute) {
-            const numSteps = subRoute.getNumSteps();
-            for (let j = 0; j < numSteps; j++) {
-              const step = subRoute.getStep(j);
-              if (step && step.getPosition) {
-                const point = step.getPosition();
-                if (point) {
-                  points.push({ lng: point.lng, lat: point.lat });
-                }
+          if (!subRoute) continue;
+
+          // 优先取整条路线的完整点列（step.getPosition 只有每个步骤的
+          // 一个代表点，画出来是折线段太少、像直线）
+          let pushed = false;
+          if (typeof subRoute.getPoints === 'function') {
+            const pts = subRoute.getPoints() || [];
+            if (pts.length > 1) {
+              pts.forEach((p: any) => {
+                if (p) points.push({ lng: p.lng, lat: p.lat });
+              });
+              pushed = points.length > 0;
+            }
+          }
+          if (pushed) continue;
+
+          const numSteps = subRoute.getNumSteps();
+          for (let j = 0; j < numSteps; j++) {
+            const step = subRoute.getStep(j);
+            if (step && step.getPosition) {
+              const point = step.getPosition();
+              if (point) {
+                points.push({ lng: point.lng, lat: point.lat });
               }
             }
           }

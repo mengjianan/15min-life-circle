@@ -1,6 +1,47 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import LoadingOverlay from './LoadingOverlay';
 import { iconSvg } from '../icons';
+import { planRoute, getRoutePoints } from '../services/localSearch';
+
+// 一条「中心 -> 设施」的路线几何（由百度 JS SDK 客户端算出，不占后端配额）
+type RouteGeo = {
+  points: { lng: number; lat: number }[];
+  duration: number;   // 秒
+  distance: number;   // 米
+};
+
+// 悬浮中的设施
+type HoverFacility = {
+  name: string;
+  category: string;
+  location: { lng: number; lat: number };
+  straight?: number;   // 直线距离（米），只有悬浮时才填
+};
+
+const TRAVEL_MODE_LIST = ['walking', 'cycling', 'transit', 'driving'] as const;
+const TRAVEL_MODE_LABEL: Record<string, string> = {
+  walking: '步行',
+  cycling: '骑行',
+  transit: '公交',
+  driving: '驾车',
+};
+
+// 模块级配色（悬浮卡片与地图绘制共用，避免多处重复维护）
+const MODE_COLOR: Record<string, string> = {
+  walking: '#52c41a',
+  cycling: '#1890ff',
+  transit: '#faad14',
+  driving: '#ff4d4f',
+};
+const CATEGORY_COLOR: Record<string, string> = {
+  医疗: '#ff4d4f',
+  教育: '#1890ff',
+  购物: '#52c41a',
+  养老: '#722ed1',
+  文体: '#fa8c16',
+  餐饮: '#eb2f96',
+  交通: '#13c2c2',
+};
 
 // 判断点是否在多边形内
 const isPointInPolygon = (point: {lng: number, lat: number}, polygon: {lng: number, lat: number}[]) => {
@@ -32,9 +73,6 @@ interface MapViewProps {
   activeTimeSlot?: number;
   fengshuiData?: any;
   activeMode?: string;
-  routesData?: any[];  // 从中心到设施的路线数据（按出行方式）
-  routesLoading?: boolean;
-  routesError?: string | null;
   // 选中设施的唯一出口：地图设施点击 / 折线点击 / 右侧卡片点击都收敛到这里
   onFacilitySelect?: (
     facility: { name: string; category: string; location: { lng: number; lat: number } } | null
@@ -53,9 +91,6 @@ const MapView: React.FC<MapViewProps> = ({
   activeTimeSlot = 900,
   fengshuiData,
   activeMode = 'walking',
-  routesData = [],
-  routesLoading = false,
-  routesError = null,
   onFacilitySelect,
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -68,14 +103,54 @@ const MapView: React.FC<MapViewProps> = ({
   const [showRoutes, setShowRoutes] = useState(true);
   const [showFengshui, setShowFengshui] = useState(true);
   const [clickMode, setClickMode] = useState(false);
-  // 路线选中状态只有一个来源：selectedFacility（地图设施点击 / 折线点击 /
-  // 右侧卡片点击都收敛到它）。这里派生而不是存 state —— 切出行方式或换路线数据时
-  // 自然失效，不需要手动 reset。
-  const selectedRouteIndex = selectedFacility
-    ? routesData.findIndex((r: any) => r.facility_name === selectedFacility.name)
-    : -1;
 
-  // 再次点击同一个设施 = 取消选中（高亮变回浅灰）
+  // 悬浮：只显现「中心 -> 该设施」这一条路线，不再常驻画所有放射线。
+  // 悬浮阶段刻意不移动镜头 —— 否则地图会在光标下滑动、光标落到另一个 POI、
+  // 再次移动，形成无限震荡。聚焦放在用户主动点击上（无回路）。
+  const [hoverFacility, setHoverFacility] = useState<HoverFacility | null>(null);
+  const [hoverTimes, setHoverTimes] = useState<Record<string, number | null> | null>(null);
+  const [hoverLoading, setHoverLoading] = useState(false);
+  const [hoverPixel, setHoverPixel] = useState<{ x: number; y: number } | null>(null);
+
+  // 当前要画的那条路线。key 必须与目标设施匹配才渲染，避免显示上一条的残影
+  const [routeState, setRouteState] = useState<{ key: string; geo: RouteGeo | null }>({
+    key: '',
+    geo: null,
+  });
+  // 异步取到路线后的重绘信号
+  const [routeTick, setRouteTick] = useState(0);
+
+  const routeCacheRef = useRef<Map<string, RouteGeo>>(new Map());
+  const routePendingRef = useRef<Set<string>>(new Set());
+  const hoverTimerRef = useRef<any>(null);
+  const hoverTokenRef = useRef(0);
+  // clickMode 用 ref 读取：初始化 effect 只跑一次，闭包里捕获不到后续变化
+  const clickModeRef = useRef(clickMode);
+
+  useEffect(() => {
+    clickModeRef.current = clickMode;
+  }, [clickMode]);
+
+  // 要显现路线的目标：悬浮优先，其次选中
+  const activeFacility: HoverFacility | null = hoverFacility || selectedFacility || null;
+  const activeKey = activeFacility ? `${activeFacility.name}|${activeMode}` : '';
+
+  // 四种方式里耗时最短的 = 推荐方式
+  const bestHoverMode: string | null = (() => {
+    if (!hoverTimes) return null;
+    let best: string | null = null;
+    let bestSec = Infinity;
+    TRAVEL_MODE_LIST.forEach((mode) => {
+      const sec = hoverTimes[mode];
+      if (sec != null && sec < bestSec) {
+        bestSec = sec;
+        best = mode;
+      }
+    });
+    return best;
+  })();
+
+  // 再次点击同一个设施 = 取消选中
   const toggleFacility = (
     facility: { name: string; category: string; location: { lng: number; lat: number } } | null
   ) => {
@@ -83,6 +158,89 @@ const MapView: React.FC<MapViewProps> = ({
     const next =
       facility && selectedFacility && selectedFacility.name === facility.name ? null : facility;
     onFacilitySelect(next);
+  };
+
+  // 关闭悬浮卡片（鼠标离开 marker / 拖动缩放地图时）
+  const clearHover = () => {
+    clearTimeout(hoverTimerRef.current);
+    hoverTokenRef.current++;   // 让在途的结果失效
+    setHoverFacility(null);
+    setHoverTimes(null);
+    setHoverPixel(null);
+    setHoverLoading(false);
+  };
+
+  // 取一条路线的几何：命中缓存秒回；同一 key 已在途则复用，不重复打
+  const fetchRouteGeo = (
+    facility: { name: string; location: { lng: number; lat: number } },
+    mode: string
+  ): Promise<RouteGeo | null> => {
+    const key = `${facility.name}|${mode}`;
+    const cached = routeCacheRef.current.get(key);
+    if (cached) return Promise.resolve(cached);
+    if (routePendingRef.current.has(key)) return Promise.resolve(null);
+    if (!mapInstanceRef.current || !center) return Promise.resolve(null);
+
+    routePendingRef.current.add(key);
+    return planRoute(mapInstanceRef.current, center, facility.location, mode as any)
+      .then((res) => {
+        routePendingRef.current.delete(key);
+        if (!res) return null;
+        const points = getRoutePoints(res.route);
+        if (!points || points.length < 2) return null;
+        const geo: RouteGeo = { points, duration: res.duration, distance: res.distance };
+        routeCacheRef.current.set(key, geo);
+        return geo;
+      })
+      .catch(() => {
+        routePendingRef.current.delete(key);
+        return null;
+      });
+  };
+
+  // 悬浮/选中变化时确保有一条可画的路线
+  useEffect(() => {
+    if (!mapReady) return;
+    if (!activeFacility || !showRoutes) {
+      setRouteState((prev) => (prev.key === '' ? prev : { key: '', geo: null }));
+      return;
+    }
+    const key = `${activeFacility.name}|${activeMode}`;
+    const cached = routeCacheRef.current.get(key);
+    if (cached) {
+      setRouteState((prev) => (prev.key === key ? prev : { key, geo: cached }));
+      return;
+    }
+    fetchRouteGeo(activeFacility, activeMode).then((geo) => {
+      if (geo) setRouteState({ key, geo });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, activeFacility, activeMode, showRoutes, routeTick]);
+
+  // 悬浮时并行取 4 种出行方式的耗时（全部走百度 JS SDK 客户端，零后端调用）
+  const loadHoverTimes = (facility: HoverFacility) => {
+    const token = ++hoverTokenRef.current;
+    Promise.all(
+      TRAVEL_MODE_LIST.map(async (mode) => {
+        const cached = routeCacheRef.current.get(`${facility.name}|${mode}`);
+        if (cached) return [mode, cached.duration] as [string, number];
+        try {
+          const geo = await fetchRouteGeo(facility, mode);
+          return [mode, geo ? geo.duration : null] as [string, number | null];
+        } catch {
+          return [mode, null] as [string, number | null];
+        }
+      })
+    ).then((pairs) => {
+      if (token !== hoverTokenRef.current) return;   // 已经移开，丢弃
+      const times: Record<string, number | null> = {};
+      pairs.forEach(([m, d]) => {
+        times[m] = d;
+      });
+      setHoverTimes(times);
+      setHoverLoading(false);
+      setRouteTick((t) => t + 1);   // 几何可能刚写进缓存，触发一次重绘
+    });
   };
 
   const checkBaiduMapAPI = useCallback(() => {
@@ -120,11 +278,17 @@ const MapView: React.FC<MapViewProps> = ({
         map.addControl(new BMap.ScaleControl());
         map.addControl(new BMap.OverviewMapControl());
 
+        // 用 ref 读 clickMode：本 effect 只在初始化时跑一次，
+        // 闭包里捕获不到后续的开关变化（此前"点击地图选位置"因此失效）
         map.addEventListener('click', (e: any) => {
-          if (clickMode && onCenterChange) {
+          if (clickModeRef.current && onCenterChange) {
             onCenterChange(e.point.lng, e.point.lat);
           }
         });
+
+        // 拖动/缩放时隐藏悬浮卡片，否则卡片位置会停留在旧的屏幕坐标
+        map.addEventListener('dragstart', clearHover);
+        map.addEventListener('zoomstart', clearHover);
 
         mapInstanceRef.current = map;
         if (mounted) {
@@ -143,7 +307,7 @@ const MapView: React.FC<MapViewProps> = ({
     return () => {
       mounted = false;
     };
-  }, [checkBaiduMapAPI, clickMode, onCenterChange]);
+  }, [checkBaiduMapAPI, onCenterChange, clearHover]);
 
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && center) {
@@ -161,8 +325,9 @@ const MapView: React.FC<MapViewProps> = ({
 
       map.clearOverlays();
 
-      // 绘制多时间等时圈
-      if (multiTimeData && multiTimeData.layers) {
+      // 绘制多时间等时圈（受 showGraph 开关控制 —— 该按钮原本就叫"显示/隐藏等时圈"，
+      // 但此前既不在依赖数组也没被读取，是个点了没反应的死开关）
+      if (showGraph && multiTimeData && multiTimeData.layers) {
         const timeColors: Record<number, string> = {
           300: '#52c41a',   // 5分钟 - 绿色
           600: '#faad14',   // 10分钟 - 橙色
@@ -236,54 +401,30 @@ const MapView: React.FC<MapViewProps> = ({
         });
       }
 
-      // 绘制路线：中心 -> 等时圈内每个设施的真实折线（按出行方式）
-      // 未选中：浅灰；选中：出行方式色 + 加粗高亮；再点同一设施变回浅灰
-      if (showRoutes && routesData && routesData.length > 0) {
-        const modeColors: Record<string, string> = {
-          'walking': '#52c41a',    // 绿色
-          'cycling': '#1890ff',    // 蓝色
-          'transit': '#faad14',    // 橙色
-          'driving': '#ff4d4f'     // 红色
-        };
-        const routeColor = modeColors[activeMode] || '#667eea';
-        const IDLE_COLOR = '#c9ced9';   // 浅灰
+      // 显现「中心 -> 悬浮/选中设施」的这一条真实路线。
+      // 不再常驻画所有设施的放射线 —— 那不是路网，看起来很怪。
+      if (showRoutes && activeFacility && routeState.key === activeKey && routeState.geo) {
+        const routeColor = MODE_COLOR[activeMode] || '#667eea';
+        // 选中（点击）= 加粗高亮；仅悬浮 = 常规显现
+        const isSelected = !!selectedFacility &&
+          selectedFacility.name === activeFacility.name;
 
-        routesData.forEach((routeInfo: any, index: number) => {
-          const route = routeInfo.route;
-          if (route && route.steps) {
-            const allPoints: any[] = [];
-            route.steps.forEach((step: any) => {
-              if (step.path) {
-                const pathPoints = step.path.split(';').map((p: string) => {
-                  const [lng, lat] = p.split(',').map(Number);
-                  return new BMap.Point(lng, lat);
-                });
-                allPoints.push(...pathPoints);
-              }
-            });
+        const points = routeState.geo.points.map(
+          (p: { lng: number; lat: number }) => new BMap.Point(p.lng, p.lat)
+        );
 
-            if (allPoints.length > 1) {
-              const isSelected = selectedRouteIndex === index;
+        if (points.length > 1) {
+          const polyline = new BMap.Polyline(points, {
+            strokeColor: routeColor,
+            strokeWeight: isSelected ? 6 : 4,
+            strokeOpacity: isSelected ? 1.0 : 0.9,
+          } as any);
+          map.addOverlay(polyline);
 
-              const polyline = new BMap.Polyline(allPoints, {
-                strokeColor: isSelected ? routeColor : IDLE_COLOR,
-                strokeWeight: isSelected ? 6 : 3,
-                strokeOpacity: isSelected ? 1.0 : 0.85,
-                strokeClickable: true,
-              } as any);
-              map.addOverlay(polyline);
-
-              // 点击折线 = 切换该设施的选中状态（再点取消高亮）
-              polyline.addEventListener('click', () => {
-                toggleFacility({
-                  name: routeInfo.facility_name || '',
-                  category: routeInfo.category || '',
-                  location: routeInfo.location || { lng: 0, lat: 0 },
-                });
-              });
-            }
-          }
-        });
+          polyline.addEventListener('click', () => {
+            toggleFacility(activeFacility);
+          });
+        }
       }
 
       // 绘制POI设施（累积显示：15分钟包含10分钟和5分钟的所有设施）
@@ -309,6 +450,7 @@ const MapView: React.FC<MapViewProps> = ({
               '养老': '#722ed1',
               '文体': '#fa8c16',
               '餐饮': '#eb2f96',
+              '交通': '#13c2c2',
             };
             const color = categoryColors[category] || '#666';
 
@@ -353,7 +495,7 @@ const MapView: React.FC<MapViewProps> = ({
                       '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ' + color + ';"></span>' +
                       '<span style="font-size: 13px; color: ' + color + ';">' + category + '</span>' +
                     '</div>' +
-                    '<div style="display: grid; grid-template-columns: repeat(2, gap: 8px; font-size: 12px; color: #666;">' +
+                    '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px; color: #666;">' +
                       '<div>' + iconSvg('pin') + ' 距离: ' + distance + '米</div>' +
                       '<div>' + iconSvg('walk') + ' 步行: ' + walkingTime + '分钟</div>' +
                       '<div>' + iconSvg('bike') + ' 骑行: ' + cyclingTime + '分钟</div>' +
@@ -372,6 +514,29 @@ const MapView: React.FC<MapViewProps> = ({
                     location: { lng: point.lng, lat: point.lat },
                   });
                 });
+
+                // 悬浮：显示各出行方式耗时 + 推荐方式，同时显现该条路线。
+                // 刻意不移动镜头 —— 悬停时平移会让地图在光标下滑动，
+                // 光标落到另一个 POI 再次触发，形成无限震荡；聚焦放在点击上。
+                marker.addEventListener('mouseover', () => {
+                  if (!showRoutes) return;
+                  const pixel = map.pointToPixel(point);
+                  const target: HoverFacility = {
+                    name: facility.name,
+                    category: facility.category || category,
+                    location: { lng: point.lng, lat: point.lat },
+                    straight: distance,
+                  };
+                  clearTimeout(hoverTimerRef.current);
+                  setHoverPixel({ x: pixel.x, y: pixel.y });
+                  setHoverTimes(null);
+                  setHoverLoading(true);
+                  setHoverFacility(target);
+                  // 防抖 200ms：扫过多个 POI 时不至于并发打一堆路线请求
+                  hoverTimerRef.current = setTimeout(() => loadHoverTimes(target), 200);
+                });
+
+                marker.addEventListener('mouseout', clearHover);
               }
             });
           }
@@ -527,28 +692,35 @@ const MapView: React.FC<MapViewProps> = ({
         });
       }
     }
-  }, [mapReady, center, isochrone, poiCoverage, blindSpots, multiTimeData, showPOI, showBlindSpots, showRoutes, showFengshui, routesData, fengshuiData, activeTimeSlot, activeMode, selectedRouteIndex]);
+  }, [mapReady, center, isochrone, poiCoverage, blindSpots, multiTimeData, showGraph, showPOI, showBlindSpots, showRoutes, showFengshui, fengshuiData, activeTimeSlot, activeMode, hoverFacility, selectedFacility, routeState]);
 
-  // 处理选中的设施
+  // 处理选中的设施：集中画面（推近 + 弹窗）。取消选中时把镜头还原到中心。
   useEffect(() => {
-    if (mapReady && mapInstanceRef.current && selectedFacility) {
-      const BMap = (window as any).BMap;
-      const map = mapInstanceRef.current;
-      const point = new BMap.Point(selectedFacility.location.lng, selectedFacility.location.lat);
+    if (!mapReady || !mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const BMap = (window as any).BMap;
 
-      map.panTo(point);
-      map.setZoom(16);
-
-      const infoWindow = new BMap.InfoWindow(
-        '<div style="padding: 12px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
-          '<div style="font-weight: 600; font-size: 14px; color: #333; margin-bottom: 8px;">' + selectedFacility.name + '</div>' +
-          '<div style="font-size: 12px; color: #667eea;">' + selectedFacility.category + '</div>' +
-        '</div>',
-        { width: 220, height: 70 }
-      );
-      map.openInfoWindow(infoWindow, point);
+    if (!selectedFacility) {
+      if (center) {
+        map.panTo(new BMap.Point(center.lng, center.lat));
+        map.setZoom(15);
+      }
+      return;
     }
-  }, [mapReady, selectedFacility]);
+
+    const point = new BMap.Point(selectedFacility.location.lng, selectedFacility.location.lat);
+    map.panTo(point);
+    map.setZoom(16);
+
+    const infoWindow = new BMap.InfoWindow(
+      '<div style="padding: 12px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
+        '<div style="font-weight: 600; font-size: 14px; color: #333; margin-bottom: 8px;">' + selectedFacility.name + '</div>' +
+        '<div style="font-size: 12px; color: #667eea;">' + selectedFacility.category + '</div>' +
+      '</div>',
+      { width: 220, height: 70 }
+    );
+    map.openInfoWindow(infoWindow, point);
+  }, [mapReady, selectedFacility, center]);
 
   if (mapError) {
     return (
@@ -563,33 +735,76 @@ const MapView: React.FC<MapViewProps> = ({
     <div className="map-container" style={{ position: 'relative' }}>
       <div ref={mapRef} className="map-view" />
 
-      {/* 当前出行方式的设施路线还在拉取（directionlite 需串行限速，首次几秒） */}
-      {showRoutes && routesLoading && (
+      {/* 悬浮 POI：各出行方式耗时 + 推荐方式。
+          全部走百度 JS SDK 客户端规划，零后端配额；pointer-events:none
+          让鼠标离开 marker 时直接隐藏，不会因为滑到卡片上而抖动 */}
+      {showRoutes && hoverFacility && hoverPixel && (
         <div
           style={{
-            position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
-            zIndex: 12, display: 'flex', alignItems: 'center', gap: 8,
-            padding: '6px 14px', borderRadius: 20, background: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)', fontSize: 13, color: '#667eea',
+            position: 'absolute',
+            left: hoverPixel.x,
+            top: hoverPixel.y - 14,
+            transform: 'translate(-50%, -100%)',
+            zIndex: 13,
+            pointerEvents: 'none',
+            width: 210,
+            padding: '10px 12px',
+            borderRadius: 10,
+            background: 'rgba(255,255,255,0.97)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            fontSize: 12,
+            color: '#1f2937',
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               strokeWidth="2" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
-            <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-          </svg>
-          加载路线...
-        </div>
-      )}
-      {showRoutes && routesError && (
-        <div
-          style={{
-            position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
-            zIndex: 12, padding: '6px 14px', borderRadius: 20,
-            background: 'rgba(255,255,255,0.95)', boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-            fontSize: 13, color: '#ff4d4f',
-          }}
-        >
-          {routesError}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <span
+              style={{
+                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                background: CATEGORY_COLOR[hoverFacility.category] || '#666',
+              }}
+            />
+            <span style={{ fontWeight: 600, fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {hoverFacility.name}
+            </span>
+            <span style={{ color: '#6b7280', flexShrink: 0 }}>{hoverFacility.category}</span>
+          </div>
+
+          {hoverFacility.straight != null && (
+            <div style={{ color: '#6b7280', marginBottom: 6 }}>
+              {iconSvg('pin')} 直线 {Math.round(hoverFacility.straight)} 米
+            </div>
+          )}
+
+          {hoverLoading && !hoverTimes ? (
+            <div style={{ color: '#667eea', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   strokeWidth="2" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              正在计算各方式耗时…
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {TRAVEL_MODE_LIST.map((mode) => {
+                const secs = hoverTimes ? hoverTimes[mode] : null;
+                const mins = secs == null ? null : Math.max(1, Math.round(secs / 60));
+                const best = bestHoverMode === mode;
+                return (
+                  <div key={mode} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 44, color: '#6b7280' }}>{TRAVEL_MODE_LABEL[mode]}</span>
+                    <span style={{ flex: 1, fontWeight: 600, color: mins == null ? '#9ca3af' : '#1f2937' }}>
+                      {mins == null ? '—' : `${mins} 分钟`}
+                    </span>
+                    {best && (
+                      <span style={{ fontSize: 11, color: '#fff', background: '#667eea', borderRadius: 8, padding: '1px 7px', flexShrink: 0 }}>
+                        推荐
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
