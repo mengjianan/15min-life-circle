@@ -86,13 +86,15 @@ type HoverFacility = {
   location: { lng: number; lat: number };
   straight?: number;   // 直线距离（米），只有悬浮时才填
   address?: string;
+  // 公共交通可达（中心与该设施 500m 内都有站点），由后端标注
+  transit_reachable?: boolean;
 };
 
 const TRAVEL_MODE_LIST = ['walking', 'cycling', 'transit', 'driving'] as const;
 const TRAVEL_MODE_LABEL: Record<string, string> = {
   walking: '步行',
   cycling: '骑行',
-  transit: '公交',
+  transit: '公共交通',
   driving: '驾车',
 };
 
@@ -126,7 +128,7 @@ function getIsochroneRing(
 }
 
 // 出行方式速度档位：卡片按「只往更快的方式叠加」显示
-// 步行 -> 只显示步行；骑行 -> 步行+骑行；公交 -> +公交；驾车 -> 全部4种
+// 步行 -> 只显示步行；骑行 -> 步行+骑行；公共交通 -> +公共交通；驾车 -> 全部4种
 const MODE_RANK: Record<string, number> = {
   walking: 0,
   cycling: 1,
@@ -172,7 +174,7 @@ interface MapViewProps {
   multiTimeData?: any;
   loading?: boolean;
   onCenterChange?: (lng: number, lat: number) => void;
-  selectedFacility?: {name: string; category: string; location: {lng: number; lat: number}; address?: string} | null;
+  selectedFacility?: {name: string; category: string; location: {lng: number; lat: number}; address?: string; transit_reachable?: boolean} | null;
   activeTimeSlot?: number;
   fengshuiData?: any;
   activeMode?: string;
@@ -267,14 +269,18 @@ const MapView: React.FC<MapViewProps> = ({
 
   // 卡片展示哪些方式，两条规则同时生效：
   //   ① 叠加：只显示速度不高于当前选择的方式
-  //      步行->只显示步行；骑行->步行+骑行；公交->+公交；驾车->全部4种
+  //      步行->只显示步行；骑行->步行+骑行；公共交通->+公共交通；驾车->全部4种
   //   ② 可达性：该方式的等时圈必须真的包含这个设施
   //      例：只在骑行时圈里才出现的新设施，不显示「步行」这一行
-  const getDisplayModes = (facility: { location: { lng: number; lat: number } } | null): string[] => {
+  const getDisplayModes = (
+    facility: { location: { lng: number; lat: number }; transit_reachable?: boolean } | null
+  ): string[] => {
     if (!facility) return [];
     const currentRank = MODE_RANK[activeMode] ?? 0;
     return TRAVEL_MODE_LIST.filter((mode) => {
       if ((MODE_RANK[mode] ?? 99) > currentRank) return false;
+      // 公共交通：两端 500m 接驳不上的设施，不展示这一行
+      if (mode === 'transit' && facility.transit_reachable === false) return false;
       const ring = modeIsochrones?.[mode];
       // 当前模式的等时圈就是地图上画的那个，设施可见即代表在圈内
       if (!ring || ring.length < 3) return mode === activeMode;
@@ -675,6 +681,11 @@ const MapView: React.FC<MapViewProps> = ({
 
             data.facilities.forEach((facility: any) => {
               if (facility.location) {
+                // 公共交通模式：中心/设施两端 50m 内没有站点、坐公交地铁到不了的，
+                // 直接不显示 —— 它应该只在驾车等更高一档才出现
+                if (activeMode === 'transit' && facility.transit_reachable === false) {
+                  return;
+                }
                 // 如果有等时圈，只显示在等时圈内的设施
                 if (currentPolygon.length > 0 && !isPointInPolygon(facility.location, currentPolygon)) {
                   return; // 跳过不在等时圈内的设施
@@ -727,6 +738,7 @@ const MapView: React.FC<MapViewProps> = ({
                     category: facility.category || category,
                     location: { lng: point.lng, lat: point.lat },
                     straight: distance,
+                    transit_reachable: facility.transit_reachable,
                   };
                   clearTimeout(hoverTimerRef.current);
                   // 只留当前设施：关掉之前点开的其它设施弹窗
@@ -996,6 +1008,7 @@ const MapView: React.FC<MapViewProps> = ({
       category: selectedFacility.category,
       location: selectedFacility.location,
       straight: center ? haversineMeters(center, selectedFacility.location) : undefined,
+      transit_reachable: selectedFacility.transit_reachable,
     };
     setHoverTimes(null);
     setHoverModes([]);
@@ -1109,7 +1122,7 @@ const MapView: React.FC<MapViewProps> = ({
               {hoverModes.map((mode) => {
                 const secs = hoverTimes ? hoverTimes[mode] : null;
                 const best = bestHoverMode === mode;
-                // 没有结果时按方式给出具体说明（公交没线路就是"没有公交到达"）
+                // 没有结果时按方式给出具体说明（公共交通没线路就是"没有公交到达"）
                 const value =
                   secs == null
                     ? mode === 'transit'

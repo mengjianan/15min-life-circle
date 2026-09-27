@@ -70,6 +70,8 @@ export interface POIItem {
   tag?: string;
   distance?: number;
   category: string;
+  // 公共交通可达：中心与该设施 500m 内都有公交站/地铁站（后端标注）
+  transit_reachable?: boolean;
 }
 
 export interface POICategoryData {

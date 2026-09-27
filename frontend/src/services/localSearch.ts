@@ -94,64 +94,127 @@ export const searchMultipleCategories = async (
 };
 
 // 使用JS API进行路线规划
-export const planRoute = (
+const CITY_CACHE_KEY = 'baidu_city_cache_v1';
+const CITY_RESOLVE_TIMEOUT = 3000;
+
+// 公共交通必须带城市，否则 Baidu 的 TransitRoute 检索不到线路、
+// onSearchComplete 干脆不回调 -> 卡片会一直停在「计算中」。
+// 用逆地理编码解析一次并存 localStorage（看地图时城市不会变）。
+function resolveCity(point: any): Promise<string | null> {
+  try {
+    const cached = localStorage.getItem(CITY_CACHE_KEY);
+    if (cached) return Promise.resolve(cached);
+  } catch {
+    // 隐私模式等场景 localStorage 不可用，忽略继续实时解析
+  }
+
+  return new Promise((resolve) => {
+    const BMap = (window as any).BMap;
+    if (!BMap?.Geocoder) {
+      resolve(null);
+      return;
+    }
+    let settled = false;
+    const finish = (city: string | null) => {
+      if (settled) return;
+      settled = true;
+      if (city) {
+        try {
+          localStorage.setItem(CITY_CACHE_KEY, city);
+        } catch {
+          // 写入失败不影响本次使用
+        }
+      }
+      resolve(city);
+    };
+    // 逆地理编码也可能不回调，超时兜底，避免把 planRoute 卡死
+    setTimeout(() => finish(null), CITY_RESOLVE_TIMEOUT);
+    try {
+      new BMap.Geocoder().getLocation(point, (res: any) => {
+        const parts = res && res.addressComponents;
+        finish((parts && (parts.city || parts.province)) || null);
+      });
+    } catch {
+      finish(null);
+    }
+  });
+}
+
+export const planRoute = async (
   map: any,
   origin: { lng: number; lat: number },
   destination: { lng: number; lat: number },
   mode: 'walking' | 'cycling' | 'transit' | 'driving'
 ): Promise<RouteResult | null> => {
+  const BMap = (window as any).BMap || {};
+  if (!BMap.Point) {
+    return null;
+  }
+
+  const originPoint = new BMap.Point(origin.lng, origin.lat);
+  const destPoint = new BMap.Point(destination.lng, destination.lat);
+
+  let RouteClass: any;
+  switch (mode) {
+    case 'walking':
+      RouteClass = BMap.WalkingRoute;
+      break;
+    case 'cycling':
+      RouteClass = BMap.RidingRoute;
+      break;
+    case 'transit':
+      RouteClass = BMap.TransitRoute;
+      break;
+    case 'driving':
+      RouteClass = BMap.DrivingRoute;
+      break;
+    default:
+      RouteClass = BMap.WalkingRoute;
+  }
+
+  const options: any = {
+    // map: null —— 只让 SDK 算路线，不让它自己往地图上画一条线，
+    // 否则悬浮时地图会同时出现 SDK 画的线和我们自己绘制的线
+    renderOptions: { map: null, autoViewport: false },
+  };
+  if (mode === 'transit') {
+    const city = await resolveCity(originPoint);
+    if (city) options.city = city;
+  }
+
   return new Promise((resolve) => {
-    const BMap = (window as any).BMap || {};
-    if (!BMap) {
-      resolve(null);
-      return;
-    }
+    let settled = false;
+    const done = (value: RouteResult | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
 
-    const originPoint = new BMap.Point(origin.lng, origin.lat);
-    const destPoint = new BMap.Point(destination.lng, destination.lat);
-
-    let RouteClass: any;
-    switch (mode) {
-      case 'walking':
-        RouteClass = BMap.WalkingRoute;
-        break;
-      case 'cycling':
-        RouteClass = BMap.RidingRoute;
-        break;
-      case 'transit':
-        RouteClass = BMap.TransitRoute;
-        break;
-      case 'driving':
-        RouteClass = BMap.DrivingRoute;
-        break;
-      default:
-        RouteClass = BMap.WalkingRoute;
-    }
-
-    const route = new RouteClass(map, {
-      // map: null —— 只让 SDK 算路线，不让它自己往地图上画一条线，
-      // 否则悬浮时地图会同时出现 SDK 画的线和我们自己绘制的线
-      renderOptions: { map: null, autoViewport: false },
-      onSearchComplete: (results: any) => {
-        if (route.getStatus() === 0) {
-          const plan = results.getPlan(0);
-          if (plan) {
-            resolve({
-              distance: plan.getDistance(false),
-              duration: plan.getDuration(false),
-              steps: [],
-              route: route
-            });
-          } else {
-            resolve(null);
+    try {
+      const route = new RouteClass(map, {
+        ...options,
+        onSearchComplete: (results: any) => {
+          if (route.getStatus() === 0) {
+            const plan = results.getPlan(0);
+            if (plan) {
+              done({
+                distance: plan.getDistance(false),
+                duration: plan.getDuration(false),
+                steps: [],
+                route: route
+              });
+              return;
+            }
           }
-        } else {
-          resolve(null);
-        }
-      }
-    });
+          done(null);
+        },
+      });
 
-    route.search(originPoint, destPoint);
+      route.search(originPoint, destPoint);
+    } catch {
+      // RouteClass 缺失、参数非法等 -> 当作该方式不可用
+      done(null);
+    }
   });
 };
 

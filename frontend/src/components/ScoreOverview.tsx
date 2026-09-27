@@ -14,7 +14,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
   const modeNames: Record<string, string> = {
     walking: '步行',
     cycling: '骑行',
-    transit: '公交',
+    transit: '公共交通',
     driving: '驾车'
   };
 

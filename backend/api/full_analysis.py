@@ -30,7 +30,7 @@ class FullAnalysisRequest(BaseModel):
 TRAVEL_MODES = {
     "walking": {"name": "步行", "speed": 1.2, "speed_multiplier": 1.0},
     "cycling": {"name": "骑行", "speed": 3.5, "speed_multiplier": 2.9},  # 骑行速度约3.5m/s，15分钟约3150m
-    "transit": {"name": "公交", "speed": 5.0, "speed_multiplier": 4.2},  # 公交速度约5m/s，15分钟约4500m
+    "transit": {"name": "公共交通", "speed": 5.0, "speed_multiplier": 4.2},  # 公交速度约5m/s，15分钟约4500m
     "driving": {"name": "驾车", "speed": 8.0, "speed_multiplier": 6.7},  # 驾车速度约8m/s，15分钟约7200m
 }
 
@@ -281,6 +281,10 @@ async def generate_full_analysis(request: FullAnalysisRequest):
         max_poi_radius = max(MODE_POI_RADIUS.values())  # 9000m（驾车半径）
         print(f"[POI预加载] 使用最大半径: {max_poi_radius}m")
         shared_poi_data = await poi_analyzer.analyze_coverage(location, radius=max_poi_radius)
+        # 给每个设施打上「公共交通可达」标记：中心与设施 500m 内都有公交站/地铁站。
+        # 前端据此决定公共交通模式下是否显示该设施、卡片是否显示公共交通那一行。
+        # 纯距离计算，零 API 调用。
+        poi_analyzer.annotate_transit_reachability(shared_poi_data, location)
         await poi_analyzer.baidu_map.close()
 
         # 顺序执行各出行方式分析（避免并发API请求过多被限流）

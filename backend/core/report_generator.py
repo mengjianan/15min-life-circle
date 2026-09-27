@@ -125,7 +125,7 @@ def generate_report_meta(
         community_name=community_name,
         center=center,
         analysis_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        travel_modes=["步行", "骑行", "公交", "驾车"],
+        travel_modes=["步行", "骑行", "公共交通", "驾车"],
         time_slots=[5, 10, 15],
         data_source="百度地图开放平台",
         report_generate_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -431,7 +431,7 @@ def generate_technical_notes() -> List[str]:
         "POI清洗规则：去重、过滤无效数据、保留前20条结果",
         "评分标准：参考《城市居住区规划设计标准》15分钟生活圈要求",
         "风水评分：基于传统风水理论的量化指标，仅供参考",
-        "局限性：公交等待时间未计入、实时路况未考虑、部分设施可能未收录"
+        "局限性：公共交通等待时间未计入、实时路况未考虑、部分设施可能未收录"
     ]
 
 

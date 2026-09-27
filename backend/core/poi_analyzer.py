@@ -211,6 +211,55 @@ class POIAnalyzer:
 
         return filtered
 
+    def annotate_transit_reachability(
+        self,
+        coverage: Dict[str, Any],
+        center: Dict[str, float],
+        radius: float = 500.0,
+    ) -> bool:
+        """
+        给每个设施打上「公共交通可达」标记。
+
+        规则：中心 radius 米内有站点（公交站/地铁站），**且**该设施 radius 米内
+        也有站点 —— 两端都能步行接驳到站点，才认为能坐公共交通到达。
+        纯距离计算，零 API 调用。
+
+        Args:
+            coverage: POI覆盖数据（会被原地打上 transit_reachable 字段）
+            center: 中心点
+            radius: 接驳半径（米），默认 500
+
+        Returns:
+            中心附近是否有站点
+        """
+        import math
+
+        def dist_m(a: Dict[str, float], b: Dict[str, float]) -> float:
+            lat = math.radians((float(a["lat"]) + float(b["lat"])) / 2)
+            dx = (float(b["lng"]) - float(a["lng"])) * 111320 * math.cos(lat)
+            dy = (float(b["lat"]) - float(a["lat"])) * 110540
+            return math.hypot(dx, dy)
+
+        stops = []
+        for fac in (coverage.get("交通") or {}).get("facilities") or []:
+            loc = fac.get("location")
+            if loc and loc.get("lng") is not None and loc.get("lat") is not None:
+                stops.append({"lng": loc["lng"], "lat": loc["lat"]})
+
+        center_ok = bool(stops) and any(dist_m(center, s) <= radius for s in stops)
+
+        for data in coverage.values():
+            for fac in data.get("facilities") or []:
+                loc = fac.get("location")
+                if not loc or loc.get("lng") is None or loc.get("lat") is None:
+                    fac["transit_reachable"] = False
+                    continue
+                fac["transit_reachable"] = bool(
+                    center_ok and any(dist_m(loc, s) <= radius for s in stops)
+                )
+
+        return center_ok
+
     def _evaluate_level(self, count: int) -> str:
         """
         评估设施覆盖等级

@@ -15,7 +15,7 @@ import type { TravelMode, FullAnalysisResult, TravelModeData, POIItem, POICatego
 const TRAVEL_MODES: { mode: TravelMode; name: string; speed: number }[] = [
   { mode: 'walking', name: '步行', speed: 1.2 },
   { mode: 'cycling', name: '骑行', speed: 3.5 },
-  { mode: 'transit', name: '公交', speed: 5.0 },
+  { mode: 'transit', name: '公共交通', speed: 5.0 },
   { mode: 'driving', name: '驾车', speed: 8.0 },
 ];
 
@@ -109,7 +109,7 @@ function App() {
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([
     { id: 'walking', label: '步行', status: 'pending' },
     { id: 'cycling', label: '骑行', status: 'pending' },
-    { id: 'transit', label: '公交', status: 'pending' },
+    { id: 'transit', label: '公共交通', status: 'pending' },
     { id: 'driving', label: '驾车', status: 'pending' },
     { id: 'report', label: '生成报告', status: 'pending' },
   ]);
@@ -271,13 +271,13 @@ function App() {
       updateStepStatus('cycling', 'active', '正在计算骑行范围...');
       await delay(200);
       updateStepStatus('cycling', 'completed', '骑行范围计算完成');
-      setAnalysisMessage({ icon: 'bike', text: '骑行分析完成，正在计算公交范围...' });
+      setAnalysisMessage({ icon: 'bike', text: '骑行分析完成，正在计算公共交通范围...' });
       await delay(300);
 
-      updateStepStatus('transit', 'active', '正在计算公交范围...');
+      updateStepStatus('transit', 'active', '正在计算公共交通范围...');
       await delay(200);
-      updateStepStatus('transit', 'completed', '公交范围计算完成');
-      setAnalysisMessage({ icon: 'bus', text: '公交分析完成，正在计算驾车范围...' });
+      updateStepStatus('transit', 'completed', '公共交通范围计算完成');
+      setAnalysisMessage({ icon: 'bus', text: '公共交通分析完成，正在计算驾车范围...' });
       await delay(300);
 
       updateStepStatus('driving', 'active', '正在计算驾车范围...');
