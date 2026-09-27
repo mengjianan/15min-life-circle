@@ -141,6 +141,23 @@ function App() {
     return (modeData.time_slots as Record<string, any>)[String(activeTimeSlot)] || null;
   };
 
+  // 当前时段下，各出行方式**自己**的等时圈。
+  // 悬浮卡片靠它判定「这个设施哪些方式够得着」—— 只在骑行时圈里才出现的
+  // 新设施，卡片上就不该显示「步行」那一行。
+  const getModeIsochrones = (): Record<string, { lng: number; lat: number }[]> => {
+    const out: Record<string, { lng: number; lat: number }[]> = {};
+    if (!fullResult?.modes) return out;
+    const order: TravelMode[] = ['walking', 'cycling', 'transit', 'driving'];
+    order.forEach((m) => {
+      const slots = fullResult.modes[m]?.time_slots as Record<string, any> | undefined;
+      const slot = slots?.[String(activeTimeSlot)];
+      if (slot?.boundary_points && slot.boundary_points.length >= 3) {
+        out[m] = slot.boundary_points;
+      }
+    });
+    return out;
+  };
+
   // 获取所有设施列表
   const getAllFacilities = (): POIItem[] => {
     const timeSlotData = getCurrentTimeSlotData();
@@ -464,6 +481,7 @@ function App() {
                 activeTimeSlot={activeTimeSlot}
                 activeMode={activeMode}
                 fengshuiData={fengshuiData}
+                modeIsochrones={getModeIsochrones()}
                 onFacilitySelect={f => setSelectedFacility(f as POIItem | null)}
                 multiTimeData={modeData?.time_slots ? {
                   layers: Object.entries(modeData.time_slots).map(([key, slot]: [string, any]) => ({

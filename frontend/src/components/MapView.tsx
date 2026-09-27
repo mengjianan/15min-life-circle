@@ -110,6 +110,15 @@ const CATEGORY_COLOR: Record<string, string> = {
   交通: '#13c2c2',
 };
 
+// 出行方式速度档位：卡片按「只往更快的方式叠加」显示
+// 步行 -> 只显示步行；骑行 -> 步行+骑行；公交 -> +公交；驾车 -> 全部4种
+const MODE_RANK: Record<string, number> = {
+  walking: 0,
+  cycling: 1,
+  transit: 2,
+  driving: 3,
+};
+
 // 判断点是否在多边形内
 const isPointInPolygon = (point: {lng: number, lat: number}, polygon: {lng: number, lat: number}[]) => {
   const x = point.lng;
@@ -140,6 +149,8 @@ interface MapViewProps {
   activeTimeSlot?: number;
   fengshuiData?: any;
   activeMode?: string;
+  // 当前时段下，各出行方式**自己**的等时圈（用于判定「哪些方式够得着这个设施」）
+  modeIsochrones?: Record<string, { lng: number; lat: number }[]>;
   // 选中设施的唯一出口：地图设施点击 / 折线点击 / 右侧卡片点击都收敛到这里
   onFacilitySelect?: (
     facility: { name: string; category: string; location: { lng: number; lat: number } } | null
@@ -158,6 +169,7 @@ const MapView: React.FC<MapViewProps> = ({
   activeTimeSlot = 900,
   fengshuiData,
   activeMode = 'walking',
+  modeIsochrones,
   onFacilitySelect,
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -177,6 +189,8 @@ const MapView: React.FC<MapViewProps> = ({
   const [hoverFacility, setHoverFacility] = useState<HoverFacility | null>(null);
   const [hoverTimes, setHoverTimes] = useState<Record<string, number | null> | null>(null);
   const [hoverLoading, setHoverLoading] = useState(false);
+  // 当前卡片要展示的出行方式（叠加规则 + 该设施实际可达 的结果）
+  const [hoverModes, setHoverModes] = useState<string[]>([]);
   const [hoverPixel, setHoverPixel] = useState<{ x: number; y: number } | null>(null);
 
   // 当前要画的那条路线。key 必须与目标设施匹配才渲染，避免显示上一条的残影
@@ -208,12 +222,30 @@ const MapView: React.FC<MapViewProps> = ({
   const activeFacility: HoverFacility | null = hoverFacility || selectedFacility || null;
   const activeKey = activeFacility ? `${activeFacility.name}|${activeMode}` : '';
 
-  // 四种方式里耗时最短的 = 推荐方式
+  // 卡片展示哪些方式，两条规则同时生效：
+  //   ① 叠加：只显示速度不高于当前选择的方式
+  //      步行->只显示步行；骑行->步行+骑行；公交->+公交；驾车->全部4种
+  //   ② 可达性：该方式的等时圈必须真的包含这个设施
+  //      例：只在骑行时圈里才出现的新设施，不显示「步行」这一行
+  const getDisplayModes = (facility: { location: { lng: number; lat: number } } | null): string[] => {
+    if (!facility) return [];
+    const currentRank = MODE_RANK[activeMode] ?? 0;
+    return TRAVEL_MODE_LIST.filter((mode) => {
+      if ((MODE_RANK[mode] ?? 99) > currentRank) return false;
+      const ring = modeIsochrones?.[mode];
+      // 当前模式的等时圈就是地图上画的那个，设施可见即代表在圈内
+      if (!ring || ring.length < 3) return mode === activeMode;
+      return isPointInPolygon(facility.location, ring);
+    });
+  };
+
+  // 推荐方式：只在「实际可达（有真实耗时）」的方式里选最短的，
+  // 没有公交就让公交不参与，而不是拿它当 0 去比
   const bestHoverMode: string | null = (() => {
-    if (!hoverTimes) return null;
+    if (!hoverTimes || !hoverModes.length) return null;
     let best: string | null = null;
     let bestSec = Infinity;
-    TRAVEL_MODE_LIST.forEach((mode) => {
+    hoverModes.forEach((mode) => {
       const sec = hoverTimes[mode];
       if (sec != null && sec < bestSec) {
         bestSec = sec;
@@ -239,6 +271,7 @@ const MapView: React.FC<MapViewProps> = ({
     hoverTokenRef.current++;   // 让在途的结果失效
     setHoverFacility(null);
     setHoverTimes(null);
+    setHoverModes([]);
     setHoverPixel(null);
     setHoverLoading(false);
   };
@@ -303,9 +336,18 @@ const MapView: React.FC<MapViewProps> = ({
 
   // 悬浮时并行取 4 种出行方式的耗时（全部走百度 JS SDK 客户端，零后端调用）
   const loadHoverTimes = (facility: HoverFacility) => {
+    // 只为「叠加规则 + 该设施实际可达」的那些方式发起规划，不白白多调
+    const modes = getDisplayModes(facility);
+    if (!modes.length) {
+      setHoverModes([]);
+      setHoverTimes({});
+      setHoverLoading(false);
+      return;
+    }
+
     const token = ++hoverTokenRef.current;
     Promise.all(
-      TRAVEL_MODE_LIST.map(async (mode) => {
+      modes.map(async (mode) => {
         const cached = routeCacheRef.current.get(`${facility.name}|${mode}`);
         if (cached) return [mode, cached.duration] as [string, number];
         try {
@@ -321,6 +363,7 @@ const MapView: React.FC<MapViewProps> = ({
       pairs.forEach(([m, d]) => {
         times[m] = d;
       });
+      setHoverModes(modes);
       setHoverTimes(times);
       setHoverLoading(false);
       setRouteTick((t) => t + 1);   // 几何可能刚写进缓存，触发一次重绘
@@ -879,17 +922,34 @@ const MapView: React.FC<MapViewProps> = ({
               </svg>
               正在计算各方式耗时…
             </div>
+          ) : hoverModes.length === 0 ? (
+            <div style={{ color: '#9ca3af' }}>
+              当前等时圈内没有可达的出行方式
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {TRAVEL_MODE_LIST.map((mode) => {
+              {hoverModes.map((mode) => {
                 const secs = hoverTimes ? hoverTimes[mode] : null;
-                const mins = secs == null ? null : Math.max(1, Math.round(secs / 60));
                 const best = bestHoverMode === mode;
+                // 没有结果时按方式给出具体说明（公交没线路就是"没有公交到达"）
+                const value =
+                  secs == null
+                    ? mode === 'transit'
+                      ? '当前没有公交到达'
+                      : '当前无法到达'
+                    : `${Math.max(1, Math.round(secs / 60))} 分钟`;
                 return (
                   <div key={mode} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ width: 44, color: '#6b7280' }}>{TRAVEL_MODE_LABEL[mode]}</span>
-                    <span style={{ flex: 1, fontWeight: 600, color: mins == null ? '#9ca3af' : '#1f2937' }}>
-                      {mins == null ? '—' : `${mins} 分钟`}
+                    <span
+                      style={{
+                        flex: 1,
+                        fontWeight: 600,
+                        fontSize: secs == null ? 12 : 13,
+                        color: secs == null ? '#f59e0b' : best ? '#667eea' : '#1f2937',
+                      }}
+                    >
+                      {value}
                     </span>
                     {best && (
                       <span style={{ fontSize: 11, color: '#fff', background: '#667eea', borderRadius: 8, padding: '1px 7px', flexShrink: 0 }}>
