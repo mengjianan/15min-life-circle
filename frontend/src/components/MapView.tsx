@@ -17,6 +17,8 @@ const ROUTE_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;  // 30 天
 const ROUTE_CACHE_MAX = 250;                         // 条数上限，防撑爆 localStorage
 const ROUTE_CACHE_MAX_POINTS = 100;                  // 单条折线最多保留的点数
 const PLAN_ROUTE_TIMEOUT = 4000;                     // SDK 单次规划超时（毫秒）
+const PREFETCH_FACILITY_LIMIT = 20;                  // 后台预热的可见设施数量上限
+const PREFETCH_INTERVAL = 200;                       // 预热时每次之间的间隔（毫秒）
 
 function loadRouteCache(): Map<string, RouteGeo> {
   const map = new Map<string, RouteGeo>();
@@ -109,6 +111,18 @@ const CATEGORY_COLOR: Record<string, string> = {
   餐饮: '#eb2f96',
   交通: '#13c2c2',
 };
+
+// 当前时段的等时圈边界 —— 与画 POI marker 用的 currentPolygon 同一套逻辑，
+// 供「哪些设施可见 / 该预热哪些设施」复用
+function getIsochroneRing(
+  multiTimeData: any,
+  activeTimeSlot: number
+): { lng: number; lat: number }[] {
+  if (!multiTimeData?.layers) return [];
+  const valid = multiTimeData.layers.filter((l: any) => l.time <= activeTimeSlot);
+  const selected = [...valid].sort((a: any, b: any) => b.time - a.time)[0];
+  return selected?.boundary_points || [];
+}
 
 // 出行方式速度档位：卡片按「只往更快的方式叠加」显示
 // 步行 -> 只显示步行；骑行 -> 步行+骑行；公交 -> +公交；驾车 -> 全部4种
@@ -276,6 +290,33 @@ const MapView: React.FC<MapViewProps> = ({
     setHoverLoading(false);
   };
 
+  // 地图上实际可见的设施（与画 marker 的过滤逻辑一致）—— 决定要预热哪些
+  const getVisibleFacilities = (): HoverFacility[] => {
+    if (!poiCoverage) return [];
+    const ring = getIsochroneRing(multiTimeData, activeTimeSlot);
+    const out: HoverFacility[] = [];
+    Object.entries(poiCoverage).forEach(([category, data]: [string, any]) => {
+      (data?.facilities || []).forEach((f: any) => {
+        if (!f?.name || !f?.location) return;
+        if (ring.length >= 3 && !isPointInPolygon(f.location, ring)) return;
+        out.push({
+          name: f.name,
+          category: f.category || category,
+          location: { lng: f.location.lng, lat: f.location.lat },
+        });
+      });
+    });
+    // 按离中心距离升序：最近的设施最可能被悬浮，优先预热
+    const dist2 = (p: { lng: number; lat: number }) => {
+      if (!center) return 0;
+      const dx = (p.lng - center.lng) * Math.cos((center.lat * Math.PI) / 180);
+      const dy = p.lat - center.lat;
+      return dx * dx + dy * dy;
+    };
+    out.sort((a, b) => dist2(a.location) - dist2(b.location));
+    return out;
+  };
+
   // 取一条路线的几何：命中缓存秒回；同一 key 已在途则复用，不重复打
   const fetchRouteGeo = (
     facility: { name: string; location: { lng: number; lat: number } },
@@ -369,6 +410,36 @@ const MapView: React.FC<MapViewProps> = ({
       setRouteTick((t) => t + 1);   // 几何可能刚写进缓存，触发一次重绘
     });
   };
+
+  // 后台预热：地图就绪后**串行**预取可见设施的4种方式耗时，
+  // 让「第一次悬浮」就有数据，而不是等现场调4次 SDK（最坏4秒）。
+  // 全部走浏览器侧百度 JS SDK，不占后端配额；结果本身30天有效。
+  // 串行 + 200ms 间隔：既不打断交互，也不刷爆浏览器侧 SDK 的调用频率。
+  useEffect(() => {
+    if (!mapReady || !poiCoverage || !showRoutes) return;
+
+    let cancelled = false;
+    (async () => {
+      const facilities = getVisibleFacilities().slice(0, PREFETCH_FACILITY_LIMIT);
+      for (const fac of facilities) {
+        if (cancelled) return;
+        for (const mode of TRAVEL_MODE_LIST) {
+          if (cancelled) return;
+          const key = `${fac.name}|${mode}`;
+          if (routeCacheRef.current.has(key) || routePendingRef.current.has(key)) {
+            continue;
+          }
+          await fetchRouteGeo(fac, mode);
+          await new Promise((resolve) => setTimeout(resolve, PREFETCH_INTERVAL));
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, poiCoverage, showRoutes, center, activeTimeSlot, multiTimeData]);
 
   // 兜底：悬浮卡片的「计算中」最多显示 6 秒。
   // 单次 SDK 规划有 4 秒超时，这里是第二道保险 —— 万一某条路径没走到
@@ -671,6 +742,17 @@ const MapView: React.FC<MapViewProps> = ({
                   setHoverTimes(null);
                   setHoverLoading(true);
                   setHoverFacility(target);
+
+                  // 缓存里已经有这个设施的全部所需方式 -> 立刻出结果，
+                  // 不用再等 200ms 防抖（预热命中的情况就是毫秒级）
+                  const needModes = getDisplayModes(target);
+                  const allCached = needModes.length > 0 && needModes.every(
+                    (m) => routeCacheRef.current.has(`${target.name}|${m}`)
+                  );
+                  if (allCached) {
+                    loadHoverTimes(target);
+                    return;
+                  }
                   // 防抖 200ms：扫过多个 POI 时不至于并发打一堆路线请求
                   hoverTimerRef.current = setTimeout(() => loadHoverTimes(target), 200);
                 });
