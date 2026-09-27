@@ -205,6 +205,12 @@ const MapView: React.FC<MapViewProps> = ({
   const [hoverLoading, setHoverLoading] = useState(false);
   // 当前卡片要展示的出行方式（叠加规则 + 该设施实际可达 的结果）
   const [hoverModes, setHoverModes] = useState<string[]>([]);
+  // 大 effect 每次重绘后递增，让「单独画路线」的 effect 跟着重画
+  const [overlayEpoch, setOverlayEpoch] = useState(0);
+  // POI 标记句柄：悬浮时用 hide/show 显隐，不走全量重绘
+  const poiMarkersRef = useRef<Array<{ marker: any; name: string }>>([]);
+  // 当前那条路线的折线句柄
+  const routeOverlayRef = useRef<any>(null);
   const [hoverPixel, setHoverPixel] = useState<{ x: number; y: number } | null>(null);
 
   // 当前要画的那条路线。key 必须与目标设施匹配才渲染，避免显示上一条的残影
@@ -231,6 +237,16 @@ const MapView: React.FC<MapViewProps> = ({
   useEffect(() => {
     clickModeRef.current = clickMode;
   }, [clickMode]);
+
+  // selectedFacility 同样用 ref 读取：toggleFacility 会被注册进 marker 的
+  // click 闭包（注册发生在大 effect 内），而 selectedFacility 已经不在那个
+  // effect 的依赖里（避免每次 hover 都全量重绘）—— 不加 ref 会读到过期值，
+  // 表现为「点第二次取消不了选中」。
+  const selectedFacilityRef = useRef(selectedFacility);
+
+  useEffect(() => {
+    selectedFacilityRef.current = selectedFacility;
+  }, [selectedFacility]);
 
   // 要显现路线的目标：悬浮优先，其次选中
   const activeFacility: HoverFacility | null = hoverFacility || selectedFacility || null;
@@ -274,8 +290,8 @@ const MapView: React.FC<MapViewProps> = ({
     facility: { name: string; category: string; location: { lng: number; lat: number } } | null
   ) => {
     if (!onFacilitySelect) return;
-    const next =
-      facility && selectedFacility && selectedFacility.name === facility.name ? null : facility;
+    const prev = selectedFacilityRef.current;
+    const next = facility && prev && prev.name === facility.name ? null : facility;
     onFacilitySelect(next);
   };
 
@@ -534,6 +550,7 @@ const MapView: React.FC<MapViewProps> = ({
       const BMap = (window as any).BMap;
 
       map.clearOverlays();
+      poiMarkersRef.current = [];   // 标记会被销毁重建，先清空记录
 
       // 绘制多时间等时圈（受 showGraph 开关控制 —— 该按钮原本就叫"显示/隐藏等时圈"，
       // 但此前既不在依赖数组也没被读取，是个点了没反应的死开关）
@@ -611,31 +628,9 @@ const MapView: React.FC<MapViewProps> = ({
         });
       }
 
-      // 显现「中心 -> 悬浮/选中设施」的这一条真实路线。
-      // 不再常驻画所有设施的放射线 —— 那不是路网，看起来很怪。
-      if (showRoutes && activeFacility && routeState.key === activeKey && routeState.geo) {
-        const routeColor = MODE_COLOR[activeMode] || '#667eea';
-        // 选中（点击）= 加粗高亮；仅悬浮 = 常规显现
-        const isSelected = !!selectedFacility &&
-          selectedFacility.name === activeFacility.name;
-
-        const points = routeState.geo.points.map(
-          (p: { lng: number; lat: number }) => new BMap.Point(p.lng, p.lat)
-        );
-
-        if (points.length > 1) {
-          const polyline = new BMap.Polyline(points, {
-            strokeColor: routeColor,
-            strokeWeight: isSelected ? 6 : 4,
-            strokeOpacity: isSelected ? 1.0 : 0.9,
-          } as any);
-          map.addOverlay(polyline);
-
-          polyline.addEventListener('click', () => {
-            toggleFacility(activeFacility);
-          });
-        }
-      }
+      // 注：「中心 -> 悬浮/选中设施」的那条路线在下面单独的 effect 里画，
+      // 不放进这个大 effect —— 否则每次 hover 都会 clearOverlays 全量重绘，
+      // 标记在光标下被销毁再重建，会触发 mouseout/mouseover 来回抖动。
 
       // 绘制POI设施（累积显示：15分钟包含10分钟和5分钟的所有设施）
       if (showPOI && poiCoverage) {
@@ -682,6 +677,7 @@ const MapView: React.FC<MapViewProps> = ({
 
                 const marker = new BMap.Marker(point, { icon });
                 map.addOverlay(marker);
+                poiMarkersRef.current.push({ marker, name: facility.name });
 
                 // 计算距离
                 const centerLng = center?.lng || 118.7969;
@@ -738,6 +734,8 @@ const MapView: React.FC<MapViewProps> = ({
                     straight: distance,
                   };
                   clearTimeout(hoverTimerRef.current);
+                  // 只留当前设施：关掉之前点开的其它设施弹窗
+                  map.closeInfoWindow();
                   setHoverPixel({ x: pixel.x, y: pixel.y });
                   setHoverTimes(null);
                   setHoverLoading(true);
@@ -912,8 +910,59 @@ const MapView: React.FC<MapViewProps> = ({
           }
         });
       }
+
+    // 重绘完成：通知「单独画路线」的 effect 跟着重画一次
+    // （它的依赖里没有上面这些，不递增就会被 clearOverlays 清掉后不再补上）
+    setOverlayEpoch((n) => n + 1);
     }
-  }, [mapReady, center, isochrone, poiCoverage, blindSpots, multiTimeData, showGraph, showPOI, showBlindSpots, showRoutes, showFengshui, fengshuiData, activeTimeSlot, activeMode, hoverFacility, selectedFacility, routeState]);
+  }, [mapReady, center, isochrone, poiCoverage, blindSpots, multiTimeData, showGraph, showPOI, showBlindSpots, showFengshui, fengshuiData, activeTimeSlot, activeMode]);
+
+  // 「中心 -> 悬浮/选中设施」的那条路线，单独画。
+  // 不放进大 effect：否则每次 hover 都会 clearOverlays 全量重绘，
+  // 标记在光标下销毁重建 -> 触发 mouseout/mouseover 来回抖动。
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const BMap = (window as any).BMap;
+
+    if (routeOverlayRef.current) {
+      try { map.removeOverlay(routeOverlayRef.current); } catch { /* 已被 clearOverlays 清掉 */ }
+      routeOverlayRef.current = null;
+    }
+
+    if (!showRoutes || !activeFacility || routeState.key !== activeKey || !routeState.geo) return;
+
+    const points = routeState.geo.points.map(
+      (p: { lng: number; lat: number }) => new BMap.Point(p.lng, p.lat)
+    );
+    if (points.length < 2) return;
+
+    const isSelected = !!selectedFacility && selectedFacility.name === activeFacility.name;
+    const polyline = new BMap.Polyline(points, {
+      strokeColor: MODE_COLOR[activeMode] || '#667eea',
+      strokeWeight: isSelected ? 6 : 4,
+      strokeOpacity: isSelected ? 1.0 : 0.9,
+    } as any);
+    map.addOverlay(polyline);
+    routeOverlayRef.current = polyline;
+    polyline.addEventListener('click', () => toggleFacility(activeFacility));
+  }, [mapReady, overlayEpoch, showRoutes, activeFacility, activeKey, routeState, selectedFacility, activeMode]);
+
+  // 悬浮时把其余 POI 标记先隐藏，只留「当前设施 + 它的路线」。
+  // 用 hide/show 而不是重绘 —— 重绘会让标记在光标下销毁重建、来回抖。
+  useEffect(() => {
+    const list = poiMarkersRef.current;
+    if (!list.length) return;
+    const target = hoverFacility ? hoverFacility.name : null;
+    list.forEach(({ marker, name }) => {
+      try {
+        if (!target || name === target) marker.show();
+        else marker.hide();
+      } catch {
+        // 标记可能已被地图回收，忽略
+      }
+    });
+  }, [hoverFacility, overlayEpoch]);
 
   // 处理选中的设施：集中画面（推近 + 弹窗）。取消选中时把镜头还原到中心。
   useEffect(() => {
