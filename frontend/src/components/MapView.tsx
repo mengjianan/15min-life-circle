@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import LoadingOverlay from './LoadingOverlay';
-import { iconSvg } from '../icons';
+import { iconSvg, Ico } from '../icons';
 import { planRoute, getRoutePoints } from '../services/localSearch';
 
 // 一条「中心 -> 设施」的路线几何（由百度 JS SDK 客户端算出，不占后端配额）
@@ -8,7 +8,74 @@ type RouteGeo = {
   points: { lng: number; lat: number }[];
   duration: number;   // 秒
   distance: number;   // 米
+  ts: number;         // 写入时间戳，用于 30 天过期
 };
+
+// ---------- 悬浮路线的本地持久化（30 天） ----------
+const ROUTE_CACHE_KEY = 'poi_route_cache_v1';
+const ROUTE_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;  // 30 天
+const ROUTE_CACHE_MAX = 250;                         // 条数上限，防撑爆 localStorage
+const ROUTE_CACHE_MAX_POINTS = 100;                  // 单条折线最多保留的点数
+const PLAN_ROUTE_TIMEOUT = 4000;                     // SDK 单次规划超时（毫秒）
+
+function loadRouteCache(): Map<string, RouteGeo> {
+  const map = new Map<string, RouteGeo>();
+  try {
+    const raw = localStorage.getItem(ROUTE_CACHE_KEY);
+    if (!raw) return map;
+    const obj = JSON.parse(raw) as Record<string, RouteGeo>;
+    const now = Date.now();
+    Object.keys(obj).forEach((key) => {
+      const v = obj[key];
+      if (v && Array.isArray(v.points) && now - (v.ts || 0) < ROUTE_CACHE_TTL) {
+        map.set(key, v);
+      }
+    });
+  } catch {
+    // localStorage 不可用或数据损坏 -> 当作没有缓存，走 SDK 重新算
+  }
+  return map;
+}
+
+function persistRouteCache(map: Map<string, RouteGeo>) {
+  try {
+    // 超出条数上限时丢最旧的（Map 保持插入顺序）
+    while (map.size > ROUTE_CACHE_MAX) {
+      map.delete(map.keys().next().value as string);
+    }
+    const obj: Record<string, RouteGeo> = {};
+    map.forEach((geo, key) => {
+      let points = geo.points;
+      if (points.length > ROUTE_CACHE_MAX_POINTS) {
+        const step = Math.ceil(points.length / ROUTE_CACHE_MAX_POINTS);
+        points = points.filter((_, i) => i % step === 0 || i === points.length - 1);
+      }
+      obj[key] = { ...geo, points };
+    });
+    localStorage.setItem(ROUTE_CACHE_KEY, JSON.stringify(obj));
+  } catch {
+    // 写失败（配额满等）不影响运行
+  }
+}
+
+// 节流写入：连续悬浮时不必每次都序列化整个 Map
+let persistTimer: any = null;
+function schedulePersistRouteCache(map: Map<string, RouteGeo>) {
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    persistRouteCache(map);
+  }, 800);
+}
+
+// SDK 规划可能永远不回调（尤其 TransitRoute 缺 city 参数时），
+// 不加超时的话 Promise.all 会卡死 -> 卡片永远停在「计算中」
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
 
 // 悬浮中的设施
 type HoverFacility = {
@@ -121,6 +188,12 @@ const MapView: React.FC<MapViewProps> = ({
   const [routeTick, setRouteTick] = useState(0);
 
   const routeCacheRef = useRef<Map<string, RouteGeo>>(new Map());
+
+  // 挂载时从 localStorage 恢复 30 天内的悬浮路线，刷新页面后不用重算
+  useEffect(() => {
+    const persisted = loadRouteCache();
+    persisted.forEach((value, key) => routeCacheRef.current.set(key, value));
+  }, []);
   const routePendingRef = useRef<Set<string>>(new Set());
   const hoverTimerRef = useRef<any>(null);
   const hoverTokenRef = useRef(0);
@@ -182,14 +255,25 @@ const MapView: React.FC<MapViewProps> = ({
     if (!mapInstanceRef.current || !center) return Promise.resolve(null);
 
     routePendingRef.current.add(key);
-    return planRoute(mapInstanceRef.current, center, facility.location, mode as any)
+    // 超时兜底：SDK 不回调时也要 settle，否则 Promise.all 卡死、卡片停在"计算中"
+    return withTimeout(
+      planRoute(mapInstanceRef.current, center, facility.location, mode as any),
+      PLAN_ROUTE_TIMEOUT,
+      null
+    )
       .then((res) => {
         routePendingRef.current.delete(key);
         if (!res) return null;
         const points = getRoutePoints(res.route);
         if (!points || points.length < 2) return null;
-        const geo: RouteGeo = { points, duration: res.duration, distance: res.distance };
+        const geo: RouteGeo = {
+          points,
+          duration: res.duration,
+          distance: res.distance,
+          ts: Date.now(),
+        };
         routeCacheRef.current.set(key, geo);
+        schedulePersistRouteCache(routeCacheRef.current);
         return geo;
       })
       .catch(() => {
@@ -242,6 +326,18 @@ const MapView: React.FC<MapViewProps> = ({
       setRouteTick((t) => t + 1);   // 几何可能刚写进缓存，触发一次重绘
     });
   };
+
+  // 兜底：悬浮卡片的「计算中」最多显示 6 秒。
+  // 单次 SDK 规划有 4 秒超时，这里是第二道保险 —— 万一某条路径没走到
+  // 收尾逻辑（token 不匹配提前 return 等），也不至于永远转圈。
+  useEffect(() => {
+    if (!hoverLoading) return;
+    const timer = setTimeout(() => {
+      setHoverLoading(false);
+      setHoverTimes((prev) => prev || {});
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [hoverLoading]);
 
   const checkBaiduMapAPI = useCallback(() => {
     return new Promise<void>((resolve, reject) => {
@@ -771,7 +867,7 @@ const MapView: React.FC<MapViewProps> = ({
 
           {hoverFacility.straight != null && (
             <div style={{ color: '#6b7280', marginBottom: 6 }}>
-              {iconSvg('pin')} 直线 {Math.round(hoverFacility.straight)} 米
+              <Ico n="pin" /> 直线 {Math.round(hoverFacility.straight)} 米
             </div>
           )}
 
