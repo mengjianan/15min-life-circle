@@ -144,7 +144,7 @@ export const planRoute = async (
   map: any,
   origin: { lng: number; lat: number },
   destination: { lng: number; lat: number },
-  mode: 'walking' | 'cycling' | 'transit' | 'driving'
+  mode: 'walking' | 'cycling' | 'transit' | 'transit_bus' | 'transit_metro' | 'driving'
 ): Promise<RouteResult | null> => {
   const BMap = (window as any).BMap || {};
   if (!BMap.Point) {
@@ -162,14 +162,12 @@ export const planRoute = async (
     case 'cycling':
       RouteClass = BMap.RidingRoute;
       break;
-    case 'transit':
-      RouteClass = BMap.TransitRoute;
-      break;
     case 'driving':
       RouteClass = BMap.DrivingRoute;
       break;
     default:
-      RouteClass = BMap.WalkingRoute;
+      // transit / transit_bus / transit_metro
+      RouteClass = BMap.TransitRoute;
   }
 
   const options: any = {
@@ -177,9 +175,13 @@ export const planRoute = async (
     // 否则悬浮时地图会同时出现 SDK 画的线和我们自己绘制的线
     renderOptions: { map: null, autoViewport: false },
   };
-  if (mode === 'transit') {
+  if (mode.startsWith('transit')) {
     const city = await resolveCity(originPoint);
     if (city) options.city = city;
+    // 公交/地铁各自独立规划：不坐地铁 vs 优先地铁
+    const w = window as any;
+    if (mode === 'transit_bus') options.policy = w.BMAP_TRANSIT_POLICY_AVOID_SUBWAYS ?? 3;
+    if (mode === 'transit_metro') options.policy = w.BMAP_TRANSIT_POLICY_FIRST_SUBWAYS ?? 5;
   }
 
   return new Promise((resolve) => {

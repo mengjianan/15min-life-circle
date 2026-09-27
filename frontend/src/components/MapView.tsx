@@ -91,10 +91,14 @@ type HoverFacility = {
 };
 
 const TRAVEL_MODE_LIST = ['walking', 'cycling', 'transit', 'driving'] as const;
+// 悬浮卡片的行：公共交通拆成「公交」「地铁」两行，各自独立规划、各显各的耗时
+const DISPLAY_ROWS = ['walking', 'cycling', 'transit_bus', 'transit_metro', 'driving'] as const;
 const TRAVEL_MODE_LABEL: Record<string, string> = {
   walking: '步行',
   cycling: '骑行',
   transit: '公共交通',
+  transit_bus: '公交',
+  transit_metro: '地铁',
   driving: '驾车',
 };
 
@@ -243,7 +247,7 @@ const MapView: React.FC<MapViewProps> = ({
     const persisted = loadRouteCache();
     persisted.forEach((value, key) => routeCacheRef.current.set(key, value));
   }, []);
-  const routePendingRef = useRef<Set<string>>(new Set());
+  const routePendingRef = useRef<Map<string, Promise<RouteGeo | null>>>(new Map());
   const hoverTimerRef = useRef<any>(null);
   const hoverTokenRef = useRef(0);
   // clickMode 用 ref 读取：初始化 effect 只跑一次，闭包里捕获不到后续变化
@@ -267,9 +271,9 @@ const MapView: React.FC<MapViewProps> = ({
   const activeFacility: HoverFacility | null = hoverFacility || selectedFacility || null;
   const activeKey = activeFacility ? `${activeFacility.name}|${activeMode}` : '';
 
-  // 卡片展示哪些方式，两条规则同时生效：
+  // 卡片展示哪些行，两条规则同时生效：
   //   ① 叠加：只显示速度不高于当前选择的方式
-  //      步行->只显示步行；骑行->步行+骑行；公共交通->+公共交通；驾车->全部4种
+  //      步行->只显示步行；骑行->步行+骑行；公共交通->+公交/地铁两行；驾车->全部
   //   ② 可达性：该方式的等时圈必须真的包含这个设施
   //      例：只在骑行时圈里才出现的新设施，不显示「步行」这一行
   const getDisplayModes = (
@@ -285,7 +289,7 @@ const MapView: React.FC<MapViewProps> = ({
       // 当前模式的等时圈就是地图上画的那个，设施可见即代表在圈内
       if (!ring || ring.length < 3) return mode === activeMode;
       return isPointInPolygon(facility.location, ring);
-    });
+    }).flatMap((mode) => (mode === 'transit' ? ['transit_bus', 'transit_metro'] : [mode]));
   };
 
   // 推荐方式：只在「实际可达（有真实耗时）」的方式里选最短的，
@@ -353,7 +357,8 @@ const MapView: React.FC<MapViewProps> = ({
     return out;
   };
 
-  // 取一条路线的几何：命中缓存秒回；同一 key 已在途则复用，不重复打
+  // 取一条路线的几何：命中缓存秒回；同一 key 在途则共享同一个 Promise
+  // （不能返回 null 了事 —— 悬浮和预热撞车时会被当成「没路线」，误显示"没有公交到达"）
   const fetchRouteGeo = (
     facility: { name: string; location: { lng: number; lat: number } },
     mode: string
@@ -361,23 +366,22 @@ const MapView: React.FC<MapViewProps> = ({
     const key = `${facility.name}|${mode}`;
     const cached = routeCacheRef.current.get(key);
     if (cached) return Promise.resolve(cached);
-    if (routePendingRef.current.has(key)) return Promise.resolve(null);
+    const pending = routePendingRef.current.get(key);
+    if (pending) return pending;
     if (!mapInstanceRef.current || !center) return Promise.resolve(null);
 
-    routePendingRef.current.add(key);
     // 超时兜底：SDK 不回调时也要 settle，否则 Promise.all 卡死、卡片停在"计算中"
-    return withTimeout(
+    const p = withTimeout(
       planRoute(mapInstanceRef.current, center, facility.location, mode as any),
       PLAN_ROUTE_TIMEOUT,
       null
     )
       .then((res) => {
-        routePendingRef.current.delete(key);
         if (!res) return null;
         const points = getRoutePoints(res.route);
-        if (!points || points.length < 2) return null;
+        // 折线点不够也要留下耗时，只是没法画线 —— 否则会误显示「没有XX到达」
         const geo: RouteGeo = {
-          points,
+          points: points && points.length >= 2 ? points : [],
           duration: res.duration,
           distance: res.distance,
           ts: Date.now(),
@@ -386,10 +390,12 @@ const MapView: React.FC<MapViewProps> = ({
         schedulePersistRouteCache(routeCacheRef.current);
         return geo;
       })
-      .catch(() => {
+      .catch(() => null)
+      .finally(() => {
         routePendingRef.current.delete(key);
-        return null;
       });
+    routePendingRef.current.set(key, p);
+    return p;
   };
 
   // 悬浮/选中变化时确保有一条可画的路线
@@ -459,7 +465,7 @@ const MapView: React.FC<MapViewProps> = ({
       const facilities = getVisibleFacilities().slice(0, PREFETCH_FACILITY_LIMIT);
       for (const fac of facilities) {
         if (cancelled) return;
-        for (const mode of TRAVEL_MODE_LIST) {
+        for (const mode of DISPLAY_ROWS) {
           if (cancelled) return;
           const key = `${fac.name}|${mode}`;
           if (routeCacheRef.current.has(key) || routePendingRef.current.has(key)) {
@@ -1122,12 +1128,14 @@ const MapView: React.FC<MapViewProps> = ({
               {hoverModes.map((mode) => {
                 const secs = hoverTimes ? hoverTimes[mode] : null;
                 const best = bestHoverMode === mode;
-                // 没有结果时按方式给出具体说明（公共交通没线路就是"没有公交到达"）
+                // 没有结果时按行给出具体说明（公交/地铁各自独立，互不影响）
                 const value =
                   secs == null
-                    ? mode === 'transit'
-                      ? '当前没有公交到达'
-                      : '当前无法到达'
+                    ? mode === 'transit_bus'
+                      ? '当前没有公交直达'
+                      : mode === 'transit_metro'
+                        ? '当前没有地铁直达'
+                        : '当前无法到达'
                     : `${Math.max(1, Math.round(secs / 60))} 分钟`;
                 return (
                   <div key={mode} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
