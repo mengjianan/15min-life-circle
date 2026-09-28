@@ -3800,6 +3800,31 @@ h4 .ico {
   font-weight: 600;
 }
 
+/* 选项组上方的小注释（区别于 blind-explain：字号更小、纯灰、带「注」角标） */
+.option-note {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 10px;
+  line-height: 1.6;
+  color: #9ca3af;
+  margin: 0 0 6px;
+}
+
+.option-note-tag {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: #b6bcc7;
+  border: 1px solid #d9dde3;
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.option-note b {
+  color: #8b929e;
+  font-weight: 600;
+}
+
 .access-blind-list {
   display: flex;
   flex-direction: column;

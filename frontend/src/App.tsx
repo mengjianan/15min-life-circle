@@ -495,22 +495,27 @@ function App() {
             {/* 中间 - 综合评分 (25%) */}
             <div className="score-panel">
               {/* 出行方式切换 */}
-              <div className="travel-mode-tabs">
-                {TRAVEL_MODES.map(({ mode, name }) => (
-                  <button
-                    key={mode}
-                    className={`mode-tab ${activeMode === mode ? 'active' : ''}`}
-                    onClick={() => setActiveMode(mode)}
-                  >
-                    {name}
-                  </button>
-                ))}
+              <div>
+                <div className="option-note"><span className="option-note-tag">注</span><span>切换出行方式后，<b>等时圈、设施覆盖与评分按该方式重算</b>——步行圈最小、驾车圈最大，步行分高说明家门口配套齐全。</span></div>
+                <div className="travel-mode-tabs">
+                  {TRAVEL_MODES.map(({ mode, name }) => (
+                    <button
+                      key={mode}
+                      className={`mode-tab ${activeMode === mode ? 'active' : ''}`}
+                      onClick={() => setActiveMode(mode)}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               
               {/* 时间维度对比 - 紧凑版，放在综合评分上方 */}
               {modeData && modeData.time_slots && (
-                <div className="time-comparison-mini">
+                <div>
+                  <div className="option-note"><span className="option-note-tag">注</span><span>切换 <b>5/10/15 分钟</b>档查看不同时长内的可达范围，<b>圈越大能到的设施越多</b>，分数通常越高。</span></div>
+                  <div className="time-comparison-mini">
                   <div className="time-buttons-mini">
                     {[300, 600, 900].map(time => {
                       
@@ -528,6 +533,7 @@ function App() {
                       );
                     })}
                   </div>
+                </div>
                 </div>
               )}
 
@@ -555,6 +561,7 @@ function App() {
             {/* 右侧 - 设施列表 (25%) */}
             <div className="facility-panel">
               {/* 设施筛选标签 */}
+              <div className="option-note"><span className="option-note-tag">注</span><span>按类别筛选<b>地图上的设施点与下方列表</b>，即覆盖评分里的七类民生设施。</span></div>
               <div className="facility-filter-tabs">
                 <button
                   className={`filter-tab ${activeCategory === '全部' ? 'active' : ''}`}
