@@ -345,6 +345,14 @@ function App() {
     });
   };
 
+  // 切类别：地图标记与右侧列表一起筛；选中设施不在新类别里就退出聚焦
+  const handleCategoryChange = (category: string) => {
+    setActiveCategory(category);
+    if (selectedFacility && category !== '全部' && selectedFacility.category !== category) {
+      setSelectedFacility(null);
+    }
+  };
+
   const handleExportPDF = async () => {
     // TODO: 导出全出行方式PDF报告
     console.log('导出PDF报告');
@@ -489,6 +497,7 @@ function App() {
                 selectedFacility={selectedFacility}
                 activeTimeSlot={activeTimeSlot}
                 activeMode={activeMode}
+                activeCategory={activeCategory}
                 fengshuiData={fengshuiData}
                 modeIsochrones={getModeIsochrones()}
                 onFacilitySelect={f => setSelectedFacility(f as POIItem | null)}
@@ -574,7 +583,7 @@ function App() {
               <div className="facility-filter-tabs">
                 <button
                   className={`filter-tab ${activeCategory === '全部' ? 'active' : ''}`}
-                  onClick={() => setActiveCategory('全部')}
+                  onClick={() => handleCategoryChange('全部')}
                 >
                   全部
                 </button>
@@ -582,13 +591,13 @@ function App() {
                   <button
                     key={category}
                     className={`filter-tab ${activeCategory === category ? 'active' : ''}`}
-                    onClick={() => setActiveCategory(category)}
+                    onClick={() => handleCategoryChange(category)}
                   >
                     {category}
                   </button>
                 ))}
               </div>
-              <div className="option-note"><span className="option-note-tag">注</span><span>点类别筛选<b>地图上的设施点与右侧列表</b>（默认「全部」= 当前时间档圈内的七类民生设施）；点击设施卡片与悬停一致，弹出耗时卡片并画出中心到该设施的真实路线。</span></div>
+              <div className="option-note"><span className="option-note-tag">注</span><span>点类别筛选<b>地图上的设施点与右侧列表</b>（默认「全部」= 当前时间档圈内的七类民生设施；再点「全部」恢复）；<b>下方评分与盲区不随筛选变化</b>，它只是查看视角；点击设施卡片与悬停一致，弹出耗时卡片并画出中心到该设施的真实路线。</span></div>
 
               {/* 设施列表（竖向滑轨） */}
               <div className="facility-list-container">
@@ -676,7 +685,7 @@ function App() {
                       <span className="empty-step-no">3</span>
                       <div>
                         <b>看报告</b>
-                        <p>左侧地图看等时圈范围、设施点与盲区；中间面板切换出行方式 / 时间档看评分变化；最右侧设施列表按类别筛选、点卡片查看详情；下方展开综合报告。</p>
+                        <p>左侧地图看等时圈范围、设施点与盲区；中间面板切换出行方式 / 时间档看评分变化；最右侧按类别筛选（地图与列表一起筛）、点卡片查看详情；下方展开综合报告。</p>
                       </div>
                     </div>
                   </div>

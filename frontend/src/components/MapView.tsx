@@ -182,6 +182,8 @@ interface MapViewProps {
   activeTimeSlot?: number;
   fengshuiData?: any;
   activeMode?: string;
+  // 设施类别筛选（「全部」= 七类都画）；只影响地图标记，评分/盲区不重算
+  activeCategory?: string;
   // 当前时段下，各出行方式**自己**的等时圈（用于判定「哪些方式够得着这个设施」）
   modeIsochrones?: Record<string, { lng: number; lat: number }[]>;
   // 选中设施的唯一出口：地图设施点击 / 折线点击 / 右侧卡片点击都收敛到这里
@@ -202,6 +204,7 @@ const MapView: React.FC<MapViewProps> = ({
   activeTimeSlot = 900,
   fengshuiData,
   activeMode = 'walking',
+  activeCategory = '全部',
   modeIsochrones,
   onFacilitySelect,
 }) => {
@@ -689,6 +692,8 @@ const MapView: React.FC<MapViewProps> = ({
         }
 
         Object.entries(poiCoverage).forEach(([category, data]: [string, any]) => {
+          // 类别筛选：只画选中的那类（「全部」= 七类都画）。评分/盲区不重算
+          if (activeCategory !== '全部' && category !== activeCategory) return;
           if (data.facilities && data.facilities.length > 0) {
             const categoryColors: Record<string, string> = {
               '医疗': '#ff4d4f',
@@ -959,7 +964,7 @@ const MapView: React.FC<MapViewProps> = ({
     // （它的依赖里没有上面这些，不递增就会被 clearOverlays 清掉后不再补上）
     setOverlayEpoch((n) => n + 1);
     }
-  }, [mapReady, center, isochrone, poiCoverage, blindSpots, multiTimeData, showGraph, showPOI, showBlindSpots, showFengshui, fengshuiData, activeTimeSlot, activeMode]);
+  }, [mapReady, center, isochrone, poiCoverage, blindSpots, multiTimeData, showGraph, showPOI, showBlindSpots, showFengshui, fengshuiData, activeTimeSlot, activeMode, activeCategory]);
 
   // 「中心 -> 悬浮/选中设施」的那条路线，单独画。
   // 不放进大 effect：否则每次 hover 都会 clearOverlays 全量重绘，
