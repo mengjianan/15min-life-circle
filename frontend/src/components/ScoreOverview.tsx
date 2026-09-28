@@ -104,7 +104,7 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
                 <span className="category-icon-small"><Ico n={modeIcons[mode]} /></span>
                 <span className="category-name-small">{modeNames[mode]}</span>
                 <div className="category-bar-small">
-                  <div className="category-bar-fill-small" style={{ width: `${comprehensiveScore.facility_coverage || 0}%`, backgroundColor: getScoreColor(score) }} />
+                  <div className="category-bar-fill-small" style={{ width: `${score}%`, backgroundColor: getScoreColor(score) }} />
                 </div>
                 <span className="category-score-small">{score}</span>
               </div>

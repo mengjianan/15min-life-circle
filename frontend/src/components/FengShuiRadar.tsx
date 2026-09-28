@@ -41,9 +41,7 @@ const FengShuiRadarComponent: React.FC<FengShuiRadarProps> = ({ data, showLabels
   const level = detailScore?.level ?? getLevel(averageScore);
 
   return (
-    <div className="fengshui-radar-container">
-      <div className="chart-title">风水评分</div>
-
+    <div>
       <ResponsiveContainer width="100%" height={200}>
         <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
           <PolarGrid stroke="#e8e8e8" />
@@ -59,8 +57,8 @@ const FengShuiRadarComponent: React.FC<FengShuiRadarProps> = ({ data, showLabels
           <Radar
             name="风水评分"
             dataKey="score"
-            stroke="#722ed1"
-            fill="#722ed1"
+            stroke="#1890ff"
+            fill="#1890ff"
             fillOpacity={0.3}
             strokeWidth={2}
           />

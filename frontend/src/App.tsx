@@ -557,9 +557,11 @@ function App() {
 
               {/* 风水评分 */}
               {fengshuiData && (
-                <div className="fengshui-card">
-                  <div className="fengshui-card-header">风水评分</div>
-                  <FengShuiRadar data={fengshuiData} showLabels={true} detailScore={fullResult?.comprehensive_score?.fengshui_detail} />
+                <div className="report-container">
+                  <section className="report-section compact">
+                    <h3 className="section-title"><Ico n="crystal" /> 风水评分</h3>
+                    <FengShuiRadar data={fengshuiData} showLabels={true} detailScore={fullResult?.comprehensive_score?.fengshui_detail} />
+                  </section>
                 </div>
               )}
 
