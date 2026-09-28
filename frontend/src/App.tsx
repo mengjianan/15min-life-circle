@@ -524,12 +524,11 @@ function App() {
               {/* 时间维度对比 - 紧凑版，放在综合评分上方 */}
               {modeData && modeData.time_slots && (
                 <div>
-                  <div className="option-note"><span className="option-note-tag">注</span><span>点 5/10/15 分钟切换时间档：<b>左侧地图只显示该分钟数等时圈内的设施</b>（点 5 分钟就只看 5 分钟内能到的），下方<b>覆盖评分 / 可达性 / 盲区</b>也按该档重算；圈越大能到的设施越多、分数通常越高。默认 <b>15 分钟</b>。</span></div>
                   <div className="time-comparison-mini">
                   <div className="time-buttons-mini">
                     {[300, 600, 900].map(time => {
-                      
-                      
+
+
                       const isSelected = activeTimeSlot === time;
                       return (
                         <div
@@ -544,6 +543,7 @@ function App() {
                     })}
                   </div>
                 </div>
+                  <div className="option-note"><span className="option-note-tag">注</span><span>点 5/10/15 分钟切换时间档：<b>左侧地图只显示该分钟数等时圈内的设施</b>（点 5 分钟就只看 5 分钟内能到的），下方<b>覆盖评分 / 可达性 / 盲区</b>也按该档重算；圈越大能到的设施越多、分数通常越高。默认 <b>15 分钟</b>。</span></div>
                 </div>
               )}
 
