@@ -35,7 +35,6 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
 
   return (
     <div className="report-container">
-      <div className="option-note"><span className="option-note-tag">注</span><span>综合评分是体检总评：<b>设施覆盖 35% + 可达性 25% + 出行适配 20% + 盲区 10% + 风水 10%</b> 加权合成，取四种出行方式的平均水平，<b>不随上方出行方式 / 时间档切换变化</b>；五个维度的含义见下方各项说明。</span></div>
       {/* 综合评分 */}
       <section className="report-section compact">
         <h3 className="section-title"><Ico n="trend" /> 综合评分</h3>
