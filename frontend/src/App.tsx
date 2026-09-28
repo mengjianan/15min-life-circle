@@ -6,7 +6,6 @@ import ComprehensiveReport from './components/ComprehensiveReport';
 import ScoreOverview from './components/ScoreOverview';
 import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
-import FengShuiRadar from './components/FengShuiRadar';
 import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
 import { Ico } from './icons';
 import type { TravelMode, FullAnalysisResult, TravelModeData, POIItem, POICategoryData } from './types';
@@ -546,23 +545,9 @@ function App() {
                 <Report
                   communityName={fullResult.community_name || ''}
                   fullResult={fullResult}
-                  fengshuiResult={fengshuiData}
                   activeMode={activeMode}
                   activeTimeSlot={activeTimeSlot}
                 />
-              )}
-
-
-
-
-              {/* 风水评分 */}
-              {fengshuiData && (
-                <div className="report-container">
-                  <section className="report-section compact">
-                    <h3 className="section-title"><Ico n="crystal" /> 风水评分</h3>
-                    <FengShuiRadar data={fengshuiData} showLabels={true} detailScore={fullResult?.comprehensive_score?.fengshui_detail} />
-                  </section>
-                </div>
               )}
 
             </div>

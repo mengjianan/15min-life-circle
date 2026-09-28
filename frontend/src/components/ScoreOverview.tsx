@@ -1,4 +1,5 @@
 import { Ico } from '../icons';
+import FengShuiRadar from './FengShuiRadar';
 
 interface ScoreOverviewProps {
   fullResult: any;
@@ -112,6 +113,51 @@ const ScoreOverview: React.FC<ScoreOverviewProps> = ({ fullResult, communityName
           })}
         </div>
       </section>
+
+      {/* 风水/居住适宜性 - 不随出行方式切换 */}
+      {comprehensiveScore.fengshui_detail && (
+        <section className="report-section compact">
+          <h3 className="section-title"><Ico n="crystal" /> 风水/居住适宜性</h3>
+          <p className="blind-explain">
+            居住环境品质<b>七项加权</b>：<b>水系 20%</b> 最高，地势/朝向/道路形态/敏感设施各 15%，绿化/人气各 10%。
+            图中列出实测的地势/朝向/水系/绿化四项，道路形态 85、人气 80 为简化估算，一并计入总分。
+          </p>
+          <div className="fengshui-compact">
+            <div className="fengshui-total-compact">
+              <span className="fengshui-score-compact" style={{ color: getScoreColor(comprehensiveScore.fengshui_detail.total || 0) }}>
+                {comprehensiveScore.fengshui_detail.total || 0}
+              </span>
+              <span className="fengshui-level-compact">{comprehensiveScore.fengshui_detail.level || '未知'}</span>
+            </div>
+            <div className="fengshui-items-compact">
+              <div className="fengshui-item-compact">
+                <span><Ico n="mountain" /> 地势</span>
+                <span>{comprehensiveScore.fengshui_detail.terrain || 0}</span>
+              </div>
+              <div className="fengshui-item-compact">
+                <span><Ico n="compass" /> 朝向</span>
+                <span>{comprehensiveScore.fengshui_detail.orientation || 0}</span>
+              </div>
+              <div className="fengshui-item-compact">
+                <span><Ico n="droplet" /> 水系</span>
+                <span>{comprehensiveScore.fengshui_detail.water || 0}</span>
+              </div>
+              <div className="fengshui-item-compact">
+                <span><Ico n="tree" /> 绿化</span>
+                <span>{comprehensiveScore.fengshui_detail.greenery || 0}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 风水评分（雷达图） */}
+      {fullResult.fengshui && (
+        <section className="report-section compact">
+          <h3 className="section-title"><Ico n="crystal" /> 风水评分</h3>
+          <FengShuiRadar data={fullResult.fengshui} showLabels={true} detailScore={comprehensiveScore.fengshui_detail} />
+        </section>
+      )}
 
       {/* 体检总结 */}
       <section className="report-section compact">
