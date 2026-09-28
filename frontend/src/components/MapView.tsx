@@ -904,22 +904,37 @@ const MapView: React.FC<MapViewProps> = ({
         }
       }
 
-      // 绘制盲区
+      // 绘制盲区（空间盲区，按设施类别着色，与图例同色）
       if (showBlindSpots && blindSpots && blindSpots.length > 0) {
         blindSpots.forEach((spot: any) => {
           if (spot.center) {
             const point = new BMap.Point(spot.center.lng, spot.center.lat);
             const radius = spot.radius || 200;
+            const category = spot.category || '综合';
+            const color = CATEGORY_COLOR[category] || '#ff4d4f';
 
             const circle = new BMap.Circle(point, radius, {
-              strokeColor: '#ff4d4f',
+              strokeColor: color,
               strokeWeight: 2,
               strokeOpacity: 0.6,
-              fillColor: '#ff4d4f',
+              fillColor: color,
               fillOpacity: 0.15,
             });
 
             map.addOverlay(circle);
+
+            // 悬浮提示缺哪类设施（圈重叠时靠颜色+文案区分是哪类盲区）
+            const info = new BMap.InfoWindow(
+              '<div style="padding: 6px 8px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
+                '<div style="font-weight: 600; color: ' + color + ';">' + category + '空间盲区</div>' +
+                '<div style="font-size: 12px; color: #666; margin-top: 2px;">' +
+                  (spot.description || category + '覆盖不足') +
+                '</div>' +
+              '</div>',
+              { width: 220, height: 70 }
+            );
+            circle.addEventListener('mouseover', () => map.openInfoWindow(info, point));
+            circle.addEventListener('mouseout', () => map.closeInfoWindow());
           }
         });
       }
@@ -1246,12 +1261,18 @@ const MapView: React.FC<MapViewProps> = ({
             <span>路线</span>
           </div>
         )}
-        {showBlindSpots && blindSpots && blindSpots.length > 0 && (
-          <div className="legend-item">
-            <span className="legend-color" style={{ backgroundColor: '#ff4d4f' }}></span>
-            <span>空间盲区</span>
-          </div>
-        )}
+        {showBlindSpots &&
+          blindSpots &&
+          blindSpots.length > 0 &&
+          Array.from(new Set(blindSpots.map((s: any) => s.category || '综合'))).map((cat: any) => (
+            <div className="legend-item" key={cat}>
+              <span
+                className="legend-color"
+                style={{ backgroundColor: CATEGORY_COLOR[cat] || '#ff4d4f' }}
+              ></span>
+              <span>{cat}盲区</span>
+            </div>
+          ))}
         {showFengshui && (
           <>
             <div className="legend-item">
