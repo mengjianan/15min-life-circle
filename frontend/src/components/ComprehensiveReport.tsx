@@ -310,8 +310,8 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
         <h2><Ico n="waves" /> 风水评分报告</h2>
         <p className="blind-explain">
           居住环境品质的七个维度加权：<b>水系 20%</b> 最高，地势/朝向/道路形态/敏感设施各 15%，绿化/人气各 10%。
-          水系看周边水体分布，地势看高程起伏，朝向看建筑方位，道路形态看路网是否规整，
-          敏感设施看医院/殡仪馆等邻避设施距离，绿化看植被覆盖，人气看 POI 密度。
+          水系看周边水体分布，地势看高程起伏，朝向看建筑方位，敏感设施看医院/殡仪馆等邻避设施距离，绿化看植被覆盖；
+          道路形态 85、人气 80 目前为简化估算计入总分。
         </p>
         <div className="fengshui-report">
           <div className="fengshui-total">

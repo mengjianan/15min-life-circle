@@ -211,6 +211,10 @@ const Report: React.FC<ReportProps> = ({
       {comprehensiveScore.fengshui_detail && (
         <section className="report-section compact">
           <h3 className="section-title"><Ico n="crystal" /> 风水/居住适宜性</h3>
+          <p className="blind-explain">
+            居住环境品质<b>七项加权</b>：<b>水系 20%</b> 最高，地势/朝向/道路形态/敏感设施各 15%，绿化/人气各 10%。
+            图中列出实测的地势/朝向/水系/绿化四项，道路形态 85、人气 80 为简化估算，一并计入总分。
+          </p>
           <div className="fengshui-compact">
             <div className="fengshui-total-compact">
               <span className="fengshui-score-compact" style={{ color: getScoreColor(comprehensiveScore.fengshui_detail.total || 0) }}>

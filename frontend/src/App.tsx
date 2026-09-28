@@ -559,7 +559,7 @@ function App() {
               {fengshuiData && (
                 <div className="fengshui-card">
                   <div className="fengshui-card-header">风水评分</div>
-                  <FengShuiRadar data={fengshuiData} showLabels={true} />
+                  <FengShuiRadar data={fengshuiData} showLabels={true} detailScore={fullResult?.comprehensive_score?.fengshui_detail} />
                 </div>
               )}
 

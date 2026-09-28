@@ -2,18 +2,13 @@ import React from 'react';
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip
 } from 'recharts';
+import { Ico } from '../icons';
 
 interface FengShuiRadarProps {
   data: any;  // 支持完整分析结果或纯评分数据
   showLabels?: boolean;
+  detailScore?: any;  // comprehensive_score.fengshui_detail，七项加权官方总分（与「风水/居住适宜性」同口径）
 }
-
-const LEVEL_COLORS: Record<string, string> = {
-  '优秀': '#52c41a',
-  '良好': '#1890ff',
-  '一般': '#faad14',
-  '需改善': '#ff4d4f',
-};
 
 const getLevel = (score: number): string => {
   if (score >= 90) return '优秀';
@@ -22,20 +17,28 @@ const getLevel = (score: number): string => {
   return '需改善';
 };
 
-const FengShuiRadarComponent: React.FC<FengShuiRadarProps> = ({ data, showLabels = true }) => {
+const getScoreColor = (score: number) => {
+  if (score >= 90) return '#52c41a';
+  if (score >= 75) return '#1890ff';
+  if (score >= 60) return '#faad14';
+  return '#ff4d4f';
+};
+
+const FengShuiRadarComponent: React.FC<FengShuiRadarProps> = ({ data, showLabels = true, detailScore }) => {
   // 兼容完整分析结果和纯评分数据
   const scores = data.score || data;
-  const chartData = [
-    { dimension: '地形', score: scores.terrain || 0, fullMark: 100 },
-    { dimension: '水系', score: scores.water || 0, fullMark: 100 },
-    { dimension: '环境', score: scores.environment || 0, fullMark: 100 },
-    { dimension: '方位', score: scores.orientation || 0, fullMark: 100 },
+  const rows = [
+    { name: '地形', icon: 'mountain', score: scores.terrain || 0 },
+    { name: '水系', icon: 'droplet', score: scores.water || 0 },
+    { name: '环境', icon: 'tree', score: scores.environment || 0 },
+    { name: '方位', icon: 'compass', score: scores.orientation || 0 },
   ];
+  const chartData = rows.map(r => ({ dimension: r.name, score: r.score, fullMark: 100 }));
 
-  const averageScore = Math.round(
-    ((scores.terrain || 0) + (scores.water || 0) + (scores.environment || 0) + (scores.orientation || 0)) / 4
-  );
-  const level = getLevel(averageScore);
+  // 统一口径：总分用后端七项加权官方分（与「风水/居住适宜性」一致）；无 detailScore 时退回四项平均
+  const averageScore = Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length);
+  const total = detailScore?.total ?? averageScore;
+  const level = detailScore?.level ?? getLevel(averageScore);
 
   return (
     <div className="fengshui-radar-container">
@@ -69,45 +72,27 @@ const FengShuiRadarComponent: React.FC<FengShuiRadarProps> = ({ data, showLabels
       </ResponsiveContainer>
 
       {showLabels && (
-        <div className="fengshui-details">
-          <div className="fengshui-total">
-            <span className="total-label">综合风水评分</span>
-            <span className="total-value" style={{ color: LEVEL_COLORS[level] }}>
-              {averageScore}分
-            </span>
-            <span
-              className="total-level"
-              style={{ backgroundColor: LEVEL_COLORS[level] }}
-            >
-              {level}
-            </span>
-          </div>
-          <div className="fengshui-dimensions">
-            {chartData.map(item => {
-              const itemLevel = getLevel(item.score);
-              return (
-                <div key={item.dimension} className="dimension-item">
-                  <span className="dimension-name">{item.dimension}</span>
-                  <div className="dimension-bar-bg">
-                    <div
-                      className="dimension-bar-fill"
-                      style={{
-                        width: `${item.score}%`,
-                        backgroundColor: LEVEL_COLORS[itemLevel]
-                      }}
-                    />
-                  </div>
-                  <span
-                    className="dimension-score"
-                    style={{ color: LEVEL_COLORS[itemLevel] }}
-                  >
-                    {item.score}
-                  </span>
+        <>
+          <p className="blind-explain">
+            总分与「风水/居住适宜性」同口径：<b>七项加权</b>——<b>水系 20%</b> 最高，
+            地势/朝向/道路形态/敏感设施各 15%，绿化/人气各 10%（道路形态 85、人气 80 为简化估算）。
+            雷达图四项即其中的地势（地形）、水系、敏感设施（环境）、朝向（方位），绿化计入总分但不在图中。
+          </p>
+          <div className="fengshui-compact">
+            <div className="fengshui-total-compact">
+              <span className="fengshui-score-compact" style={{ color: getScoreColor(total) }}>{total}</span>
+              <span className="fengshui-level-compact">{level}</span>
+            </div>
+            <div className="fengshui-items-compact">
+              {rows.map(item => (
+                <div key={item.name} className="fengshui-item-compact">
+                  <span><Ico n={item.icon} /> {item.name}</span>
+                  <span>{item.score}</span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
