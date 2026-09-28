@@ -25,9 +25,17 @@ const getScoreColor = (score: number) => {
 };
 
 const FengShuiRadarComponent: React.FC<FengShuiRadarProps> = ({ data, showLabels = true, detailScore }) => {
-  // 兼容完整分析结果和纯评分数据
+  // 雷达图直接画七项加权的全部构成项；无 detailScore 时退回风水引擎四维
   const scores = data.score || data;
-  const rows = [
+  const rows = detailScore ? [
+    { name: '地势', icon: 'mountain', score: detailScore.terrain || 0 },
+    { name: '朝向', icon: 'compass', score: detailScore.orientation || 0 },
+    { name: '水系', icon: 'droplet', score: detailScore.water || 0 },
+    { name: '道路形态', icon: 'road', score: detailScore.road_form || 0 },
+    { name: '敏感设施', icon: 'warning', score: detailScore.sensitive_facilities || 0 },
+    { name: '绿化', icon: 'tree', score: detailScore.greenery || 0 },
+    { name: '人气', icon: 'users', score: detailScore.popularity || 0 },
+  ] : [
     { name: '地形', icon: 'mountain', score: scores.terrain || 0 },
     { name: '水系', icon: 'droplet', score: scores.water || 0 },
     { name: '环境', icon: 'tree', score: scores.environment || 0 },
@@ -35,7 +43,7 @@ const FengShuiRadarComponent: React.FC<FengShuiRadarProps> = ({ data, showLabels
   ];
   const chartData = rows.map(r => ({ dimension: r.name, score: r.score, fullMark: 100 }));
 
-  // 统一口径：总分用后端七项加权官方分（与「风水/居住适宜性」一致）；无 detailScore 时退回四项平均
+  // 总分/等级用后端七项加权官方分（与「风水/居住适宜性」一致）；无 detailScore 时退回各项平均
   const averageScore = Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length);
   const total = detailScore?.total ?? averageScore;
   const level = detailScore?.level ?? getLevel(averageScore);
@@ -73,8 +81,8 @@ const FengShuiRadarComponent: React.FC<FengShuiRadarProps> = ({ data, showLabels
         <>
           <p className="blind-explain">
             总分与「风水/居住适宜性」同口径：<b>七项加权</b>——<b>水系 20%</b> 最高，
-            地势/朝向/道路形态/敏感设施各 15%，绿化/人气各 10%（道路形态 85、人气 80 为简化估算）。
-            雷达图四项即其中的地势（地形）、水系、敏感设施（环境）、朝向（方位），绿化计入总分但不在图中。
+            地势/朝向/道路形态/敏感设施各 15%，绿化/人气各 10%。雷达图即这七项的得分形状，
+            其中道路形态 85、人气 80 为简化估算，其余为实测。
           </p>
           <div className="fengshui-compact">
             <div className="fengshui-total-compact">
