@@ -81,6 +81,12 @@ const Report: React.FC<ReportProps> = ({
       {/* 基础覆盖评分 - 根据出行方式和时间切换 */}
       <section className="report-section compact">
         <h3 className="section-title"><Ico n="building" /> {timeLabel}覆盖评分</h3>
+        <p className="blind-explain">
+          每个类别的得分 = <b>覆盖率 40 分</b>（该时段有设施即得）+ <b>达标率 60 分</b>（数量 ÷ 标准数量，封顶 100%）。
+          标准数量按民生配置：<b>医疗 3、教育 3、购物 5、养老 2、文体 3、餐饮 5、交通 3</b> 个，数量越接近标准分越高，没有设施直接 0 分。
+          统计口径：医疗=诊所/药店/医院，教育=小学/幼儿园/培训机构，购物=菜市场/超市/便利店/商场，
+          养老=养老院/老年活动中心，文体=公园/图书馆/体育场馆/景点，餐饮=餐厅/早餐店，交通=地铁站/公交站。
+        </p>
         <div className="category-coverage-compact">
           {Object.entries(currentCategories).map(([cat, score]: [string, any]) => (
             <div key={cat} className="category-item-compact">
@@ -110,6 +116,11 @@ const Report: React.FC<ReportProps> = ({
       {/* 可达性效率 - 根据出行方式和时间切换 */}
       <section className="report-section compact">
         <h3 className="section-title"><Ico n="walk" /> {timeLabel}可达性</h3>
+        <p className="blind-explain">
+          衡量<b>过去要多久、走多远</b>——平均时间取每类最近 3 个设施按当前出行速度折算的耗时均值，
+          平均距离取每类最近设施的直线距离均值。<b>时间越短、距离越近分越高</b>，
+          与覆盖评分的「数量够不够」互补：设施多但都远，覆盖高、可达性低。
+        </p>
         <div className="accessibility-compact">
           <div className="metric-compact">
             <span className="metric-value-compact">{avgTime.toFixed(1)}</span>

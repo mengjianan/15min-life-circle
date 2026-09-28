@@ -147,6 +147,11 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
       {/* 3. 设施覆盖统计 */}
       <section className="report-section">
         <h2><Ico n="chart" /> 设施覆盖统计</h2>
+        <p className="blind-explain">
+          每类设施按<b>推荐标准数量</b>判定达标（医疗 3、教育 3、购物 5、养老 2、文体 3、餐饮 5、交通 3 个）。
+          覆盖评分 = <b>覆盖率 40 分</b>（有设施即得）+ <b>达标率 60 分</b>（数量 ÷ 标准，封顶 100%）。
+          5/10/15 分钟三列是各等时圈内的实际数量，<b>圈越大数量越多</b>属正常现象。
+        </p>
         <table className="facility-table">
           <thead>
             <tr>
@@ -180,6 +185,11 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
       {/* 4. 出行方式对比 */}
       <section className="report-section">
         <h2><Ico n="car" /> 出行方式对比</h2>
+        <p className="blind-explain">
+          每种出行方式的得分 = <b>设施覆盖 50%</b> + <b>可达性 30%</b> + <b>盲区 20%</b>（按 15 分钟档计算）。
+          等时圈越大能到的设施越多，所以<b>骑行/驾车通常高于步行</b>；
+          但步行分高说明「家门口」配套齐全，是更宜居的信号，不能只看总分高低。
+        </p>
         <div className="mode-comparison-grid">
           {mode_comparisons?.map((mode: any, idx: number) => (
             <div key={idx} className="mode-card">
@@ -298,6 +308,11 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
       {/* 6. 风水评分报告 */}
       <section className="report-section">
         <h2><Ico n="waves" /> 风水评分报告</h2>
+        <p className="blind-explain">
+          居住环境品质的七个维度加权：<b>水系 20%</b> 最高，地势/朝向/道路形态/敏感设施各 15%，绿化/人气各 10%。
+          水系看周边水体分布，地势看高程起伏，朝向看建筑方位，道路形态看路网是否规整，
+          敏感设施看医院/殡仪馆等邻避设施距离，绿化看植被覆盖，人气看 POI 密度。
+        </p>
         <div className="fengshui-report">
           <div className="fengshui-total">
             <div className="fengshui-score" style={{ color: getScoreColor(fengshui?.total_score) }}>
