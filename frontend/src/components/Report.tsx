@@ -76,6 +76,7 @@ const Report: React.FC<ReportProps> = ({
 
   return (
     <div className="report-container">
+      <div className="option-note"><span className="option-note-tag">注</span><span>以下<b>覆盖评分 / 可达性 / 盲区</b>随上方<b>出行方式与时间档</b>实时切换——例如选步行 + 5 分钟，就按步行 5 分钟能到达的范围统计设施与盲区；综合评分 / 出行方式对比 / 风水不随切换变化。</span></div>
       {/* 基础覆盖评分 - 根据出行方式和时间切换 */}
       <section className="report-section compact">
         <h3 className="section-title"><Ico n="building" /> {timeLabel}覆盖评分</h3>
