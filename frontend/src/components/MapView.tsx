@@ -262,6 +262,8 @@ const MapView: React.FC<MapViewProps> = ({
   // effect 的依赖里（避免每次 hover 都全量重绘）—— 不加 ref 会读到过期值，
   // 表现为「点第二次取消不了选中」。
   const selectedFacilityRef = useRef(selectedFacility);
+  // marker/路线点击可能连带触发 map click，短时间内别当成「点空白退出」
+  const skipMapClickRef = useRef(0);
 
   useEffect(() => {
     selectedFacilityRef.current = selectedFacility;
@@ -316,6 +318,7 @@ const MapView: React.FC<MapViewProps> = ({
     const prev = selectedFacilityRef.current;
     const next = facility && prev && prev.name === facility.name ? null : facility;
     onFacilitySelect(next);
+    skipMapClickRef.current = Date.now() + 400;
   };
 
   // 关闭悬浮卡片（鼠标离开 marker / 拖动缩放地图时）
@@ -535,6 +538,8 @@ const MapView: React.FC<MapViewProps> = ({
         map.addEventListener('click', (e: any) => {
           if (clickModeRef.current && onCenterChange) {
             onCenterChange(e.point.lng, e.point.lat);
+          } else if (Date.now() >= skipMapClickRef.current) {
+            toggleFacility(null); // 点地图空白处退出设施聚焦，地图回到中心
           }
         });
 

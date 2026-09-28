@@ -99,6 +99,16 @@ function App() {
   const [activeTimeSlot, setActiveTimeSlot] = useState(900);
   const [activeCategory, setActiveCategory] = useState('全部');
   const [selectedFacility, setSelectedFacility] = useState<POIItem | null>(null);
+  // 点页面空白处退出设施聚焦（地图内空白由 MapView 自己的 click 处理，故排除 .map-panel）
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t || t.closest('button, a, input, select, textarea, label, .facility-card, .report-dropdown-bar, .map-panel, .modal-content')) return;
+      setSelectedFacility(null);
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // 消息带 SVG 图标（不再使用 emoji）
@@ -642,22 +652,103 @@ function App() {
                 <div className="empty-icon">
                   <Icons.Map />
                 </div>
-                <h3>开始分析</h3>
-                <p>选择一个社区或自定义位置，点击"开始体检"按钮生成分析报告</p>
-                <div className="feature-list">
-                  <div className="feature-item">
-                    <Icons.Clock />
-                    <span>计算5/10/15分钟步行范围</span>
-                  </div>
-                  <div className="feature-item">
-                    <Icons.MapPin />
-                    <span>分析周边设施覆盖</span>
-                  </div>
-                  <div className="feature-item">
-                    <Icons.AlertTriangle />
-                    <span>识别服务盲区</span>
+                <h3>开始体检</h3>
+                <p>选择一个社区或自定义位置，点击「开始体检」，约 30 秒生成该点位的 15 分钟生活圈体检报告。</p>
+
+                <div className="empty-block">
+                  <div className="empty-block-title">怎么用</div>
+                  <div className="empty-steps">
+                    <div className="empty-step">
+                      <span className="empty-step-no">1</span>
+                      <div>
+                        <b>选位置</b>
+                        <p>顶部选择社区，或点「自定义位置」在地图上任意选点。</p>
+                      </div>
+                    </div>
+                    <div className="empty-step">
+                      <span className="empty-step-no">2</span>
+                      <div>
+                        <b>点开始体检</b>
+                        <p>按真实路网计算等时圈、抓取周边 POI、识别服务盲区。</p>
+                      </div>
+                    </div>
+                    <div className="empty-step">
+                      <span className="empty-step-no">3</span>
+                      <div>
+                        <b>看报告</b>
+                        <p>左侧地图看等时圈范围、设施点与盲区；中间面板切换出行方式 / 时间档看评分变化；最右侧设施列表按类别筛选、点卡片查看详情；下方展开综合报告。</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
+                <div className="empty-block">
+                  <div className="empty-block-title">体检算什么</div>
+                  <div className="feature-list">
+                    <div className="feature-item">
+                      <Ico n="clock" />
+                      <div>
+                        <b>等时圈</b>
+                        <p>5/10/15 分钟真实路网可达范围，步行 / 骑行 / 公共交通 / 驾车四种方式（公交、地铁分开规划）。</p>
+                      </div>
+                    </div>
+                    <div className="feature-item">
+                      <Ico n="building" />
+                      <div>
+                        <b>设施覆盖</b>
+                        <p>医疗 / 教育 / 购物 / 养老 / 文体 / 餐饮 / 交通七类民生设施，对照标准数量打分（医疗 3、教育 3、购物 5、养老 2、文体 3、餐饮 5、交通 3 个）。</p>
+                      </div>
+                    </div>
+                    <div className="feature-item">
+                      <Ico n="warning" />
+                      <div>
+                        <b>盲区识别</b>
+                        <p>空间盲区（圈内连续的设施空白地带，地图红圈）+ 可达性盲区（数量不达标的类别）。</p>
+                      </div>
+                    </div>
+                    <div className="feature-item">
+                      <Ico n="walk" />
+                      <div>
+                        <b>可达性</b>
+                        <p>到设施的平均时间与距离——回答「够不够快、够不够近」。</p>
+                      </div>
+                    </div>
+                    <div className="feature-item">
+                      <Ico n="chart" />
+                      <div>
+                        <b>出行方式对比</b>
+                        <p>四种方式得分对比，避免「只有开车方便」；步行分高说明家门口配套齐全。</p>
+                      </div>
+                    </div>
+                    <div className="feature-item">
+                      <Ico n="crystal" />
+                      <div>
+                        <b>风水/居住适宜性</b>
+                        <p>地势 / 朝向 / 水系 / 道路形态 / 敏感设施 / 绿化 / 人气七项加权评估居住环境品质。</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="empty-block">
+                  <div className="empty-block-title">综合评分怎么算</div>
+                  <p className="empty-note">
+                    <b>设施覆盖 35% + 可达性 25% + 出行适配 20% + 盲区 10% + 风水 10%</b> 加权合成，取四种出行方式的平均水平。
+                    评级：<b>≥90 优秀 / ≥75 良好 / ≥60 一般 / 其余需改善</b>。
+                  </p>
+                </div>
+
+                <div className="empty-block">
+                  <div className="empty-block-title">交互提示</div>
+                  <p className="empty-note">
+                    默认显示 <b>步行 + 15 分钟 + 全部设施</b>；切换出行方式时地图换成该方式的等时圈，覆盖 / 可达 / 盲区随之重算；
+                    点 5 / 10 / 15 只看该分钟圈内设施；鼠标悬停设施可看各方式耗时卡片与真实路线。
+                    <b>点击设施卡片</b>：地图自动聚焦到该设施并画出中心→设施的真实路线、弹出耗时卡片；
+                    <b>退出聚焦：点页面空白处</b>（或再点一次同一卡片），地图回到中心视图。
+                  </p>
+                </div>
+
+                <div className="empty-foot">数据来源：百度地图开放平台路网 / POI，估算值仅供参考</div>
               </div>
             </div>
           </div>
