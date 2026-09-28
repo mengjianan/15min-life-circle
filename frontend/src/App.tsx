@@ -526,7 +526,6 @@ function App() {
                     </button>
                   ))}
                 </div>
-                <div className="option-note"><span className="option-note-tag">注</span><span>点选出行方式后：<b>左侧地图切换成该方式的等时圈</b>（圈出实际能到达的范围），下方<b>覆盖评分 / 可达性 / 盲区</b>按该方式重算；鼠标悬停地图上的设施会弹出<b>耗时卡片</b>——按当前方式向下叠加列出各方式耗时（公共交通拆「公交」「地铁」两行、各自独立规划），只列该设施实际够得着的方式并标注直线距离，无直达会明确提示，同时画出中心到该设施的<b>真实路线</b>（按当前出行方式规划）。默认：<b>步行 + 15 分钟 + 全部设施</b>。</span></div>
               </div>
 
               
@@ -552,7 +551,7 @@ function App() {
                     })}
                   </div>
                 </div>
-                  <div className="option-note"><span className="option-note-tag">注</span><span>点 5/10/15 分钟切换时间档：<b>左侧地图只显示该分钟数等时圈内的设施</b>（点 5 分钟就只看 5 分钟内能到的），下方<b>覆盖评分 / 可达性 / 盲区</b>也按该档重算；圈越大能到的设施越多、分数通常越高。默认 <b>15 分钟</b>。</span></div>
+                  <div className="option-note"><span className="option-note-tag">注</span><span>切换<b>出行方式 / 时间档</b>：地图等时圈随之切换、只显示圈内设施，下方<b>覆盖评分 / 可达性 / 盲区</b>重算；悬停设施弹<b>耗时卡片</b>（各方式耗时 + 距离）并画中心→设施<b>真实路线</b>。默认<b>步行 + 15 分钟 + 全部设施</b>。</span></div>
                 </div>
               )}
 
