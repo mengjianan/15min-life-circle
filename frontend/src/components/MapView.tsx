@@ -566,6 +566,17 @@ const MapView: React.FC<MapViewProps> = ({
     };
   }, [checkBaiduMapAPI, onCenterChange, clearHover]);
 
+  // BMap 只在初始化时取一次容器尺寸，面板高度变化后不会自己重排 —— 容器变了就同步
+  useEffect(() => {
+    const el = mapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      (mapInstanceRef.current as any)?.checkResize?.();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && center) {
       const BMap = (window as any).BMap;

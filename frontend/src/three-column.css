@@ -454,7 +454,7 @@
     height: auto;
   }
 
-  .map-panel {
+  .main-content.three-columns .map-panel {
     height: 400px;
   }
 

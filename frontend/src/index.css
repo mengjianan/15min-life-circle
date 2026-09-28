@@ -273,6 +273,7 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 24px;
   margin-bottom: 24px;
+  overflow: hidden; /* 左右两栏内部滚动，内容不外溢压到页脚 */
 }
 
 /* 分析后布局：地图50%，右侧50% */
@@ -438,6 +439,9 @@ body {
   border: 1px solid var(--border-light);
   overflow: hidden;
   min-height: 500px;
+  min-width: 0; /* grid 子项可收缩，不撑破列宽 */
+  display: flex;
+  flex-direction: column;
 }
 
 .map-panel .map-wrapper {
@@ -447,7 +451,7 @@ body {
 }
 
 .map-panel .map-container {
-  height: 100%;
+  flex: 1;
   min-height: 500px;
 }
 
@@ -822,11 +826,14 @@ body {
   border: 1px solid #ffccc7;
 }
 
-/* 右侧数据面板 */
+/* 右侧数据面板（独立滚动区：与地图同高，内容超高内部滚动） */
 .data-panel {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* 报告区域两栏布局 */
@@ -999,8 +1006,7 @@ body {
   text-align: center;
   box-shadow: var(--shadow-xs);
   border: 1px solid var(--border-light);
-  height: 100%;
-  overflow-y: auto;
+  min-height: 100%; /* 撑满右栏；超高时随 data-panel 滚动 */
 }
 
 .empty-block {
