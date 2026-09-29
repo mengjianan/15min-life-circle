@@ -25,7 +25,7 @@
   overflow-y: auto;
   background: var(--bg-secondary);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: 0 16px 16px; /* 上 padding 收进 .score-panel-sticky，框顶不留透缝 */
   box-shadow: var(--shadow-md);
   border: 1px solid var(--border-light);
   display: flex;
@@ -38,7 +38,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  margin: -16px -16px 0; /* 吃掉面板 padding，满宽铺底不留透缝 */
+  margin: 0 -16px; /* 左右满宽铺到底，内容从底下滚过 */
   padding: 16px 16px 8px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-light);
