@@ -276,6 +276,15 @@ const MapView: React.FC<MapViewProps> = ({
   const activeFacility: HoverFacility | null = hoverFacility || selectedFacility || null;
   const activeKey = activeFacility ? `${activeFacility.name}|${activeMode}` : '';
 
+  // 公共交通模式：中心 500m 内没有站点时，所有设施都被接驳规则隐藏 ——
+  // 地图会一片空白，给一条提示说明原因（与后端 annotate_transit_reachability 同口径）
+  const transitNoStopNear =
+    activeMode === 'transit' &&
+    center != null &&
+    !((poiCoverage?.['交通']?.facilities || []) as any[]).some(
+      (f) => f.location && haversineMeters(center, f.location) <= 500
+    );
+
   // 卡片展示哪些行，两条规则同时生效：
   //   ① 叠加：只显示速度不高于当前选择的方式
   //      步行->只显示步行；骑行->步行+骑行；公共交通->+公交/地铁两行；驾车->全部
@@ -1207,6 +1216,29 @@ const MapView: React.FC<MapViewProps> = ({
       )}
 
       <LoadingOverlay loading={loading} />
+
+      {/* 公共交通无接驳站点提示：设施被隐藏不是 bug，说明原因 */}
+      {transitNoStopNear && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 10,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 11,
+            padding: '8px 14px',
+            borderRadius: 8,
+            background: 'rgba(255, 251, 235, 0.96)',
+            border: '1px solid #ffe58f',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            fontSize: 12,
+            color: '#ad6800',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          该位置 500 米内无公交/地铁站，公共交通模式不显示设施
+        </div>
+      )}
 
       {/* 地图控制按钮 */}
       <div className="map-controls">
