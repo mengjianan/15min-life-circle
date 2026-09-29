@@ -161,6 +161,7 @@ export interface TimeSlotData {
   poi_coverage: POICoverage;
   blind_spots: BlindSpot[];
   accessibility_blind_spots?: AccessibilityBlindSpot[];
+  score?: ScoreData; // 该时间档自己的得分（老后端响应里没有，前端需容错）
 }
 
 // 面积对比数据

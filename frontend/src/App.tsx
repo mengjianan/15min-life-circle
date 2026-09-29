@@ -547,7 +547,7 @@ function App() {
                           onClick={() => setActiveTimeSlot(time)}
                         >
                           <span className="time-label-mini">{time === 300 ? '5分钟' : time === 600 ? '10分钟' : '15分钟'}</span>
-                          <span className="time-score-mini">{modeData.score?.total || 0}</span>
+                          <span className="time-score-mini">{((modeData.time_slots as Record<string, any>)[String(time)] as any)?.score?.total ?? modeData.score?.total ?? 0}</span>
                         </div>
                       );
                     })}

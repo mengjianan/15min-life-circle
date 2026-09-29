@@ -144,6 +144,10 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
                 "blind_spots": blind_spots,
                 "accessibility_blind_spots": accessibility_blind_spots,
             }
+            # 该时间档自己的得分：5/10/15 切换框各显各的分数
+            time_slots[str(time_seconds)]["score"] = calculate_slot_score(
+                time_slots[str(time_seconds)], mode_config, time_seconds
+            )
 
         # 中心到设施的路线不再在这里取：改由 /api/graph/facility-routes 按需提供
         # （directionlite 必须串行+限速，全量预取会让体检多花 30 秒以上）
@@ -169,10 +173,15 @@ async def analyze_single_mode(mode, mode_config, center, location, community_nam
 
 
 def calculate_mode_score(time_slots, mode_config):
-    slot_15min = time_slots.get("900", {})
-    coverage = slot_15min.get("poi_coverage", {})
-    blind_spots = slot_15min.get("blind_spots", [])
-    area = slot_15min.get("area", 0)
+    """模式总分 = 15 分钟档的得分（历史口径：出行方式对比/综合评分都用它，别改语义）"""
+    return calculate_slot_score(time_slots.get("900", {}), mode_config, 900)
+
+
+def calculate_slot_score(slot, mode_config, time_seconds):
+    """单个时间档的得分：档越小设施越少、分越低"""
+    coverage = slot.get("poi_coverage", {})
+    blind_spots = slot.get("blind_spots", [])
+    area = slot.get("area", 0)
 
     category_scores = {}
     for category, data in coverage.items():
@@ -198,7 +207,7 @@ def calculate_mode_score(time_slots, mode_config):
     if area > 0:
         area_km2 = area / 1000000
         speed = mode_config["speed"]
-        expected_area = speed * 15 * 60 / 1000
+        expected_area = speed * time_seconds / 1000  # 15 分钟时 = 旧口径 speed*15*60/1000
         if area_km2 >= expected_area * 0.8:
             area_bonus = 5
         elif area_km2 >= expected_area * 0.5:
