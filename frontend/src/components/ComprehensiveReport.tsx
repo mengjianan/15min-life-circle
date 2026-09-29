@@ -1,14 +1,24 @@
 import React from 'react';
 import { Ico } from '../icons';
+import FengShuiRadar from './FengShuiRadar';
+import { GroupedBarChart, ScoreRadar } from './ReportCharts';
 
 interface ComprehensiveReportProps {
   report: any;
   communityName: string;
+  fullResult?: any; // 完整体检响应：四维综合分、各档得分、最近设施等从这里派生
 }
+
+const SLOT_SERIES = [
+  { key: '5分钟', color: '#52c41a' },
+  { key: '10分钟', color: '#faad14' },
+  { key: '15分钟', color: '#1890ff' },
+];
 
 const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
   report,
-  communityName
+  communityName,
+  fullResult
 }) => {
   if (!report) {
     return <div className="report-container">暂无报告数据</div>;
@@ -32,436 +42,397 @@ const ComprehensiveReport: React.FC<ComprehensiveReportProps> = ({
     }
   };
 
+  // —— 从 fullResult 派生图表数据（老响应缺字段时静默降级） ——
+  const compScore = fullResult?.comprehensive_score || {};
+  const modesData: Record<string, any> = fullResult?.modes || {};
+
+  // ① 综合五维雷达
+  const fiveDim = [
+    { name: '设施覆盖', value: compScore.facility_coverage ?? 0 },
+    { name: '可达性', value: compScore.accessibility ?? 0 },
+    { name: '出行适配', value: compScore.mode_adaptability ?? 0 },
+    { name: '盲区识别', value: compScore.blind_spot ?? 0 },
+    { name: '风水评分', value: compScore.fengshui ?? 0 },
+  ];
+
+  // ② 各出行方式 × 各时间档得分（per-slot score，老响应回落 15 分钟档=模式分）
+  const modeOrder = ['walking', 'cycling', 'transit', 'driving'];
+  const modeNames: Record<string, string> = { walking: '步行', cycling: '骑行', transit: '公共交通', driving: '驾车' };
+  const slotScore = (m: string, key: string) =>
+    modesData[m]?.time_slots?.[key]?.score?.total ?? modesData[m]?.score?.total ?? 0;
+  const modeScoreData = modeOrder.map((m) => ({
+    name: modeNames[m],
+    '5分钟': slotScore(m, '300'),
+    '10分钟': slotScore(m, '600'),
+    '15分钟': slotScore(m, '900'),
+  }));
+
+  // ③ 各出行方式等时圈面积（km²）
+  const modeAreaData = modeOrder.map((m) => {
+    const slots = modesData[m]?.time_slots || {};
+    const km2 = (k: string) => Math.round(((slots[k]?.area || 0) / 1000000) * 100) / 100;
+    return { name: modeNames[m], '5分钟': km2('300'), '10分钟': km2('600'), '15分钟': km2('900') };
+  });
+
+  // ④ 设施覆盖分组条形（来自报告统计表）
+  const facilityBarData = (facility_stats || []).map((s: any) => ({
+    name: s.category,
+    '5分钟': s.count_5min,
+    '10分钟': s.count_10min,
+    '15分钟': s.count_15min,
+  }));
+
+  // ⑤ 最近设施速查：步行 15 分钟档覆盖数据里每类取最近 2 个
+  const walkingCov: Record<string, any> = modesData.walking?.time_slots?.['900']?.poi_coverage || {};
+  const nearestList = Object.entries(walkingCov)
+    .map(([cat, data]: [string, any]) => {
+      const facs = [...(data.facilities || [])]
+        .sort((a: any, b: any) => (a.distance || 99999) - (b.distance || 99999))
+        .slice(0, 2);
+      return { cat, facs };
+    })
+    .filter((r) => r.facs.length > 0);
+
   return (
     <div className="comprehensive-report">
-      {/* 1. 报告封面与基本信息 */}
-      <section className="report-cover">
-        <h1><Ico n="building" /> 15分钟生活圈智能体检报告</h1>
-        <div className="meta-info">
-          <div className="meta-item">
-            <span className="meta-label">社区/街道：</span>
-            <span className="meta-value">{meta?.community_name || communityName}</span>
-          </div>
-          <div className="meta-item">
-            <span className="meta-label">中心点坐标：</span>
-            <span className="meta-value">
-              ({meta?.center?.lng?.toFixed(4)}, {meta?.center?.lat?.toFixed(4)})
-            </span>
-          </div>
-          <div className="meta-item">
-            <span className="meta-label">分析时间：</span>
-            <span className="meta-value">{meta?.analysis_time}</span>
-          </div>
-          <div className="meta-item">
-            <span className="meta-label">出行方式：</span>
-            <span className="meta-value">{meta?.travel_modes?.join(' / ')}</span>
-          </div>
-          <div className="meta-item">
-            <span className="meta-label">时间档：</span>
-            <span className="meta-value">{meta?.time_slots?.join(' / ')} 分钟</span>
-          </div>
-          <div className="meta-item">
-            <span className="meta-label">数据来源：</span>
-            <span className="meta-value">{meta?.data_source}</span>
-          </div>
-        </div>
-      </section>
+      <div className="cr-pages">
 
-      {/* 2. 核心结论摘要 */}
-      <section className="report-section conclusion-section">
-        <h2><Ico n="clipboard" /> 核心结论摘要</h2>
-        <div className="conclusion-grid">
-          <div className="conclusion-card overall">
-            <div className="conclusion-icon"><Ico n="trophy" /></div>
-            <div className="conclusion-content">
-              <div className="conclusion-label">整体水平</div>
-              <div className="conclusion-value" style={{ color: getScoreColor(conclusion?.overall_score) }}>
-                {conclusion?.overall_level} ({conclusion?.overall_score}分)
-              </div>
+        {/* ================= 左页 · 现状与评价 ================= */}
+        <div className="cr-page">
+          {/* ① 页眉 */}
+          <header className="cr-header">
+            <h1><Ico n="building" /> 15分钟生活圈智能体检报告</h1>
+            <div className="cr-meta">
+              <span><b>社区：</b>{meta?.community_name || communityName}</span>
+              <span><b>坐标：</b>({meta?.center?.lng?.toFixed(4)}, {meta?.center?.lat?.toFixed(4)})</span>
+              <span><b>分析时间：</b>{meta?.analysis_time}</span>
+              <span><b>数据来源：</b>{meta?.data_source}</span>
             </div>
-          </div>
+          </header>
 
-          <div className="conclusion-card best-mode">
-            <div className="conclusion-icon"><Ico n="rocket" /></div>
-            <div className="conclusion-content">
-              <div className="conclusion-label">最佳出行方式</div>
-              <div className="conclusion-value">
-                {conclusion?.best_mode} ({conclusion?.best_mode_score}分)
-              </div>
-            </div>
-          </div>
-
-          <div className="conclusion-card blind-spots">
-            <div className="conclusion-icon"><Ico n="search" /></div>
-            <div className="conclusion-content">
-              <div className="conclusion-label">可达性盲区</div>
-              <div className="conclusion-value">
-                {conclusion?.blind_spot_count} 个
-              </div>
-            </div>
-          </div>
-
-          <div className="conclusion-card fengshui">
-            <div className="conclusion-icon"><Ico n="waves" /></div>
-            <div className="conclusion-content">
-              <div className="conclusion-label">风水评分</div>
-              <div className="conclusion-value">{conclusion?.fengshui_level}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="conclusion-details">
-          <div className="detail-item">
-            <h4><Ico n="check" /> 设施充足</h4>
-            <div className="tag-list">
-              {conclusion?.sufficient_facilities?.map((item: string, idx: number) => (
-                <span key={idx} className="tag success">{item}</span>
-              ))}
-            </div>
-          </div>
-
-          <div className="detail-item">
-            <h4><Ico n="warning" /> 设施匮乏</h4>
-            <div className="tag-list">
-              {conclusion?.insufficient_facilities?.length > 0 ? (
-                conclusion.insufficient_facilities.map((item: string, idx: number) => (
-                  <span key={idx} className="tag warning">{item}</span>
-                ))
-              ) : (
-                <span className="tag success">无</span>
-              )}
-            </div>
-          </div>
-
-          <div className="detail-item">
-            <h4><Ico n="target" /> 最需要改进</h4>
-            <ul className="improvement-list">
-              {conclusion?.top3_improvements?.map((item: string, idx: number) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. 设施覆盖统计 */}
-      <section className="report-section">
-        <h2><Ico n="chart" /> 设施覆盖统计</h2>
-        <p className="blind-explain">
-          每类设施按<b>推荐标准数量</b>判定达标（医疗 3、教育 3、购物 5、养老 2、文体 3、餐饮 5、交通 3 个）。
-          覆盖评分 = <b>覆盖率 40 分</b>（有设施即得）+ <b>达标率 60 分</b>（数量 ÷ 标准，封顶 100%）。
-          5/10/15 分钟三列是各等时圈内的实际数量，<b>圈越大数量越多</b>属正常现象。
-        </p>
-        <table className="facility-table">
-          <thead>
-            <tr>
-              <th>设施类别</th>
-              <th>5分钟</th>
-              <th>10分钟</th>
-              <th>15分钟</th>
-              <th>标准数量</th>
-              <th>达标情况</th>
-            </tr>
-          </thead>
-          <tbody>
-            {facility_stats?.map((stat: any, idx: number) => (
-              <tr key={idx}>
-                <td className="category-name">{stat.category}</td>
-                <td>{stat.count_5min}</td>
-                <td>{stat.count_10min}</td>
-                <td>{stat.count_15min}</td>
-                <td>{stat.standard}</td>
-                <td>
-                  <span className="status-badge" style={{ backgroundColor: getStatusColor(stat.status) }}>
-                    {stat.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      {/* 4. 出行方式对比 */}
-      <section className="report-section">
-        <h2><Ico n="car" /> 出行方式对比</h2>
-        <p className="blind-explain">
-          每种出行方式的得分 = <b>设施覆盖 50%</b> + <b>可达性 30%</b> + <b>盲区 20%</b>（按 15 分钟档计算）。
-          等时圈越大能到的设施越多，所以<b>骑行/驾车通常高于步行</b>；
-          但步行分高说明「家门口」配套齐全，是更宜居的信号，不能只看总分高低。
-        </p>
-        <div className="mode-comparison-grid">
-          {mode_comparisons?.map((mode: any, idx: number) => (
-            <div key={idx} className="mode-card">
-              <div className="mode-header">
-                <span className="mode-icon">
-                  {mode.mode === 'walking' ? <Ico n="walk" /> : mode.mode === 'cycling' ? <Ico n="bike" /> : mode.mode === 'transit' ? <Ico n="bus" /> : <Ico n="car" />}
-                </span>
-                <span className="mode-name">{mode.mode_name}</span>
-                <span className="mode-score" style={{ color: getScoreColor(mode.score) }}>
-                  {mode.score}分
-                </span>
-              </div>
-              <div className="mode-details">
-                <div className="mode-detail-item">
-                  <span className="detail-label">等时圈面积：</span>
-                  <span className="detail-value">{(mode.area_15min / 1000000).toFixed(2)} km²</span>
+          {/* ② 核心结论 */}
+          <section className="cr-sec">
+            <h2 className="cr-sec-title"><Ico n="clipboard" /> 核心结论</h2>
+            <div className="cr-stat-grid">
+              <div className="cr-stat-card">
+                <div className="cr-stat-label">整体水平</div>
+                <div className="cr-stat-big" style={{ color: getScoreColor(conclusion?.overall_score) }}>
+                  {conclusion?.overall_score}<i>分</i>
                 </div>
-                <div className="mode-detail-item">
-                  <span className="detail-label">覆盖设施：</span>
-                  <span className="detail-value">{mode.facility_count} 个</span>
-                </div>
-                <div className="mode-detail-item">
-                  <span className="detail-label">平均可达时间：</span>
-                  <span className="detail-value">{mode.avg_time} 分钟</span>
-                </div>
+                <div className="cr-stat-sub">{conclusion?.overall_level}</div>
+              </div>
+              <div className="cr-stat-card">
+                <div className="cr-stat-label">最佳出行方式</div>
+                <div className="cr-stat-mid">{conclusion?.best_mode}</div>
+                <div className="cr-stat-sub">{conclusion?.best_mode_score} 分</div>
+              </div>
+              <div className="cr-stat-card">
+                <div className="cr-stat-label">可达性盲区</div>
+                <div className="cr-stat-mid">{conclusion?.blind_spot_count}<i> 个</i></div>
+                <div className="cr-stat-sub">未达推荐标准的类别</div>
+              </div>
+              <div className="cr-stat-card">
+                <div className="cr-stat-label">风水/居住适宜性</div>
+                <div className="cr-stat-mid">{conclusion?.fengshui_level}</div>
+                <div className="cr-stat-sub">七项加权综合</div>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="cr-tags-row">
+              <span className="cr-tag-label"><Ico n="check" /> 设施充足</span>
+              {conclusion?.sufficient_facilities?.length > 0
+                ? conclusion.sufficient_facilities.map((t: string, i: number) => <span key={i} className="cr-tag ok">{t}</span>)
+                : <span className="cr-tag ok">无</span>}
+            </div>
+            <div className="cr-tags-row">
+              <span className="cr-tag-label"><Ico n="warning" /> 设施匮乏</span>
+              {conclusion?.insufficient_facilities?.length > 0
+                ? conclusion.insufficient_facilities.map((t: string, i: number) => <span key={i} className="cr-tag warn">{t}</span>)
+                : <span className="cr-tag ok">无</span>}
+            </div>
+            <div className="cr-improve">
+              <span className="cr-tag-label"><Ico n="target" /> 最需要改进</span>
+              <ol>
+                {conclusion?.top3_improvements?.map((t: string, i: number) => <li key={i}>{t}</li>)}
+              </ol>
+            </div>
+          </section>
 
-      {/* 5. 服务盲区识别：空间盲区 / 可达性盲区 两个口径并列 */}
-      <section className="report-section">
-        <h2><Ico n="search" /> 服务盲区识别</h2>
+          {/* ③ 综合评分五维 */}
+          <section className="cr-sec">
+            <h2 className="cr-sec-title"><Ico n="chart" /> 综合评分五维</h2>
+            <p className="cr-note">
+              五维加权：<b>设施覆盖 35% + 可达性 25% + 出行适配 20% + 盲区识别 10% + 风水 10%</b>。
+              盲区识别是「越少越高」：每个盲区扣分，医疗/教育/养老类扣得更重。
+            </p>
+            <div className="cr-radar-row">
+              <div className="cr-radar"><ScoreRadar data={fiveDim} /></div>
+              <table className="cr-mini-table">
+                <tbody>
+                  {fiveDim.map((d) => (
+                    <tr key={d.name}>
+                      <td>{d.name}</td>
+                      <td>
+                        <div className="cr-bar"><div className="cr-bar-fill" style={{ width: `${d.value}%`, background: getScoreColor(d.value) }} /></div>
+                      </td>
+                      <td className="cr-num" style={{ color: getScoreColor(d.value) }}>{d.value}</td>
+                    </tr>
+                  ))}
+                  <tr className="cr-total-row">
+                    <td>综合总分</td>
+                    <td>{compScore.level || conclusion?.overall_level}</td>
+                    <td className="cr-num" style={{ color: getScoreColor(compScore.total || 0) }}>{compScore.total ?? conclusion?.overall_score}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-        {/* 5.1 空间盲区 */}
-        <div className="blind-block">
-          <div className="blind-block-head">
-            <span className="blind-block-title"><Ico n="pin" /> 空间盲区</span>
-            <span className="blind-block-count">{blind_spots?.length || 0} 个</span>
-          </div>
-          <p className="blind-explain">
-            等时圈内<b>连续的设施空白地带</b>——站在这些位置 1 公里内找不到该类设施。
-            按网格逐点检测后聚类，<b>等时圈越大覆盖到的空白越多</b>，
-            所以骑行/驾车的空间盲区反而比步行多。有具体坐标，画在地图上（红圈）。
-          </p>
-          {blind_spots?.length > 0 ? (
-            <div className="blind-spot-list">
-              {blind_spots.map((spot: any, idx: number) => (
-                <div key={idx} className="blind-spot-item">
-                  <div className="spot-header">
-                    <span className="spot-number">{spot.category || '综合'}盲区 #{idx + 1}</span>
-                    <span className="spot-location">
-                      位置: ({spot.location?.lng?.toFixed(4)}, {spot.location?.lat?.toFixed(4)})
-                    </span>
+          {/* ④ 设施覆盖统计 */}
+          <section className="cr-sec">
+            <h2 className="cr-sec-title"><Ico n="building" /> 设施覆盖统计</h2>
+            <p className="cr-note">
+              按<b>推荐标准数量</b>判定达标（医疗 3、教育 3、购物 5、养老 2、文体 3、餐饮 5、交通 3 个）。
+              三列为各等时圈内实际数量，<b>圈越大数量越多</b>属正常。
+            </p>
+            <table className="cr-table">
+              <thead>
+                <tr><th>类别</th><th>5分钟</th><th>10分钟</th><th>15分钟</th><th>标准</th><th>达标</th></tr>
+              </thead>
+              <tbody>
+                {facility_stats?.map((stat: any, idx: number) => (
+                  <tr key={idx}>
+                    <td className="cr-cat">{stat.category}</td>
+                    <td>{stat.count_5min}</td>
+                    <td>{stat.count_10min}</td>
+                    <td>{stat.count_15min}</td>
+                    <td>{stat.standard}</td>
+                    <td><span className="cr-badge" style={{ background: getStatusColor(stat.status) }}>{stat.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {facilityBarData.length > 0 && (
+              <GroupedBarChart data={facilityBarData} series={SLOT_SERIES} unit=" 个" />
+            )}
+          </section>
+
+          {/* ④' 最近设施速查 */}
+          {nearestList.length > 0 && (
+            <section className="cr-sec">
+              <h2 className="cr-sec-title"><Ico n="pin" /> 最近设施速查</h2>
+              <p className="cr-note">步行 15 分钟圈内每类最近 2 个设施（直线距离）。</p>
+              <div className="cr-nearest">
+                {nearestList.map(({ cat, facs }) => (
+                  <div key={cat} className="cr-nearest-row">
+                    <span className="cr-nearest-cat">{cat}</span>
+                    {facs.map((f: any, i: number) => (
+                      <span key={i} className="cr-nearest-item">
+                        {f.name}
+                        <i>{f.distance != null ? `${Math.round(f.distance)}m` : '—'}</i>
+                      </span>
+                    ))}
                   </div>
-                  <div className="spot-content">
-                    <div className="missing-facilities">
-                      <span className="label">缺失设施：</span>
-                      {spot.missing_facilities?.map((f: string, i: number) => (
-                        <span key={i} className="tag warning">{f}</span>
-                      ))}
-                    </div>
-                    <div className="suggestion">
-                      <span className="label">建议：</span>
-                      <span className="value">{spot.suggestion}</span>
-                    </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <footer className="cr-page-foot"><span>现状与评价</span><span>第 1 页 / 共 2 页</span></footer>
+        </div>
+
+        {/* ================= 右页 · 对比与改善 ================= */}
+        <div className="cr-page">
+          {/* ⑤ 出行方式对比 */}
+          <section className="cr-sec">
+            <h2 className="cr-sec-title"><Ico n="car" /> 出行方式对比</h2>
+            <p className="cr-note">
+              得分 = <b>设施覆盖 50% + 可达性 30% + 盲区 20%</b>（15 分钟档口径）。
+              圈越大能到的设施越多，<b>骑行/驾车通常高于步行</b>；步行分高说明家门口配套齐全，更宜居。
+            </p>
+            <div className="cr-mode-grid">
+              {mode_comparisons?.map((mode: any, idx: number) => (
+                <div key={idx} className="cr-mode-card">
+                  <div className="cr-mode-head">
+                    <Ico n={mode.mode === 'walking' ? 'walk' : mode.mode === 'cycling' ? 'bike' : mode.mode === 'transit' ? 'bus' : 'car'} />
+                    <span>{mode.mode_name}</span>
+                    <b style={{ color: getScoreColor(mode.score) }}>{mode.score}分</b>
+                  </div>
+                  <div className="cr-mode-detail">
+                    <span>15分钟面积 <b>{(mode.area_15min / 1000000).toFixed(2)} km²</b></span>
+                    <span>覆盖设施 <b>{mode.facility_count} 个</b></span>
+                    <span>平均可达 <b>{mode.avg_time} 分钟</b></span>
                   </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="no-blind-spots">
-              <span className="icon"><Ico n="check" /></span>
-              <span>等时圈内无连续空白地带</span>
+            <div className="cr-chart-2col">
+              <div>
+                <div className="cr-chart-title">各档得分对比</div>
+                <GroupedBarChart data={modeScoreData} series={SLOT_SERIES} unit=" 分" />
+              </div>
+              <div>
+                <div className="cr-chart-title">等时圈面积对比（km²）</div>
+                <GroupedBarChart data={modeAreaData} series={SLOT_SERIES} unit=" km²" />
+              </div>
             </div>
-          )}
-        </div>
+          </section>
 
-        {/* 5.2 可达性盲区 */}
-        <div className="blind-block">
-          <div className="blind-block-head">
-            <span className="blind-block-title"><Ico n="search" /> 可达性盲区</span>
-            <span className="blind-block-count">{accessibility_blind_spots?.length || 0} 个</span>
-          </div>
-          <p className="blind-explain">
-            15 分钟内<b>能到达</b>的某类设施数量未达推荐标准
-            （养老 2 个、医疗 3 个、教育 3 个…），按类别判定、与位置无关。
-            <b>等时圈越大能到达的设施越多</b>，所以骑行/驾车通常比步行更少。
-          </p>
-          {accessibility_blind_spots?.length > 0 ? (
-            <div className="access-blind-list">
-              {accessibility_blind_spots.map((spot: any, idx: number) => (
-                <div key={idx} className="access-blind-item">
-                  <div className="access-blind-head">
-                    <span className="access-blind-cat">{spot.category}</span>
-                    <span className="access-blind-count">
-                      到达 {spot.count} / 标准 {spot.standard} 个
-                    </span>
-                    <span className="access-blind-deficit">缺 {spot.deficit} 个</span>
-                  </div>
-                  <div className="access-blind-desc">{spot.description}</div>
-                  <div className="access-blind-sug"><Ico n="bulb" /> {spot.suggestion}</div>
+          {/* ⑥ 服务盲区 */}
+          <section className="cr-sec">
+            <h2 className="cr-sec-title"><Ico n="search" /> 服务盲区识别</h2>
+            <div className="cr-blind-head">
+              <Ico n="pin" /> 空间盲区 <b>{blind_spots?.length || 0}</b> 个
+              <span className="cr-note-inline">等时圈内连续设施空白地带，有坐标、画在地图红圈；圈越大查到的空白越多。</span>
+            </div>
+            {blind_spots?.length > 0 ? (
+              <table className="cr-table">
+                <thead><tr><th>#</th><th>缺失设施</th><th>位置</th><th>建议</th></tr></thead>
+                <tbody>
+                  {blind_spots.map((spot: any, idx: number) => (
+                    <tr key={idx}>
+                      <td>{idx + 1}</td>
+                      <td>{(spot.missing_facilities || []).join('、') || '综合'}</td>
+                      <td className="cr-mono">({spot.location?.lng?.toFixed(4)}, {spot.location?.lat?.toFixed(4)})</td>
+                      <td>{spot.suggestion}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="cr-empty"><Ico n="check" /> 等时圈内无连续空白地带</div>
+            )}
+
+            <div className="cr-blind-head">
+              <Ico n="search" /> 可达性盲区 <b>{accessibility_blind_spots?.length || 0}</b> 个
+              <span className="cr-note-inline">15 分钟内能到达的数量未达推荐标准，按类别判定、与位置无关。</span>
+            </div>
+            {accessibility_blind_spots?.length > 0 ? (
+              <table className="cr-table">
+                <thead><tr><th>类别</th><th>到达/标准</th><th>缺口</th><th>说明与建议</th></tr></thead>
+                <tbody>
+                  {accessibility_blind_spots.map((spot: any, idx: number) => (
+                    <tr key={idx}>
+                      <td className="cr-cat">{spot.category}</td>
+                      <td>{spot.count} / {spot.standard} 个</td>
+                      <td>缺 {spot.deficit}</td>
+                      <td>{spot.description}　<b className="cr-amber">{spot.suggestion}</b></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="cr-empty"><Ico n="check" /> 各类设施均达标</div>
+            )}
+          </section>
+
+          {/* ⑦ 风水/居住适宜性 */}
+          <section className="cr-sec">
+            <h2 className="cr-sec-title"><Ico n="waves" /> 风水 / 居住适宜性</h2>
+            <p className="cr-note">
+              七项加权：<b>水系 20%</b> 最高，地势/朝向/道路形态/敏感设施各 15%，绿化/人气各 10%。
+              道路形态与人气目前为简化估算，一并计入总分。
+            </p>
+            <div className="cr-radar-row">
+              <div className="cr-radar">
+                {fullResult?.fengshui
+                  ? <FengShuiRadar data={fullResult.fengshui} showLabels={false} detailScore={compScore.fengshui_detail} />
+                  : <ScoreRadar data={[
+                      { name: '地势', value: fengshui?.terrain || 0 },
+                      { name: '朝向', value: fengshui?.orientation || 0 },
+                      { name: '水系', value: fengshui?.water || 0 },
+                      { name: '道路', value: fengshui?.road_form || 0 },
+                      { name: '敏感', value: fengshui?.sensitive_facilities || 0 },
+                      { name: '绿化', value: fengshui?.greenery || 0 },
+                      { name: '人气', value: fengshui?.popularity || 0 },
+                    ]} color="#1890ff" />}
+              </div>
+              <div className="cr-fs-side">
+                <div className="cr-stat-big" style={{ color: getScoreColor(fengshui?.total_score) }}>
+                  {fengshui?.total_score}<i>分</i>
                 </div>
-              ))}
+                <div className="cr-stat-sub">{fengshui?.level} · {fengshui?.description}</div>
+                <table className="cr-mini-table">
+                  <tbody>
+                    {[
+                      ['地势', fengshui?.terrain], ['朝向', fengshui?.orientation], ['水系', fengshui?.water],
+                      ['道路形态', fengshui?.road_form], ['敏感设施', fengshui?.sensitive_facilities],
+                      ['绿化', fengshui?.greenery], ['人气', fengshui?.popularity],
+                    ].map(([label, val]: any) => (
+                      <tr key={label}>
+                        <td>{label}</td>
+                        <td><div className="cr-bar"><div className="cr-bar-fill" style={{ width: `${val || 0}%`, background: getScoreColor(val || 0) }} /></div></td>
+                        <td className="cr-num">{val ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          ) : (
-            <div className="no-blind-spots">
-              <span className="icon"><Ico n="check" /></span>
-              <span>各类设施均达标</span>
-            </div>
-          )}
-        </div>
-      </section>
+          </section>
 
-      {/* 6. 风水评分报告 */}
-      <section className="report-section">
-        <h2><Ico n="waves" /> 风水评分报告</h2>
-        <p className="blind-explain">
-          居住环境品质的七个维度加权：<b>水系 20%</b> 最高，地势/朝向/道路形态/敏感设施各 15%，绿化/人气各 10%。
-          水系看周边水体分布，地势看高程起伏，朝向看建筑方位，敏感设施看医院/殡仪馆等邻避设施距离，绿化看植被覆盖；
-          道路形态 85、人气 80 目前为简化估算计入总分。
-        </p>
-        <div className="fengshui-report">
-          <div className="fengshui-total">
-            <div className="fengshui-score" style={{ color: getScoreColor(fengshui?.total_score) }}>
-              {fengshui?.total_score}
-            </div>
-            <div className="fengshui-level">{fengshui?.level}</div>
-            <div className="fengshui-desc">{fengshui?.description}</div>
-          </div>
-
-          <div className="fengshui-breakdown">
-            <div className="fengshui-item">
-              <span className="item-label"><Ico n="mountain" /> 地势</span>
-              <div className="item-bar">
-                <div className="bar-fill" style={{ width: `${fengshui?.terrain}%`, backgroundColor: getScoreColor(fengshui?.terrain) }}></div>
-              </div>
-              <span className="item-score">{fengshui?.terrain}</span>
-            </div>
-            <div className="fengshui-item">
-              <span className="item-label"><Ico n="compass" /> 朝向</span>
-              <div className="item-bar">
-                <div className="bar-fill" style={{ width: `${fengshui?.orientation}%`, backgroundColor: getScoreColor(fengshui?.orientation) }}></div>
-              </div>
-              <span className="item-score">{fengshui?.orientation}</span>
-            </div>
-            <div className="fengshui-item">
-              <span className="item-label"><Ico n="droplet" /> 水系</span>
-              <div className="item-bar">
-                <div className="bar-fill" style={{ width: `${fengshui?.water}%`, backgroundColor: getScoreColor(fengshui?.water) }}></div>
-              </div>
-              <span className="item-score">{fengshui?.water}</span>
-            </div>
-            <div className="fengshui-item">
-              <span className="item-label"><Ico n="road" /> 道路形态</span>
-              <div className="item-bar">
-                <div className="bar-fill" style={{ width: `${fengshui?.road_form}%`, backgroundColor: getScoreColor(fengshui?.road_form) }}></div>
-              </div>
-              <span className="item-score">{fengshui?.road_form}</span>
-            </div>
-            <div className="fengshui-item">
-              <span className="item-label"><Ico n="warning" /> 敏感设施</span>
-              <div className="item-bar">
-                <div className="bar-fill" style={{ width: `${fengshui?.sensitive_facilities}%`, backgroundColor: getScoreColor(fengshui?.sensitive_facilities) }}></div>
-              </div>
-              <span className="item-score">{fengshui?.sensitive_facilities}</span>
-            </div>
-            <div className="fengshui-item">
-              <span className="item-label"><Ico n="tree" /> 绿化</span>
-              <div className="item-bar">
-                <div className="bar-fill" style={{ width: `${fengshui?.greenery}%`, backgroundColor: getScoreColor(fengshui?.greenery) }}></div>
-              </div>
-              <span className="item-score">{fengshui?.greenery}</span>
-            </div>
-            <div className="fengshui-item">
-              <span className="item-label"><Ico n="users" /> 人气</span>
-              <div className="item-bar">
-                <div className="bar-fill" style={{ width: `${fengshui?.popularity}%`, backgroundColor: getScoreColor(fengshui?.popularity) }}></div>
-              </div>
-              <span className="item-score">{fengshui?.popularity}</span>
-            </div>
-          </div>
-
-          {fengshui?.suggestions?.length > 0 && (
-            <div className="fengshui-suggestions">
-              <h4>风水改善建议</h4>
-              <ul>
-                {fengshui.suggestions.map((s: string, i: number) => (
-                  <li key={i}>{s}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* 7. 规划建议 */}
-      <section className="report-section">
-        <h2><Ico n="edit" /> 规划建议</h2>
-        <div className="suggestions-container">
-          {suggestions?.priority_facilities?.length > 0 && (
-            <div className="suggestion-group">
-              <h4><Ico n="hospital" /> 优先补齐的设施</h4>
-              <div className="suggestion-list">
-                {suggestions.priority_facilities.map((item: any, idx: number) => (
-                  <div key={idx} className="suggestion-item">
-                    <span className="priority-badge" style={{ backgroundColor: item.优先级 === '高' ? '#ff4d4f' : '#faad14' }}>
-                      {item.优先级}
-                    </span>
-                    <span className="facility-name">{item.设施}</span>
-                    <span className="reason">{item.原因}</span>
+          {/* ⑧ 规划建议 */}
+          <section className="cr-sec">
+            <h2 className="cr-sec-title"><Ico n="edit" /> 规划建议</h2>
+            {suggestions?.priority_facilities?.length > 0 && (
+              <>
+                <div className="cr-sub-title"><Ico n="hospital" /> 优先补齐的设施</div>
+                <table className="cr-table">
+                  <tbody>
+                    {suggestions.priority_facilities.map((item: any, idx: number) => (
+                      <tr key={idx}>
+                        <td><span className="cr-badge" style={{ background: item.优先级 === '高' ? '#ff4d4f' : '#faad14' }}>{item.优先级}</span></td>
+                        <td className="cr-cat">{item.设施}</td>
+                        <td>{item.原因}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+            {suggestions?.new_locations?.length > 0 && (
+              <>
+                <div className="cr-sub-title"><Ico n="pin" /> 建议新增点位</div>
+                <table className="cr-table">
+                  <tbody>
+                    {suggestions.new_locations.map((item: any, idx: number) => (
+                      <tr key={idx}>
+                        <td className="cr-cat">{item.设施}</td>
+                        <td className="cr-mono">{item.位置}</td>
+                        <td>{item.原因}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+            {(suggestions?.mode_optimization?.length > 0 || suggestions?.fengshui_improvements?.length > 0) && (
+              <div className="cr-chart-2col">
+                {suggestions?.mode_optimization?.length > 0 && (
+                  <div>
+                    <div className="cr-sub-title"><Ico n="car" /> 出行方式优化</div>
+                    <ul className="cr-list">{suggestions.mode_optimization.map((t: string, i: number) => <li key={i}>{t}</li>)}</ul>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {suggestions?.new_locations?.length > 0 && (
-            <div className="suggestion-group">
-              <h4><Ico n="pin" /> 建议新增点位</h4>
-              <div className="suggestion-list">
-                {suggestions.new_locations.map((item: any, idx: number) => (
-                  <div key={idx} className="suggestion-item">
-                    <span className="facility-name">{item.设施}</span>
-                    <span className="location">{item.位置}</span>
-                    <span className="reason">{item.原因}</span>
+                )}
+                {suggestions?.fengshui_improvements?.length > 0 && (
+                  <div>
+                    <div className="cr-sub-title"><Ico n="waves" /> 风水改善</div>
+                    <ul className="cr-list">{suggestions.fengshui_improvements.map((t: string, i: number) => <li key={i}>{t}</li>)}</ul>
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </section>
 
-          {suggestions?.mode_optimization?.length > 0 && (
-            <div className="suggestion-group">
-              <h4><Ico n="car" /> 出行方式优化</h4>
-              <ul className="optimization-list">
-                {suggestions.mode_optimization.map((item: string, idx: number) => (
-                  <li key={idx}>{item}</li>
-                ))}
-              </ul>
+          {/* 页脚：技术说明 + 页码 */}
+          <footer className="cr-page-foot cr-foot-notes">
+            <div>
+              {technical_notes?.slice(0, 4).map((n: string, i: number) => <div key={i} className="cr-tech-note">{n}</div>)}
+              <div className="cr-tech-note">报告生成：{meta?.report_generate_time} · 本报告由15分钟生活圈智能体检与规划助手自动生成</div>
             </div>
-          )}
-
-          {suggestions?.fengshui_improvements?.length > 0 && (
-            <div className="suggestion-group">
-              <h4><Ico n="waves" /> 风水改善建议</h4>
-              <ul className="optimization-list">
-                {suggestions.fengshui_improvements.map((item: string, idx: number) => (
-                  <li key={idx}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+            <span>第 2 页 / 共 2 页</span>
+          </footer>
         </div>
-      </section>
-
-      {/* 8. 技术说明与局限性 */}
-      <section className="report-section">
-        <h2><Ico n="book" /> 技术说明与局限性</h2>
-        <ul className="technical-notes">
-          {technical_notes?.map((note: string, idx: number) => (
-            <li key={idx}>{note}</li>
-          ))}
-        </ul>
-      </section>
-
-      {/* 报告页脚 */}
-      <footer className="report-footer">
-        <p>报告生成时间：{meta?.report_generate_time}</p>
-        <p>本报告由15分钟生活圈智能体检与规划助手自动生成</p>
-      </footer>
+      </div>
     </div>
   );
 };

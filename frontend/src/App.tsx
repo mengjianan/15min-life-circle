@@ -786,6 +786,7 @@ function App() {
                   <ComprehensiveReport
                     report={fullResult.report}
                     communityName={fullResult.community_name}
+                    fullResult={fullResult}
                   />
                 )}
               </div>
