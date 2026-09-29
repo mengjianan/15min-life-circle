@@ -21,12 +21,13 @@ const Report: React.FC<ReportProps> = ({
   const modes = fullResult.modes || {};
   const currentMode = modes[activeMode] || {};
   const currentScore = currentMode.score || {};
-  const currentCategories = currentScore.categories || {};
 
   // 根据时间档获取数据
   const timeSlotKey = String(activeTimeSlot);
   const currentSlot = currentMode.time_slots?.[timeSlotKey] || {};
   const coverage = currentSlot.poi_coverage || {};
+  // 类别分随时间档切换（老响应缺该档分数时回落模式分=15分钟档）
+  const currentCategories = currentSlot.score?.categories || currentScore.categories || {};
   // 两个口径并列展示，各自带解释（它们随出行方式的变化方向是相反的）：
   //   空间盲区   —— 等时圈内的设施空白地带，有坐标，画在地图上
   //   可达性盲区 —— 能到达的设施数量是否达标，按类别，无坐标
