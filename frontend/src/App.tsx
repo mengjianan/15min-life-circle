@@ -513,6 +513,8 @@ function App() {
 
             {/* 中间 - 综合评分 (25%) */}
             <div className="score-panel">
+              {/* 切换区（出行方式 + 时间档 + 注）：滑动时吸顶固定 */}
+              <div className="score-panel-sticky">
               {/* 出行方式切换 */}
               <div>
                 <div className="travel-mode-tabs">
@@ -554,6 +556,7 @@ function App() {
                   <div className="option-note"><span className="option-note-tag">注</span><span>切换<b>出行方式 / 时间档</b>：地图等时圈随之切换、只显示圈内设施，下方<b>覆盖评分 / 可达性 / 盲区</b>重算；悬停设施弹<b>耗时卡片</b>（各方式耗时 + 距离）并画中心→设施<b>真实路线</b>。默认<b>步行 + 15 分钟 + 全部设施</b>。</span></div>
                 </div>
               )}
+              </div>
 
 
 {/* 综合评分概览 - 不随出行方式切换 */}

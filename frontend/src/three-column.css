@@ -33,6 +33,20 @@
   gap: 16px;
 }
 
+/* 切换区（出行方式 + 时间档 + 注）：面板滑动时吸顶固定 */
+.score-panel-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -16px -16px 0; /* 吃掉面板 padding，满宽铺底不留透缝 */
+  padding: 16px 16px 8px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* 出行方式切换标签 */
 .travel-mode-tabs {
   display: flex;
