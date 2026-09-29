@@ -541,6 +541,7 @@ const MapView: React.FC<MapViewProps> = ({
         map.addEventListener('click', (e: any) => {
           if (clickModeRef.current && onCenterChange) {
             onCenterChange(e.point.lng, e.point.lat);
+            setClickMode(false); // 选完即退出选点模式，不然下一次点击还会挪中心
           } else if (Date.now() >= skipMapClickRef.current) {
             toggleFacility(null); // 点地图空白处退出设施聚焦，地图回到中心
           }

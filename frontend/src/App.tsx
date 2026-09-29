@@ -500,6 +500,7 @@ function App() {
                 activeCategory={activeCategory}
                 fengshuiData={fengshuiData}
                 modeIsochrones={getModeIsochrones()}
+                onCenterChange={handleCenterSelect}
                 onFacilitySelect={f => setSelectedFacility(f as POIItem | null)}
                 multiTimeData={modeData?.time_slots ? {
                   layers: Object.entries(modeData.time_slots).map(([key, slot]: [string, any]) => ({
@@ -654,6 +655,7 @@ function App() {
               <MapView
                 center={getCurrentCenter()}
                 loading={loading}
+                onCenterChange={handleCenterSelect}
               />
             </div>
 
