@@ -1196,6 +1196,12 @@ const MapView: React.FC<MapViewProps> = ({
               })}
             </div>
           )}
+          {/* 耗时口径：门到门，不只是车内时间 */}
+          {!hoverLoading && hoverModes.length > 0 && (
+            <div style={{ marginTop: 5, fontSize: 10, lineHeight: 1.5, color: '#9ca3af' }}>
+              全程时长（门到门）：两端步行进出站 + 换乘步行 + 估算的等车时间 + 车内时间
+            </div>
+          )}
         </div>
       )}
 
