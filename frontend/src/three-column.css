@@ -481,22 +481,26 @@
 
 /* 滚动条样式 */
 .score-panel::-webkit-scrollbar,
-.facility-list-container::-webkit-scrollbar {
+.facility-list-container::-webkit-scrollbar,
+.empty-state::-webkit-scrollbar {
   width: 6px;
 }
 
 .score-panel::-webkit-scrollbar-track,
-.facility-list-container::-webkit-scrollbar-track {
+.facility-list-container::-webkit-scrollbar-track,
+.empty-state::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .score-panel::-webkit-scrollbar-thumb,
-.facility-list-container::-webkit-scrollbar-thumb {
+.facility-list-container::-webkit-scrollbar-thumb,
+.empty-state::-webkit-scrollbar-thumb {
   background: var(--primary-200);
   border-radius: var(--radius-full);
 }
 
 .score-panel::-webkit-scrollbar-thumb:hover,
-.facility-list-container::-webkit-scrollbar-thumb:hover {
+.facility-list-container::-webkit-scrollbar-thumb:hover,
+.empty-state::-webkit-scrollbar-thumb:hover {
   background: var(--primary-300);
 }

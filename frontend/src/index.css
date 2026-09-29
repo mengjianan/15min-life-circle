@@ -998,7 +998,7 @@ body {
   color: var(--primary-600);
 }
 
-/* 空状态（体检说明手册：撑满与左侧地图同高，超高内部滚动） */
+/* 空状态（体检说明手册：撑满与左侧地图同高，滚动条在框内） */
 .empty-state {
   background: var(--bg-secondary);
   border-radius: var(--radius-lg);
@@ -1006,7 +1006,9 @@ body {
   text-align: center;
   box-shadow: var(--shadow-xs);
   border: 1px solid var(--border-light);
-  min-height: 100%; /* 撑满右栏；超高时随 data-panel 滚动 */
+  flex: 1;          /* 撑满右栏，与左侧地图同高 */
+  min-height: 0;    /* 允许收缩到栏高，内容不把框撑破 */
+  overflow-y: auto; /* 超高时滚动发生在框内，内容不出框 */
 }
 
 .empty-block {
