@@ -12,7 +12,8 @@ type RouteGeo = {
 };
 
 // ---------- 悬浮路线的本地持久化（30 天） ----------
-const ROUTE_CACHE_KEY = 'poi_route_cache_v1';
+// v2：key 加了中心坐标 —— v1 的 设施名|方式 不区分中心，换点后会命中旧位置的路线，整批作废
+const ROUTE_CACHE_KEY = 'poi_route_cache_v2';
 const ROUTE_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;  // 30 天
 const ROUTE_CACHE_MAX = 250;                         // 条数上限，防撑爆 localStorage
 const ROUTE_CACHE_MAX_POINTS = 100;                  // 单条折线最多保留的点数
@@ -247,6 +248,8 @@ const MapView: React.FC<MapViewProps> = ({
 
   // 挂载时从 localStorage 恢复 30 天内的悬浮路线，刷新页面后不用重算
   useEffect(() => {
+    // v1 key 不含中心坐标，永远不会被新 key 命中，直接删掉释放空间
+    try { localStorage.removeItem('poi_route_cache_v1'); } catch { /* 忽略 */ }
     const persisted = loadRouteCache();
     persisted.forEach((value, key) => routeCacheRef.current.set(key, value));
   }, []);
@@ -272,9 +275,14 @@ const MapView: React.FC<MapViewProps> = ({
     selectedFacilityRef.current = selectedFacility;
   }, [selectedFacility]);
 
+  // 路线缓存 key 必须带中心坐标：缓存的是「中心→设施」的几何，
+  // 只用 设施名|方式 会在换中心后命中旧中心的路线（设施路线总是停在上一个位置）
+  const routeKey = (name: string, mode: string) =>
+    `${center ? `${center.lng},${center.lat}` : '0,0'}|${name}|${mode}`;
+
   // 要显现路线的目标：悬浮优先，其次选中
   const activeFacility: HoverFacility | null = hoverFacility || selectedFacility || null;
-  const activeKey = activeFacility ? `${activeFacility.name}|${activeMode}` : '';
+  const activeKey = activeFacility ? routeKey(activeFacility.name, activeMode) : '';
 
   // 公共交通模式：中心 500m 内没有站点时，所有设施都被接驳规则隐藏 ——
   // 地图会一片空白，给一条提示说明原因（与后端 annotate_transit_reachability 同口径）
@@ -378,7 +386,7 @@ const MapView: React.FC<MapViewProps> = ({
     facility: { name: string; location: { lng: number; lat: number } },
     mode: string
   ): Promise<RouteGeo | null> => {
-    const key = `${facility.name}|${mode}`;
+    const key = routeKey(facility.name, mode);
     const cached = routeCacheRef.current.get(key);
     if (cached) return Promise.resolve(cached);
     const pending = routePendingRef.current.get(key);
@@ -420,7 +428,7 @@ const MapView: React.FC<MapViewProps> = ({
       setRouteState((prev) => (prev.key === '' ? prev : { key: '', geo: null }));
       return;
     }
-    const key = `${activeFacility.name}|${activeMode}`;
+    const key = routeKey(activeFacility.name, activeMode);
     const cached = routeCacheRef.current.get(key);
     if (cached) {
       setRouteState((prev) => (prev.key === key ? prev : { key, geo: cached }));
@@ -430,7 +438,7 @@ const MapView: React.FC<MapViewProps> = ({
       if (geo) setRouteState({ key, geo });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, activeFacility, activeMode, showRoutes, routeTick]);
+  }, [mapReady, activeFacility, activeMode, showRoutes, routeTick, center]);
 
   // 悬浮时并行取 4 种出行方式的耗时（全部走百度 JS SDK 客户端，零后端调用）
   const loadHoverTimes = (facility: HoverFacility) => {
@@ -446,7 +454,7 @@ const MapView: React.FC<MapViewProps> = ({
     const token = ++hoverTokenRef.current;
     Promise.all(
       modes.map(async (mode) => {
-        const cached = routeCacheRef.current.get(`${facility.name}|${mode}`);
+        const cached = routeCacheRef.current.get(routeKey(facility.name, mode));
         if (cached) return [mode, cached.duration] as [string, number];
         try {
           const geo = await fetchRouteGeo(facility, mode);
@@ -482,7 +490,7 @@ const MapView: React.FC<MapViewProps> = ({
         if (cancelled) return;
         for (const mode of DISPLAY_ROWS) {
           if (cancelled) return;
-          const key = `${fac.name}|${mode}`;
+          const key = routeKey(fac.name, mode);
           if (routeCacheRef.current.has(key) || routePendingRef.current.has(key)) {
             continue;
           }
@@ -597,6 +605,9 @@ const MapView: React.FC<MapViewProps> = ({
       mapInstanceRef.current.panTo(point);
       mapInstanceRef.current.setZoom(15);
     }
+    // 换中心后旧悬浮卡/耗时属于上一个位置 —— 一并清掉，否则卡片和路线还挂在旧设施上
+    clearHover();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center, mapReady]);
 
   useEffect(() => {
@@ -789,7 +800,7 @@ const MapView: React.FC<MapViewProps> = ({
                   // 不用再等 200ms 防抖（预热命中的情况就是毫秒级）
                   const needModes = getDisplayModes(target);
                   const allCached = needModes.length > 0 && needModes.every(
-                    (m) => routeCacheRef.current.has(`${target.name}|${m}`)
+                    (m) => routeCacheRef.current.has(routeKey(target.name, m))
                   );
                   if (allCached) {
                     loadHoverTimes(target);

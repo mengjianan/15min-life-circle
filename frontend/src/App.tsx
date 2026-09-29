@@ -234,11 +234,12 @@ function App() {
   // 延迟函数
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // 切换出行方式时清掉选中：设施集合随模式半径变化，旧选中的可能不在新等时圈里
+  // 切换出行方式/换中心点时清掉选中：设施集合随模式半径变化，旧选中的可能不在新等时圈里；
+  // 换中心后旧选中属于上一个位置，不清会让镜头和路线一直停在旧位置
   useEffect(() => {
     setSelectedFacility(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMode]);
+  }, [activeMode, customCenter, selectedCommunity]);
 
   const handleAnalyze = async () => {
     const center = getCurrentCenter();
@@ -338,6 +339,9 @@ function App() {
   };
 
   const handleCenterSelect = (lng: number, lat: number) => {
+    // 地图选点/预设点后不再是「选中的社区」——必须清掉，
+    // 否则下拉仍显示旧社区，再选同一个社区不触发 onChange，customCenter 清不掉、中心点回不去
+    setSelectedCommunity(null);
     setCustomCenter({
       lng,
       lat,
