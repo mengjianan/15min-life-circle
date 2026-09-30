@@ -3,8 +3,13 @@
 // 百度地图配置
 export const BAIDU_MAP_AK = '2bYD1EE33okcac0OpFT7ojWmTYXPKCCs';
 
-// API基础路径 - 同源相对路径：Docker/本地一键起直接走 /api（vite dev 与 nginx 均已代理）
-export const API_BASE_URL = '/api';
+// API基础路径：
+// - Docker/本地一键起 = 同源 /api（vite dev 与 nginx 均已代理）
+// - GitHub Pages 展示版（*.github.io）没有后端，回落到直连后端——
+//   历史上 Pages 就是这么通的（见 git: 357edb4→9fed810），IP 变更时同步这里
+export const API_BASE_URL = typeof location !== 'undefined' && location.hostname.endsWith('.github.io')
+  ? 'http://100.126.142.87:8081/api'
+  : '/api';
 
 // 社区坐标接口
 export interface Community {
