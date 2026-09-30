@@ -41,6 +41,7 @@ interface Props {
   entries: HistoryEntry[];
   onDelete: (id: string) => void;
   onLoadDemo: () => void;
+  onExportPDF: () => void;
 }
 
 // —— 取数（全部容错，坏数据降级为 0/未知，不让整块崩掉）——
@@ -114,7 +115,7 @@ function buildConclusions(entries: HistoryEntry[], slot: number): string[] {
   return out;
 }
 
-const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo }) => {
+const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo, onExportPDF }) => {
   const [slot, setSlot] = useState<number>(900);
   const [expanded, setExpanded] = useState(true);
 
@@ -148,9 +149,17 @@ const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo })
       {/* 下拉条：与「15分钟生活圈体检报告」同款式（复用 report-dropdown 样式类） */}
       <div className="report-dropdown-bar" onClick={() => setExpanded(!expanded)}>
         <span className="report-dropdown-label">最近三次体检对比</span>
-        <span className="report-toggle-btn">
-          <span className="toggle-text">{expanded ? '收起对比' : '展开对比'}</span>
-          <span className="toggle-arrow">{expanded ? '▲' : '▼'}</span>
+        <span className="report-dropdown-actions">
+          <button
+            className="dropdown-pdf-btn"
+            onClick={(e) => { e.stopPropagation(); onExportPDF(); }}
+          >
+            导出PDF
+          </button>
+          <span className="report-toggle-btn">
+            <span className="toggle-text">{expanded ? '收起对比' : '展开对比'}</span>
+            <span className="toggle-arrow">{expanded ? '▲' : '▼'}</span>
+          </span>
         </span>
       </div>
       {expanded && (entries.length === 0 ? (

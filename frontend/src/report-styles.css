@@ -20,6 +20,29 @@
   padding: 0;
 }
 
+/* 下拉条右侧操作组：导出PDF + 展开/收起（样式对齐 .report-dropdown-select） */
+.report-dropdown-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dropdown-pdf-btn {
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+
+.dropdown-pdf-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
 .report-dropdown-label {
   color: white;
   font-size: 15px;

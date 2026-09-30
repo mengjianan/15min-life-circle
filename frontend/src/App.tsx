@@ -8,6 +8,7 @@ import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
 import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
 import { resolveStreetName } from './services/localSearch';
+import { exportPDFReport } from './pdfExport';
 import { HistoryEntry, loadHistory, saveHistory, removeHistory } from './services/communityHistory';
 import { DEMO_RESULTS } from './services/demoData';
 import CommunityComparison from './components/CommunityComparison';
@@ -398,8 +399,25 @@ function App() {
   };
 
   const handleExportPDF = async () => {
-    // TODO: 导出全出行方式PDF报告
-    console.log('导出PDF报告');
+    if (!fullResult) return;
+    // 打印模板只读 community_name/score/suggestions/blind_spots，
+    // 取步行 15 分钟档合成 AnalysisResult 即可复用现有导出管线
+    const walking = fullResult.modes?.walking;
+    const slot = ((walking?.time_slots as Record<string, any>) || {})['900'] || {};
+    try {
+      await exportPDFReport({
+        community_name: fullResult.community_name,
+        center: fullResult.center,
+        isochrone: {} as any,
+        poi_coverage: slot.poi_coverage || {},
+        blind_spots: slot.blind_spots || [],
+        score: walking?.score as any,
+        suggestions: walking?.suggestions || [],
+      });
+    } catch (err) {
+      console.error(err);
+      alert('PDF生成失败，请重试');
+    }
   };
 
   // 获取等级颜色
@@ -472,12 +490,6 @@ function App() {
               自定义位置
             </button>
 
-            {fullResult && (
-              <button className="header-btn" onClick={handleExportPDF}>
-                <Icons.Download />
-                导出PDF
-              </button>
-            )}
           </div>
           <div className="header-right">
             <a href="../" className="back-button">
@@ -818,9 +830,17 @@ function App() {
             {/* 点击展开/收起按钮 */}
             <div className="report-dropdown-bar" onClick={() => setReportExpanded(!reportExpanded)}>
               <span className="report-dropdown-label">15分钟生活圈体检报告</span>
-              <span className="report-toggle-btn">
-                <span className="toggle-text">{reportExpanded ? "收起报告" : "展开报告"}</span>
-                <span className="toggle-arrow">{reportExpanded ? "▲" : "▼"}</span>
+              <span className="report-dropdown-actions">
+                <button
+                  className="dropdown-pdf-btn"
+                  onClick={(e) => { e.stopPropagation(); handleExportPDF(); }}
+                >
+                  导出PDF
+                </button>
+                <span className="report-toggle-btn">
+                  <span className="toggle-text">{reportExpanded ? "收起报告" : "展开报告"}</span>
+                  <span className="toggle-arrow">{reportExpanded ? "▲" : "▼"}</span>
+                </span>
               </span>
             </div>
             {reportExpanded && (
@@ -848,6 +868,7 @@ function App() {
                 setHistoryEntries(lists[lists.length - 1] || []);
               });
             }}
+            onExportPDF={handleExportPDF}
           />
         )}
       </main>
