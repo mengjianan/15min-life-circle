@@ -126,7 +126,7 @@
 <ul>
   <li><strong>缓存分级</strong>：真实数据结果缓存 30 天、模拟兜底数据缓存 1 小时；设施悬浮路线 30 天本地持久化（含中心坐标，防换点串线）；</li>
   <li><strong>容错降级</strong>：API 超时/限流自动退避与模拟数据兜底；四个预设社区内置真实体检快照，后端不可达时自动降级展示，演示不空白；</li>
-  <li><strong>防滥用</strong>：自定义选点密码闸门，防止开源部署后任意坐标刷爆地图 API 配额；</li>
+  <li><strong>防滥用</strong>：自定义选点密码闸门（<strong>密码：15min2026</strong>），防止开源部署后任意坐标刷爆地图 API 配额；</li>
   <li><strong>一键部署与 CI</strong>：Docker Compose（FastAPI + nginx）一键起；GitHub Actions 执行后端 lint/测试、前端类型检查/构建、Docker 镜像构建与 Pages 自动发布。</li>
 </ul>
 
@@ -179,6 +179,7 @@
     <li><strong>开源地址</strong>：GitHub — github.com/mengjianan/15min-life-circle</li>
     <li><strong>在线演示</strong>：mengjianan.github.io/15min-life-circle/（介绍页）、mengjianan.github.io/15min-life-circle/app/（应用）</li>
     <li><strong>一键部署</strong>：git clone → cp .env.example .env（填入百度地图 AK）→ docker-compose up -d → 访问 http://localhost:3001</li>
+    <li><strong>自定义选点密码</strong>：15min2026（「自定义位置」与地图选点需输入，预设社区不受限）</li>
     <li><strong>开源协议</strong>：MIT License</li>
   </ul>
 </div>
