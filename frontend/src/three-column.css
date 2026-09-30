@@ -459,6 +459,11 @@
 
 .report-content {
   padding: 20px;
+  /* 下拉条 flush 后，白底卡片由内容区自己承担（收起时页面上只剩渐变条） */
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
 
 /* 响应式布局 */

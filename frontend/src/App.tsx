@@ -813,7 +813,7 @@ function App() {
 
         {/* 综合报告区域 */}
         {fullResult && (
-          <div className="report-section">
+          <div className="report-section flush">
             {/* 整条下拉框 */}
             {/* 点击展开/收起按钮 */}
             <div className="report-dropdown-bar" onClick={() => setReportExpanded(!reportExpanded)}>
