@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>作品介绍文档 - 15分钟生活圈智能体检与规划助手</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    color: #26272e; font-size: 10.5pt; line-height: 1.75;
+  }
+  /* ---------- 封面头部 ---------- */
+  .cover { border-bottom: 3px solid #667eea; padding-bottom: 14px; margin-bottom: 20px; }
+  .cover .tag { display: inline-block; font-size: 9pt; color: #667eea; border: 1px solid #667eea;
+    border-radius: 3px; padding: 1px 10px; margin-bottom: 10px; }
+  .cover h1 { font-size: 21pt; line-height: 1.4; color: #1a1a2e; margin-bottom: 6px; }
+  .cover .sub { font-size: 11pt; color: #55565f; }
+  .cover .meta { margin-top: 8px; font-size: 9pt; color: #8a8fa3; }
+  /* ---------- 章节 ---------- */
+  h2 {
+    font-size: 14pt; color: #1a1a2e; margin: 22px 0 10px;
+    padding-left: 10px; border-left: 4px solid #667eea;
+  }
+  h3 { font-size: 11.5pt; color: #3d3e4a; margin: 14px 0 6px; }
+  p { margin-bottom: 8px; text-align: justify; }
+  ol, ul { padding-left: 22px; margin-bottom: 8px; }
+  li { margin-bottom: 5px; text-align: justify; }
+  strong { color: #1a1a2e; }
+  /* ---------- 摘要框 ---------- */
+  .abstract { background: #f5f6ff; border: 1px solid #d9dcf5; border-radius: 6px;
+    padding: 12px 16px; margin: 14px 0; }
+  .abstract .label { font-weight: 700; color: #667eea; font-size: 10pt; }
+  /* ---------- 架构分层 ---------- */
+  .layer { border: 1.5px solid #c9cdf0; border-radius: 6px; padding: 9px 14px; margin: 0; background: #fff; }
+  .layer .lt { font-weight: 700; color: #4a4fbf; font-size: 10.5pt; }
+  .layer .ld { font-size: 9.5pt; color: #55565f; }
+  .arrow { text-align: center; color: #667eea; font-size: 13pt; line-height: 1.4; }
+  .arch { margin: 10px 0 6px; }
+  /* ---------- 卡片 ---------- */
+  .cards { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .card { width: calc(50% - 4px); border: 1px solid #e2e4f2; border-radius: 6px; padding: 9px 12px;
+    background: #fafaff; page-break-inside: avoid; }
+  .card .ct { font-weight: 700; font-size: 10.5pt; color: #4a4fbf; margin-bottom: 3px; }
+  .card .cd { font-size: 9.5pt; color: #44454e; line-height: 1.6; }
+  /* ---------- 表格 ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 8px 0; page-break-inside: avoid; }
+  th, td { border: 1px solid #d9dbea; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #eef0fc; color: #3d3e6a; font-weight: 700; }
+  tr:nth-child(even) td { background: #f8f9fe; }
+  td.svc { font-weight: 700; color: #1a1a2e; white-space: nowrap; }
+  td.ep { font-family: Consolas, monospace; font-size: 9pt; color: #4a4fbf; }
+  /* ---------- 图片 ---------- */
+  figure { margin: 10px 0; page-break-inside: avoid; text-align: center; }
+  figure img { max-width: 100%; border: 1px solid #d9dbea; border-radius: 4px; }
+  figcaption { font-size: 9pt; color: #8a8fa3; margin-top: 4px; }
+  /* ---------- 算法步骤 ---------- */
+  .step { display: flex; gap: 10px; margin-bottom: 7px; page-break-inside: avoid; }
+  .step .no { flex: 0 0 22px; height: 22px; border-radius: 50%; background: #667eea; color: #fff;
+    font-size: 10pt; text-align: center; line-height: 22px; font-weight: 700; margin-top: 2px; }
+  .step .sc { flex: 1; }
+  .step .st { font-weight: 700; color: #1a1a2e; }
+  /* ---------- 页脚收尾 ---------- */
+  .end { border-top: 2px solid #667eea; margin-top: 18px; padding-top: 10px; font-size: 10pt; }
+  .end ul { list-style: none; padding-left: 0; }
+  .end li { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ===== 标题 ===== -->
+<div class="cover">
+  <div class="tag">开源 AI 工具赛道 · 参赛作品介绍</div>
+  <h1>基于地图开放能力的「15分钟生活圈」<br>智能体检与规划助手</h1>
+  <div class="sub">真实路网等时圈 · 民生设施覆盖 · 服务盲区识别 · 多社区多维对比</div>
+  <div class="meta">技术栈：React 18 + TypeScript + FastAPI + 百度地图开放平台 + NetworkX ｜ 开源协议：MIT ｜ 部署：Docker Compose 一键起</div>
+</div>
+
+<!-- ===== 摘要 ===== -->
+<div class="abstract">
+  <span class="label">作品摘要（200 字）</span><br>
+  本项目面向「15分钟便民生活圈」建设中真实可达性难以量化的问题，基于百度地图路网计算步行/骑行/公交/驾车 5/10/15 分钟真实等时圈，统计圈内医疗、教育等七类民生设施覆盖，自动识别服务盲区，生成可视化体检报告，并支持多社区多维对比。核心功能含自定义选点体检、盲区标注、设施真实路线、报告导出与离线容错。使用百度地图：地理编码/逆地理、POI 检索、批量路线矩阵、路径规划（directionlite）、距离计算及地图 JS SDK。
+</div>
+
+<!-- ===== 一、项目背景 ===== -->
+<h2>一、项目背景</h2>
+<p>国家大力推行「15 分钟便民生活圈」建设，要求居民在步行 15 分钟范围内获得医疗、教育、购物、养老等基础服务。然而目前的社区建设规划多依赖<strong>人工普查与静态数据</strong>，缺乏对「真实可达性」的动态考量，主要痛点有三：</p>
+<ol>
+  <li><strong>道路并非直线</strong>——红绿灯、过街天桥、施工围挡等都会极大影响实际步行可达范围，以直线半径估算与真实情况偏差显著；</li>
+  <li><strong>传统评估成本高、更新慢</strong>——普查人力与时间投入大，数据落地即过时；</li>
+  <li><strong>服务盲区难以精准发现</strong>——「哪些街区缺菜市场、药店、小学」缺少可量化、可复核的识别手段。</li>
+</ol>
+<p>亟需一款综合运用地图开放能力（道路路网、POI 检索、路径规划与距离计算）进行<strong>量化分析与自动诊疗</strong>的工具。本作品即以此为目标：输入任意中心点坐标，基于真实路网生成等时圈、统计设施覆盖、标注盲区，一键输出可视化体检报告。</p>
+
+<!-- ===== 二、技术架构 ===== -->
+<h2>二、技术架构</h2>
+<div class="arch">
+  <div class="layer">
+    <div class="lt">前端展示层 —— React 18 + TypeScript + Vite</div>
+    <div class="ld">百度地图 JS SDK（地图与覆盖物渲染、点击选点、悬浮真实路线）· Recharts 图表 · IndexedDB 体检历史 · PDF 导出</div>
+  </div>
+  <div class="arrow">▼ 同源 /api（nginx 反向代理）</div>
+  <div class="layer">
+    <div class="lt">后端服务层 —— FastAPI（Python）</div>
+    <div class="ld">SQLite 结果缓存 · QPS 限流与配额预检 · 真实/模拟分级降级</div>
+  </div>
+  <div class="arrow">▼</div>
+  <div class="layer">
+    <div class="lt">算法层</div>
+    <div class="ld">等时圈引擎 · POI 分析与清洗 · 盲区识别 · 综合评分 · 风水评估 · 路网 Graph（NetworkX）</div>
+  </div>
+  <div class="arrow">▼</div>
+  <div class="layer">
+    <div class="lt">百度地图开放能力</div>
+    <div class="ld">地理编码 / 逆地理 · POI 检索 · 路线规划 directionlite · 批量路线矩阵 routematrix · 地图 JS SDK</div>
+  </div>
+</div>
+
+<h3>核心算法链</h3>
+<div class="step"><div class="no">1</div><div class="sc"><span class="st">真实路网等时圈（扇形采样 + 二分搜索 + 样条插值）</span>：以中心点为圆心取 36 个方向，每个方向用批量路线矩阵实测步行耗时，二分搜索逼近 5/10/15 分钟的真实路网边界点，再对边界点序列做三次样条插值平滑。全程<strong>不获取底层路网数据</strong>，仅凭分散点位的 API 测时结果推导近似连通区域。</div></div>
+<div class="step"><div class="no">2</div><div class="sc"><span class="st">多源 POI 数据清洗</span>：每类设施多关键词检索 → 坐标去重 → 分类标准化 → 距离过滤 → 对照标准数量打分（医疗 3 / 教育 3 / 购物 5 / 养老 2 / 文体 3 / 餐饮 5 / 交通 3）。</div></div>
+<div class="step"><div class="no">3</div><div class="sc"><span class="st">服务盲区识别（双口径）</span>：空间口径——网格覆盖计算找出圈内连续设施空白地带，地图红圈标注；可达性口径——按类别统计实达数量与标准的缺口（含公交可达性标注）。</div></div>
+<div class="step"><div class="no">4</div><div class="sc"><span class="st">综合评分</span>：设施覆盖 35% + 可达性 25% + 出行适配 20% + 盲区 10% + 风水 10% 加权合成，取四种出行方式的平均水平；风水按地势、朝向、水系、道路形态、敏感设施、绿化、人气七项评估。</div></div>
+
+<h3>工程化与部署</h3>
+<ul>
+  <li><strong>缓存分级</strong>：真实数据结果缓存 30 天、模拟兜底数据缓存 1 小时；设施悬浮路线 30 天本地持久化（含中心坐标，防换点串线）；</li>
+  <li><strong>容错降级</strong>：API 超时/限流自动退避与模拟数据兜底；四个预设社区内置真实体检快照，后端不可达时自动降级展示，演示不空白；</li>
+  <li><strong>防滥用</strong>：自定义选点密码闸门，防止开源部署后任意坐标刷爆地图 API 配额；</li>
+  <li><strong>一键部署与 CI</strong>：Docker Compose（FastAPI + nginx）一键起；GitHub Actions 执行后端 lint/测试、前端类型检查/构建、Docker 镜像构建与 Pages 自动发布。</li>
+</ul>
+
+<!-- ===== 三、应用场景 ===== -->
+<h2>三、应用场景</h2>
+<div class="cards">
+  <div class="card"><div class="ct">① 街道社区体检</div><div class="cd">对任意社区一键体检，量化设施短板与盲区，输出带结论的体检报告，支撑「生活圈补短板」日常工作。</div></div>
+  <div class="card"><div class="ct">② 规划选址评估</div><div class="cd">对比候选点位在 4 种出行方式、3 个时间档下的可达范围与覆盖得分，为便民设施布局提供量化依据。</div></div>
+  <div class="card"><div class="ct">③ 居民生活参考</div><div class="cd">选房、租房前查看目标社区的医疗/教育/养老等配套覆盖、盲区分布与真实步行可达范围。</div></div>
+  <div class="card"><div class="ct">④ 教学与演示</div><div class="cd">作为地图开放能力与空间分析的教学案例：等时圈算法、POI 清洗、盲区识别链路完整可复现。</div></div>
+</div>
+
+<!-- ===== 四、创新点 ===== -->
+<h2>四、创新点</h2>
+<ol>
+  <li><strong>真实路网等时圈替代直线半径估算</strong>——批量路线矩阵（单次 ≤64 终点）+ 二分搜索 + 样条插值，在不获取底层路网数据的前提下以低成本推导真实可达区域，直接回应「道路并非直线」的核心痛点；</li>
+  <li><strong>多方式 × 多时间档矩阵化分析</strong>——步行/骑行/公共交通/驾车 × 5/10/15 分钟全组合的可达面积、覆盖与评分，公共交通进一步区分公交优先与地铁优先；</li>
+  <li><strong>服务盲区双口径识别</strong>——空间空白带（直观标注）与可达性缺口（量化对照标准）互相印证，回答「哪缺、缺多少」；</li>
+  <li><strong>多社区六维自动对比</strong>——本地记录最近三次体检，按综合、设施、时间、出行方式、盲区、风水六个维度图表化对比，自动生成结论，支撑社区间横向比较；</li>
+  <li><strong>完整的容错与演示体系</strong>——快照降级、模拟兜底、分级缓存、限流退避叠加，断网、限流、后端不可达时演示依旧完整；</li>
+  <li><strong>开源防滥用设计</strong>——自定义选点密码闸门 + 预设社区免限，兼顾开源可复现与 API 配额安全。</li>
+</ol>
+
+<!-- ===== 五、百度地图 API / SDK 使用 ===== -->
+<h2>五、百度地图 API / SDK 使用清单</h2>
+<table>
+  <tr><th style="width:24%">服务</th><th style="width:34%">端点 / 组件</th><th>在作品中的用途</th></tr>
+  <tr><td class="svc">地理编码服务</td><td class="ep">geocoder/v2</td><td>坐标↔地址互查；自定义选点按所在道路命名社区</td></tr>
+  <tr><td class="svc">地点检索服务</td><td class="ep">place/v2/search · detail</td><td>七类民生设施 POI 检索与详情，覆盖统计的数据源</td></tr>
+  <tr><td class="svc">路线规划服务</td><td class="ep">directionlite/v1（walking/riding/driving/transit）</td><td>真实路线与耗时：等时圈方向测时、公交地铁规划、悬浮路线</td></tr>
+  <tr><td class="svc">批量路线矩阵</td><td class="ep">routematrix/v2（单次 ≤64 终点）</td><td>等时圈 36 方向批量测时——核心性能优化，每轮固定 1 次调用</td></tr>
+  <tr><td class="svc">地图 JS SDK</td><td class="ep">地图 / 覆盖物 / 事件</td><td>地图展示、等时圈多边形、设施与盲区标注、点击选点</td></tr>
+  <tr><td class="svc">JS 检索与工具</td><td class="ep">LocalSearch · 四类路线 · Geocoder · getDistance</td><td>客户端设施检索、悬浮真实路线（零后端配额）、逆地理解析、距离计算</td></tr>
+</table>
+
+<!-- ===== 六、界面展示 ===== -->
+<h2>六、界面展示</h2>
+<figure>
+  <img src="images/app-home.png" alt="应用初始界面">
+  <figcaption>应用初始界面：左侧地图（点击选点、图层控制），右侧使用说明手册（怎么用 / 体检算什么 / 评分怎么算）</figcaption>
+</figure>
+<figure>
+  <img src="images/app-full.png" alt="体检主界面与报告" style="max-width:62%">
+  <figcaption>体检主界面（三栏联动）· 综合体检报告 · 最近三次体检多维对比（全流程）</figcaption>
+</figure>
+
+<!-- ===== 结尾 ===== -->
+<div class="end">
+  <ul>
+    <li><strong>开源地址</strong>：Gitee — gitee.com/wuxiejiameng123/15min-life-circle ｜ GitHub — github.com/mengjianan/15min-life-circle</li>
+    <li><strong>在线演示</strong>：mengjianan.github.io/15min-life-circle/（介绍页）、mengjianan.github.io/15min-life-circle/app/（应用）</li>
+    <li><strong>一键部署</strong>：git clone → cp .env.example .env（填入百度地图 AK）→ docker-compose up -d → 访问 http://localhost:3001</li>
+    <li><strong>开源协议</strong>：MIT License</li>
+  </ul>
+</div>
+
+</body>
+</html>
