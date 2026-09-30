@@ -838,8 +838,8 @@ function App() {
           </div>
         )}
 
-        {/* 最近三次体检对比（历史记录，独立于当前报告）；未开始体检且无历史时不渲染 */}
-        {(fullResult || historyEntries.length > 0) && (
+        {/* 最近三次体检对比；仅本次会话点过体检才出现（刷新后历史不自动露，保持初始页干净） */}
+        {fullResult && (
           <CommunityComparison
             entries={historyEntries}
             onDelete={(id) => removeHistory(id).then(setHistoryEntries)}
