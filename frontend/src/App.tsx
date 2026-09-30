@@ -293,9 +293,12 @@ function App() {
       });
 
       if (!response.ok) {
-        // 404 + HTML = 静态托管（GitHub Pages 展示版）没有后端，别让用户对着 404 猜
-        if (response.status === 404) {
+        // GitHub Pages 等静态托管没有后端：POST 一律 405、缺路径 404——都不是接口报错
+        if (response.status === 404 || response.status === 405) {
           throw new Error('当前入口是在线展示版（无后端），体检请用 Docker 版入口（本地端口 3001），或在下方对比区「载入演示数据」查看效果');
+        }
+        if (response.status === 502 || response.status === 503) {
+          throw new Error(`后端服务未响应（HTTP ${response.status}），请先启动后端：docker compose up -d`);
         }
         throw new Error(`分析请求失败（HTTP ${response.status}）`);
       }
