@@ -1,8 +1,5 @@
 // 前端配置
 
-// 百度地图配置
-export const BAIDU_MAP_AK = '2bYD1EE33okcac0OpFT7ojWmTYXPKCCs';
-
 // API基础路径：
 // - Docker/本地一键起 = 同源 /api（vite dev 与 nginx 均已代理）
 // - GitHub Pages 展示版（*.github.io）没有后端，回落到直连后端——

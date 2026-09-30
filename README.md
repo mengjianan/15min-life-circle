@@ -57,7 +57,7 @@
 
 1. 克隆仓库
 2. 配置环境变量：`cp .env.example .env`
-3. 编辑 `.env` 文件，填入百度地图 AK
+3. 编辑 `.env` 文件，填入百度地图 AK（后端 `BAIDU_MAP_AK`、前端构建 `VITE_BAIDU_MAP_AK`，可为同一把）
 4. 启动服务：`docker-compose up -d`
 5. 访问前端：http://localhost:3001（端口 3001，体检等接口经 nginx 同源代理到后端）
 
