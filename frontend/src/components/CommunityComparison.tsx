@@ -116,6 +116,7 @@ function buildConclusions(entries: HistoryEntry[], slot: number): string[] {
 
 const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo }) => {
   const [slot, setSlot] = useState<number>(900);
+  const [expanded, setExpanded] = useState(true);
 
   // 颜色按社区 id 绑定（不按列表下标）——删除一条时幸存者不换色
   const colorMap = useRef<Map<string, number>>(new Map());
@@ -129,17 +130,6 @@ const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo })
     return SERIES_COLORS[map.get(id)!];
   };
   const series = entries.map((e) => ({ key: e.communityName, color: colorOf(e.id) }));
-
-  if (entries.length === 0) {
-    return (
-      <div className="compare-section">
-        <div className="compare-empty">
-          <span>暂无体检历史，完成体检后自动记录；或</span>
-          <button className="compare-demo-btn" onClick={onLoadDemo}>载入演示数据</button>
-        </div>
-      </div>
-    );
-  }
 
   const slotLabel = SLOTS.find(([s]) => s === slot)?.[1] || '15分钟';
   const bar = (rows: { name: string; values: number[] }[], unit = '') => ({
@@ -155,6 +145,21 @@ const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo })
 
   return (
     <div className="compare-section">
+      {/* 下拉条：与「15分钟生活圈体检报告」同款式（复用 report-dropdown 样式类） */}
+      <div className="report-dropdown-bar" onClick={() => setExpanded(!expanded)}>
+        <span className="report-dropdown-label">最近三次体检对比</span>
+        <span className="report-toggle-btn">
+          <span className="toggle-text">{expanded ? '收起对比' : '展开对比'}</span>
+          <span className="toggle-arrow">{expanded ? '▲' : '▼'}</span>
+        </span>
+      </div>
+      {expanded && (entries.length === 0 ? (
+        <div className="compare-empty">
+          <span>暂无体检历史，完成体检后自动记录；或</span>
+          <button className="compare-demo-btn" onClick={onLoadDemo}>载入演示数据</button>
+        </div>
+      ) : (
+        <>
       {/* ① 社区卡片行（纯展示 + 删除） */}
       <div className="compare-cards">
         {entries.map((e) => (
@@ -483,6 +488,8 @@ const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo })
           </ul>
         </div>
       )}
+        </>
+      ))}
     </div>
   );
 };
