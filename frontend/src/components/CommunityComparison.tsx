@@ -181,6 +181,9 @@ const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo })
         {entries.length < 3 && (
           <div className="compare-card compare-card-hint">
             再体检 {3 - entries.length} 个社区即可满配对比
+            <button className="compare-demo-btn compare-demo-inline" onClick={onLoadDemo}>
+              载入演示数据
+            </button>
           </div>
         )}
       </div>

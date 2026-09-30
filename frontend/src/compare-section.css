@@ -131,6 +131,12 @@
   box-shadow: none;
 }
 
+.compare-demo-inline {
+  margin-left: 10px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
 /* ② 时间口径 */
 .compare-slot-bar {
   display: flex;

@@ -8,7 +8,8 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        // docker-compose 把后端映射到宿主机 8081（容器内 8000）
+        target: 'http://localhost:8081',
         changeOrigin: true,
       }
     }

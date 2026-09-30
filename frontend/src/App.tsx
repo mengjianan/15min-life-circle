@@ -271,6 +271,9 @@ function App() {
     setError(null);
     setAnalysisMessage(null);
     setShowProgress(true);
+    // 首请求是整段 full-analysis（十几秒到半分钟），进度条在此期间不动，
+    // 不打招呼会像卡死——先给一句话垫场
+    setAnalysisMessage({ icon: 'clock', text: '正在分析，请耐心等待...' });
 
     // 重置步骤状态
     setAnalysisSteps(prev => prev.map(step => ({ ...step, status: 'pending', message: undefined })));
@@ -828,16 +831,18 @@ function App() {
           </div>
         )}
 
-        {/* 最近三次体检对比（历史记录，独立于当前报告） */}
-        <CommunityComparison
-          entries={historyEntries}
-          onDelete={(id) => removeHistory(id).then(setHistoryEntries)}
-          onLoadDemo={() => {
-            Promise.all(DEMO_RESULTS.map((r) => saveHistory(r))).then((lists) => {
-              setHistoryEntries(lists[lists.length - 1] || []);
-            });
-          }}
-        />
+        {/* 最近三次体检对比（历史记录，独立于当前报告）；未开始体检且无历史时不渲染 */}
+        {(fullResult || historyEntries.length > 0) && (
+          <CommunityComparison
+            entries={historyEntries}
+            onDelete={(id) => removeHistory(id).then(setHistoryEntries)}
+            onLoadDemo={() => {
+              Promise.all(DEMO_RESULTS.map((r) => saveHistory(r))).then((lists) => {
+                setHistoryEntries(lists[lists.length - 1] || []);
+              });
+            }}
+          />
+        )}
       </main>
 
       <footer className="app-footer">
