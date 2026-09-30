@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import LoadingOverlay from './LoadingOverlay';
 import { iconSvg, Ico } from '../icons';
 import { planRoute, getRoutePoints } from '../services/localSearch';
+import { ensureCustomPointUnlocked } from '../services/pointGuard';
 
 // 一条「中心 -> 设施」的路线几何（由百度 JS SDK 客户端算出，不占后端配额）
 type RouteGeo = {
@@ -1303,7 +1304,11 @@ const MapView: React.FC<MapViewProps> = ({
         </button>
         <button
           className={`map-control-btn ${clickMode ? 'active' : ''}`}
-          onClick={() => setClickMode(!clickMode)}
+          onClick={() => {
+            // 只在「开启」时要密码（关闭不该被拦）——防开源部署后任意选点刷 API
+            if (!clickMode && !ensureCustomPointUnlocked()) return;
+            setClickMode(!clickMode);
+          }}
           title="点击地图选择位置"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

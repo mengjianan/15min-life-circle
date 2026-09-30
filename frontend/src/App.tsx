@@ -6,8 +6,9 @@ import ComprehensiveReport from './components/ComprehensiveReport';
 import ScoreOverview from './components/ScoreOverview';
 import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
-import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
+import { SAMPLE_COMMUNITIES, Community, API_BASE_URL, PRESET_SNAPSHOT_PATHS } from './config';
 import { resolveStreetName } from './services/localSearch';
+import { ensureCustomPointUnlocked } from './services/pointGuard';
 import { exportElementPDF } from './pdfExport';
 import { HistoryEntry, loadHistory, saveHistory, removeHistory } from './services/communityHistory';
 import { DEMO_RESULTS } from './services/demoData';
@@ -364,6 +365,25 @@ function App() {
       setAnalysisMessage({ icon: 'check', text: '分析完成！' });
 
     } catch (err) {
+      // 预设社区降级：地图 API 失败时展示内置快照，四个街道始终有内容
+      const preset = SAMPLE_COMMUNITIES.find((c) => c.name === center.name);
+      const snapPath = preset && PRESET_SNAPSHOT_PATHS[preset.name];
+      if (snapPath) {
+        try {
+          const snapRes = await fetch(snapPath);
+          if (snapRes.ok) {
+            const cached: FullAnalysisResult = await snapRes.json();
+            setFullResult(cached);
+            // 写入对比历史（失败不阻塞展示）
+            saveHistory(cached).then(setHistoryEntries).catch(() => {});
+            setError(`地图 API 调用失败，已展示「${preset.name}」内置缓存数据（可点重试获取最新）`);
+            setAnalysisMessage(null);
+            return;
+          }
+        } catch {
+          // 快照也拉不到，落到下面的原始错误
+        }
+      }
       setError(err instanceof Error ? err.message : '分析过程中出现错误');
       setAnalysisMessage(null);
     } finally {
@@ -473,7 +493,10 @@ function App() {
 
             <button
               className="header-btn"
-              onClick={() => setShowCustomCenter(!showCustomCenter)}
+              onClick={() => {
+                if (!ensureCustomPointUnlocked()) return;
+                setShowCustomCenter(!showCustomCenter);
+              }}
             >
               <Icons.MapPin />
               自定义位置

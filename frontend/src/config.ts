@@ -26,6 +26,19 @@ export const SAMPLE_COMMUNITIES: Community[] = [
   { lng: 118.7894, lat: 32.0433, name: '秦淮区夫子庙街道' },
 ];
 
+// 自定义选点密码：防止开源部署后任意坐标刷地图 API 配额（会话内通过一次即可）
+// 部署方可在 config.ts 自行改；预设四社区不限制
+export const CUSTOM_POINT_PASSWORD = '15min2026';
+
+// 预设社区内置体检快照（frontend/public/snapshots/，构建后随静态资源分发），
+// 地图 API 调用失败时前端降级展示，四个街道始终有内容
+export const PRESET_SNAPSHOT_PATHS: Record<string, string> = {
+  鼓楼区湖南路街道: 'snapshots/hunanlu.json',
+  鼓楼区中央门街道: 'snapshots/zhongyangmen.json',
+  玄武区新街口街道: 'snapshots/xinjiekou.json',
+  秦淮区夫子庙街道: 'snapshots/fuzimiao.json',
+};
+
 // POI分类配置
 export const POI_CATEGORIES: Record<string, string[]> = {
   '医疗': ['诊所', '药店', '医院'],
