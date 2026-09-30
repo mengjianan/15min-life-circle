@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { GroupedBarChart, MultiScoreRadar } from './ReportCharts';
 import { HistoryEntry } from '../services/communityHistory';
+import { exportElementPDF } from '../pdfExport';
 
 // 最近三次体检对比：历史 3 条全量结果按六类维度横向比
 // 口径：设施/时间维度跟随 5·10·15 切换（步行档），综合/方式/风水用全量口径
@@ -41,7 +42,6 @@ interface Props {
   entries: HistoryEntry[];
   onDelete: (id: string) => void;
   onLoadDemo: () => void;
-  onExportPDF: () => void;
 }
 
 // —— 取数（全部容错，坏数据降级为 0/未知，不让整块崩掉）——
@@ -115,7 +115,7 @@ function buildConclusions(entries: HistoryEntry[], slot: number): string[] {
   return out;
 }
 
-const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo, onExportPDF }) => {
+const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo }) => {
   const [slot, setSlot] = useState<number>(900);
   const [expanded, setExpanded] = useState(true);
 
@@ -144,6 +144,17 @@ const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo, o
 
   const conclusions = buildConclusions(entries, slot);
 
+  // 截取对比区真实 DOM 生成 PDF——与页面显示一致
+  const handleExportPDF = async () => {
+    if (!expanded) setExpanded(true);
+    // 等 recharts 动画（默认 750ms）走完再截图
+    await new Promise((r) => setTimeout(r, 900));
+    const el = document.querySelector('.compare-section');
+    if (el instanceof HTMLElement) {
+      await exportElementPDF(el, '最近三次体检对比.pdf');
+    }
+  };
+
   return (
     <div className="compare-section">
       {/* 下拉条：与「15分钟生活圈体检报告」同款式（复用 report-dropdown 样式类） */}
@@ -152,7 +163,7 @@ const CommunityComparison: React.FC<Props> = ({ entries, onDelete, onLoadDemo, o
         <span className="report-dropdown-actions">
           <button
             className="dropdown-pdf-btn"
-            onClick={(e) => { e.stopPropagation(); onExportPDF(); }}
+            onClick={(e) => { e.stopPropagation(); handleExportPDF(); }}
           >
             导出PDF
           </button>

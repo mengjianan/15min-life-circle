@@ -8,7 +8,7 @@ import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
 import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
 import { resolveStreetName } from './services/localSearch';
-import { exportPDFReport } from './pdfExport';
+import { exportElementPDF } from './pdfExport';
 import { HistoryEntry, loadHistory, saveHistory, removeHistory } from './services/communityHistory';
 import { DEMO_RESULTS } from './services/demoData';
 import CommunityComparison from './components/CommunityComparison';
@@ -400,23 +400,12 @@ function App() {
 
   const handleExportPDF = async () => {
     if (!fullResult) return;
-    // 打印模板只读 community_name/score/suggestions/blind_spots，
-    // 取步行 15 分钟档合成 AnalysisResult 即可复用现有导出管线
-    const walking = fullResult.modes?.walking;
-    const slot = ((walking?.time_slots as Record<string, any>) || {})['900'] || {};
-    try {
-      await exportPDFReport({
-        community_name: fullResult.community_name,
-        center: fullResult.center,
-        isochrone: {} as any,
-        poi_coverage: slot.poi_coverage || {},
-        blind_spots: slot.blind_spots || [],
-        score: walking?.score as any,
-        suggestions: walking?.suggestions || [],
-      });
-    } catch (err) {
-      console.error(err);
-      alert('PDF生成失败，请重试');
+    // 收起时先展开，等 recharts 动画（默认 750ms）走完再截图
+    if (!reportExpanded) setReportExpanded(true);
+    await new Promise((r) => setTimeout(r, 900));
+    const el = document.querySelector('.report-section.flush');
+    if (el instanceof HTMLElement) {
+      await exportElementPDF(el, `${fullResult.community_name}_15分钟生活圈体检报告.pdf`);
     }
   };
 
@@ -868,7 +857,6 @@ function App() {
                 setHistoryEntries(lists[lists.length - 1] || []);
               });
             }}
-            onExportPDF={handleExportPDF}
           />
         )}
       </main>
