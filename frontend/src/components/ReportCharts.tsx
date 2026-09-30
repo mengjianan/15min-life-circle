@@ -48,3 +48,33 @@ export const ScoreRadar: React.FC<ScoreRadarProps> = ({ data, color = '#667eea',
     </RadarChart>
   </ResponsiveContainer>
 );
+
+// 社区对比用：多社区雷达叠加（一社区一色，与柱状图同色系）
+interface MultiRadarProps {
+  data: Record<string, any>[]; // 每行 { name, [seriesKey]: number }
+  series: { key: string; color: string }[];
+  height?: number;
+}
+
+export const MultiScoreRadar: React.FC<MultiRadarProps> = ({ data, series, height = 200 }) => (
+  <ResponsiveContainer width="100%" height={height}>
+    <RadarChart cx="50%" cy="50%" outerRadius="66%" data={data}>
+      <PolarGrid stroke="#e5e7eb" />
+      <PolarAngleAxis dataKey="name" tick={{ fontSize: 10, fill: '#6b7280' }} />
+      <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 8, fill: '#c0c4cc' }} />
+      <Legend wrapperStyle={{ fontSize: 10 }} iconSize={8} />
+      {series.map((s) => (
+        <Radar
+          key={s.key}
+          name={s.key}
+          dataKey={s.key}
+          stroke={s.color}
+          fill={s.color}
+          fillOpacity={0.15}
+          strokeWidth={2}
+        />
+      ))}
+      <Tooltip formatter={(v: any, k: any) => [`${v}分`, k]} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+    </RadarChart>
+  </ResponsiveContainer>
+);

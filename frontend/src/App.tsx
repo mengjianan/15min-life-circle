@@ -8,6 +8,9 @@ import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
 import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
 import { resolveStreetName } from './services/localSearch';
+import { HistoryEntry, loadHistory, saveHistory, removeHistory } from './services/communityHistory';
+import { DEMO_RESULTS } from './services/demoData';
+import CommunityComparison from './components/CommunityComparison';
 import { Ico } from './icons';
 import type { TravelMode, FullAnalysisResult, TravelModeData, POIItem, POICategoryData } from './types';
 
@@ -124,6 +127,11 @@ function App() {
     { id: 'report', label: '生成报告', status: 'pending' },
   ]);
   const [showProgress, setShowProgress] = useState(false);
+  // 最近三次体检历史（社区对比数据源，IndexedDB）
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  useEffect(() => {
+    loadHistory().then(setHistoryEntries);
+  }, []);
 
   // 说明：不再预取「中心→各设施」的路线。
   // 地图现在只在悬浮/选中某个 POI 时才显现那一条路线，几何由前端调百度
@@ -337,6 +345,8 @@ function App() {
       }
 
       setFullResult(result);
+      // 写入对比历史（同社区覆盖、新社区挤掉最旧），失败不影响报告展示
+      saveHistory(result).then(setHistoryEntries).catch(() => {});
       await delay(300);
 
       updateStepStatus('report', 'completed', '报告生成完成');
@@ -817,6 +827,17 @@ function App() {
             )}
           </div>
         )}
+
+        {/* 最近三次体检对比（历史记录，独立于当前报告） */}
+        <CommunityComparison
+          entries={historyEntries}
+          onDelete={(id) => removeHistory(id).then(setHistoryEntries)}
+          onLoadDemo={() => {
+            Promise.all(DEMO_RESULTS.map((r) => saveHistory(r))).then((lists) => {
+              setHistoryEntries(lists[lists.length - 1] || []);
+            });
+          }}
+        />
       </main>
 
       <footer className="app-footer">
