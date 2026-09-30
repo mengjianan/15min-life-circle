@@ -7,6 +7,7 @@ import ScoreOverview from './components/ScoreOverview';
 import CustomCenter from './components/CustomCenter';
 import AnalysisProgress from './components/AnalysisProgress';
 import { SAMPLE_COMMUNITIES, Community, API_BASE_URL } from './config';
+import { resolveStreetName } from './services/localSearch';
 import { Ico } from './icons';
 import type { TravelMode, FullAnalysisResult, TravelModeData, POIItem, POICategoryData } from './types';
 
@@ -242,8 +243,21 @@ function App() {
   }, [activeMode, customCenter, selectedCommunity]);
 
   const handleAnalyze = async () => {
-    const center = getCurrentCenter();
+    let center = getCurrentCenter();
     if (!center) return;
+
+    // 自定义点名可能还在逆地理解析中（点完立刻体检）——补一次，报告社区名才准确
+    if (center.name === '自定义位置') {
+      const streetName = await resolveStreetName(center.lng, center.lat);
+      if (streetName) {
+        const prevLng = center.lng;
+        const prevLat = center.lat;
+        center = { ...center, name: streetName };
+        setCustomCenter((prev) =>
+          prev && prev.lng === prevLng && prev.lat === prevLat ? { ...prev, name: streetName } : prev
+        );
+      }
+    }
 
     setLoading(true);
     setError(null);
@@ -342,10 +356,16 @@ function App() {
     // 地图选点/预设点后不再是「选中的社区」——必须清掉，
     // 否则下拉仍显示旧社区，再选同一个社区不触发 onChange，customCenter 清不掉、中心点回不去
     setSelectedCommunity(null);
-    setCustomCenter({
-      lng,
-      lat,
-      name: '自定义位置',
+    // 先落点保证响应即时，社区名随后按所在道路逆地理回填（如 鼓楼区湖南路街道）
+    setCustomCenter({ lng, lat, name: '自定义位置' });
+    resolveStreetName(lng, lat).then((streetName) => {
+      if (!streetName) return;
+      // 只回填坐标仍匹配的结果：期间又选了新点就丢弃，避免旧名覆盖新点
+      setCustomCenter((prev) =>
+        prev && prev.lng === lng && prev.lat === lat && prev.name !== streetName
+          ? { ...prev, name: streetName }
+          : prev
+      );
     });
   };
 

@@ -140,6 +140,43 @@ function resolveCity(point: any): Promise<string | null> {
   });
 }
 
+// 逆地理解析道路名，给自定义选点命��社区名（如 鼓楼区湖南路街道，与预置社区格式一致）
+const STREET_RESOLVE_TIMEOUT = 3000;
+
+export const resolveStreetName = (lng: number, lat: number): Promise<string | null> => {
+  return new Promise((resolve) => {
+    const BMap = (window as any).BMap;
+    if (!BMap?.Geocoder || !BMap?.Point) {
+      resolve(null);
+      return;
+    }
+    let settled = false;
+    const finish = (name: string | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(name);
+    };
+    // 逆地理编码也可能不回调，超时兜底
+    setTimeout(() => finish(null), STREET_RESOLVE_TIMEOUT);
+    try {
+      new BMap.Geocoder().getLocation(new BMap.Point(lng, lat), (res: any) => {
+        const parts = res && res.addressComponents;
+        const district = String((parts && parts.district) || '').trim();
+        const road = String((parts && parts.street) || '').trim() ||
+          String((res && res.business) || '').split(',')[0].trim();
+        if (!road) {
+          finish(null);
+          return;
+        }
+        const suffix = road.endsWith('街道') ? '' : '街道';
+        finish(district ? `${district}${road}${suffix}` : `${road}${suffix}`);
+      });
+    } catch {
+      finish(null);
+    }
+  });
+};
+
 export const planRoute = async (
   map: any,
   origin: { lng: number; lat: number },
