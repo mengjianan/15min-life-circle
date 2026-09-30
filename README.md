@@ -25,7 +25,7 @@
 2. 配置环境变量：cp .env.example .env
 3. 编辑 .env 文件，填入百度地图AK
 4. 启动服务：docker-compose up -d
-5. 访问前端：http://localhost:3000
+5. 访问前端：http://localhost:3001（端口 3001，体检等接口经 nginx 同源代理到后端）
 
 ## 在线演示
 

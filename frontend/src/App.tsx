@@ -293,7 +293,11 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error('分析请求失败');
+        // 404 + HTML = 静态托管（GitHub Pages 展示版）没有后端，别让用户对着 404 猜
+        if (response.status === 404) {
+          throw new Error('当前入口是在线展示版（无后端），体检请用 Docker 版入口（本地端口 3001），或在下方对比区「载入演示数据」查看效果');
+        }
+        throw new Error(`分析请求失败（HTTP ${response.status}）`);
       }
 
       const result: FullAnalysisResult = await response.json();
