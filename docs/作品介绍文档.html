@@ -119,7 +119,7 @@
 <h3>核心算法链</h3>
 <div class="step"><div class="no">1</div><div class="sc"><span class="st">真实路网等时圈（扇形采样 + 二分搜索 + 样条插值）</span>：以中心点为圆心取 36 个方向，每个方向用批量路线矩阵实测步行耗时，二分搜索逼近 5/10/15 分钟的真实路网边界点，再对边界点序列做三次样条插值平滑。全程<strong>不获取底层路网数据</strong>，仅凭分散点位的 API 测时结果推导近似连通区域。</div></div>
 <div class="step"><div class="no">2</div><div class="sc"><span class="st">多源 POI 数据清洗</span>：每类设施多关键词检索 → 坐标去重 → 分类标准化 → 距离过滤 → 对照标准数量打分（医疗 3 / 教育 3 / 购物 5 / 养老 2 / 文体 3 / 餐饮 5 / 交通 3）。</div></div>
-<div class="step"><div class="no">3</div><div class="sc"><span class="st">服务盲区识别（双口径）</span>：空间口径——网格覆盖计算找出圈内连续设施空白地带，地图红圈标注；可达性口径——按类别统计实达数量与标准的缺口（含公交可达性标注）。</div></div>
+<div class="step"><div class="no">3</div><div class="sc"><span class="st">服务盲区识别（双口径）</span>：空间口径——网格覆盖计算找出圈内连续设施空白地带，经聚类后生成贴合等时圈的不规则色块标注（裁剪保证不越界）；可达性口径——按类别统计实达数量与标准的缺口（含公交可达性标注）。</div></div>
 <div class="step"><div class="no">4</div><div class="sc"><span class="st">综合评分</span>：设施覆盖 35% + 可达性 25% + 出行适配 20% + 盲区 10% + 风水 10% 加权合成，取四种出行方式的平均水平；风水按地势、朝向、水系、道路形态、敏感设施、绿化、人气七项评估。</div></div>
 
 <h3>工程化与部署</h3>

@@ -3,8 +3,9 @@
 识别服务覆盖不足的区域
 """
 import numpy as np
-from typing import Dict, List, Any, Tuple
-from shapely.geometry import Point, Polygon
+from typing import Dict, List, Any, Tuple, Optional
+from shapely.geometry import Point, Polygon, MultiPolygon
+from shapely.ops import unary_union
 from sklearn.cluster import DBSCAN
 
 from services.baidu_map import BaiduMapService
@@ -75,7 +76,7 @@ class BlindSpotDetector:
                     blind_by_category.setdefault(category, []).append(point)
 
         return self._cluster_by_category(
-            blind_by_category, self._estimate_grid_step(grid_points)
+            blind_by_category, self._estimate_grid_step(grid_points), poly
         )
 
     def _generate_grid_points(
@@ -230,7 +231,7 @@ class BlindSpotDetector:
                     blind_by_category.setdefault(category, []).append(point)
 
         return self._cluster_by_category(
-            blind_by_category, self._estimate_grid_step(grid_points)
+            blind_by_category, self._estimate_grid_step(grid_points), poly
         )
 
     def _check_blind_spot_with_data(
@@ -288,7 +289,8 @@ class BlindSpotDetector:
     def _cluster_by_category(
         self,
         blind_by_category: Dict[str, List[Tuple[float, float]]],
-        grid_step: float = 0.001
+        grid_step: float = 0.001,
+        poly: Optional[Polygon] = None
     ) -> List[Dict[str, Any]]:
         """按类别分别聚类，合并成带 category 的盲区列表（重要类别排前面）"""
         # eps 必须大于网格间距，否则相邻点连不成簇，DBSCAN 全判为噪声被丢掉
@@ -296,7 +298,9 @@ class BlindSpotDetector:
         blind_spots: List[Dict[str, Any]] = []
         for category, points in blind_by_category.items():
             blind_spots.extend(
-                self._cluster_blind_spots(points, eps=eps, category=category)
+                self._cluster_blind_spots(
+                    points, eps=eps, category=category, poly=poly
+                )
             )
 
         important = {"医疗", "教育", "养老"}
@@ -308,7 +312,8 @@ class BlindSpotDetector:
         blind_points: List[Tuple[float, float]],
         eps: float = 0.001,  # 约100米
         min_samples: int = 2,
-        category: str = "综合"
+        category: str = "综合",
+        poly: Optional[Polygon] = None
     ) -> List[Dict[str, Any]]:
         """
         聚类相邻的盲区点（同一类别内聚类）
@@ -318,6 +323,7 @@ class BlindSpotDetector:
             eps: DBSCAN聚类参数
             min_samples: 最小样本数
             category: 这批盲区点所属的设施类别
+            poly: 等时圈多边形——网格点 buffer 融合后与之求交，保证不超出时圈
 
         Returns:
             聚类后的盲区区域列表
@@ -327,7 +333,10 @@ class BlindSpotDetector:
 
         if len(blind_points) < min_samples:
             return [
-                self._make_blind_spot(p[0], p[1], 200, 1, category)
+                self._make_blind_spot(
+                    p[0], p[1], 200, 1, category,
+                    self._blob_polygon([p], eps, poly)
+                )
                 for p in blind_points
             ]
 
@@ -364,11 +373,45 @@ class BlindSpotDetector:
                 self._make_blind_spot(
                     float(center_lng), float(center_lat),
                     max(radius, 200),  # 最小200米
-                    len(points), category
+                    len(points), category,
+                    self._blob_polygon(points, eps, poly)
                 )
             )
 
         return blind_spots
+
+    @staticmethod
+    def _blob_polygon(
+        points: List[Tuple[float, float]],
+        grid_step: float,
+        poly: Optional[Polygon]
+    ) -> Optional[List[List[float]]]:
+        """
+        把一批盲区网格点融成贴合形状的不规则多边形（外接圆画不出的形状）。
+
+        每个点 buffer 半个网格距 -> union（相邻格连成一片）-> 与等时圈求交
+        （数学上保证不超出时圈）-> simplify 控制顶点数。
+        返回 [[lng, lat], ...]，交集为空时返回 None（前端回退画圆）。
+        """
+        if not points:
+            return None
+        blobs = unary_union([
+            Point(p).buffer(max(grid_step, 0.0002) * 0.6, resolution=4)
+            for p in points
+        ])
+        # 先 simplify 再求交：若反过来，simplify 的弦线会把已裁好的边推出圈外。
+        # 求交时等时圈向内收 1e-6 度（约 0.1 米），给末尾 6 位小数舍入留余量
+        blobs = blobs.simplify(max(grid_step * 0.3, 0.00005), preserve_topology=True)
+        if poly is not None:
+            blobs = blobs.intersection(poly.buffer(-1e-6))
+        if blobs.is_empty:
+            return None
+        if isinstance(blobs, MultiPolygon):
+            blobs = max(blobs.geoms, key=lambda g: g.area)
+        if not isinstance(blobs, Polygon):
+            return None
+        coords = [[round(x, 6), round(y, 6)] for x, y in blobs.exterior.coords]
+        return coords if len(coords) >= 4 else None
 
     def _make_blind_spot(
         self,
@@ -376,18 +419,21 @@ class BlindSpotDetector:
         lat: float,
         radius: float,
         point_count: int,
-        category: str
+        category: str,
+        polygon: Optional[List[List[float]]] = None
     ) -> Dict[str, Any]:
         """
         构造单个盲区对象。
 
         同时输出 location / missing_facilities / suggestion，
-        供综合报告与评分模块直接使用（center/radius 供地图打点）。
+        供综合报告与评分模块直接使用（center/radius 供地图打点，
+        polygon 是贴合等时圈的不规则轮廓，优先用于地图绘制）。
         """
         suggestion = CATEGORY_SUGGESTION.get(category, f"建议增设{category}设施")
         return {
             "center": {"lng": lng, "lat": lat},
             "radius": float(radius),
+            "polygon": polygon,
             "category": category,
             "description": f"{category}覆盖不足，含{point_count}个检测点",
             "location": {"lng": lng, "lat": lat},

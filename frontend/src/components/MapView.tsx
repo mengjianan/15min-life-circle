@@ -956,17 +956,31 @@ const MapView: React.FC<MapViewProps> = ({
             const category = spot.category || '综合';
             const color = CATEGORY_COLOR[category] || '#ff4d4f';
 
-            const circle = new BMap.Circle(point, radius, {
-              strokeColor: color,
-              strokeWeight: 2,
-              strokeOpacity: 0.6,
-              fillColor: color,
-              fillOpacity: 0.15,
-            });
+            // 后端 polygon 是贴合等时圈的不规则轮廓（已裁剪不越界）；
+            // 旧快照没有 polygon，回退画圆
+            let shape: any;
+            if (Array.isArray(spot.polygon) && spot.polygon.length >= 4) {
+              const pts = spot.polygon.map((c: number[]) => new BMap.Point(c[0], c[1]));
+              shape = new BMap.Polygon(pts, {
+                strokeColor: color,
+                strokeWeight: 1.5,
+                strokeOpacity: 0.5,
+                fillColor: color,
+                fillOpacity: 0.13,
+              });
+            } else {
+              shape = new BMap.Circle(point, radius, {
+                strokeColor: color,
+                strokeWeight: 2,
+                strokeOpacity: 0.6,
+                fillColor: color,
+                fillOpacity: 0.15,
+              });
+            }
 
-            map.addOverlay(circle);
+            map.addOverlay(shape);
 
-            // 悬浮提示缺哪类设施（圈重叠时靠颜色+文案区分是哪类盲区）
+            // 悬浮提示缺哪类设施（色块重叠时靠颜色+文案区分是哪类盲区）
             const info = new BMap.InfoWindow(
               '<div style="padding: 6px 8px; font-family: PingFang SC, Microsoft YaHei, sans-serif;">' +
                 '<div style="font-weight: 600; color: ' + color + ';">' + category + '空间盲区</div>' +
@@ -976,8 +990,8 @@ const MapView: React.FC<MapViewProps> = ({
               '</div>',
               { width: 220, height: 70 }
             );
-            circle.addEventListener('mouseover', () => map.openInfoWindow(info, point));
-            circle.addEventListener('mouseout', () => map.closeInfoWindow());
+            shape.addEventListener('mouseover', () => map.openInfoWindow(info, point));
+            shape.addEventListener('mouseout', () => map.closeInfoWindow());
           }
         });
       }

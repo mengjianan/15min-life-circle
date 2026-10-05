@@ -88,6 +88,8 @@ export interface POICoverage {
 export interface BlindSpot {
   center: GeoPoint;
   radius: number;
+  // 贴合等时圈的不规则轮廓 [[lng,lat],...]（后端已裁剪不越界）；旧数据无此字段时画圆
+  polygon?: [number, number][] | null;
   category: string;
   description: string;
 }
