@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from services.baidu_map import BaiduMapService
 from services.cache import cache_service, generate_cache_key
+from core.interpolator import interpolator
 from config import (
     ISOCHRONE_DIRECTIONS,
     ISOCHRONE_MAX_TIME,
@@ -91,14 +92,17 @@ class IsochroneEngine:
         当API不可用时使用
         """
         radius = speed * max_time
-        
+
         # 生成圆形边界点
         boundary_points = []
         for i in range(directions):
             angle = i * (360 / directions)
             point = self._calculate_destination(center, angle, radius)
             boundary_points.append(point)
-        
+
+        # 模拟圈同样走样条加密：12~24个点的圆高缩放下也有棱角
+        boundary_points = self._smooth_boundary(boundary_points)
+
         # 构建GeoJSON多边形
         polygon = self._build_polygon(boundary_points)
         
@@ -151,6 +155,7 @@ class IsochroneEngine:
     ) -> str:
         return generate_cache_key(
             "isochrone",
+            "s2",  # 样条加密版本号：作废加密前存的棱角环缓存
             round(center.lng, 6), round(center.lat, 6),
             max_time, directions, max_iterations,
             round(speed, 3), int(fast_mode),
@@ -201,6 +206,7 @@ class IsochroneEngine:
         )
         cached = cache_service.get(cache_key)
         if cached:
+            # 缓存里存的已是样条加密后的点（写入前已加密），直接用
             return IsochroneResult(
                 center=center,
                 boundary_points=[
@@ -266,7 +272,9 @@ class IsochroneEngine:
                   f"{len(valid_states)}/{len(states)}，剔除{dropped}个"
                   f"（API始终失败，不伪造数据）")
 
-        boundary_points = [st["best"] for st in valid_states]
+        # 采样点（36个方向）先经周期样条加密成光滑闭合环再建多边形——
+        # 顶点直线相连，点够多、曲线够光滑，地图上就没有棱角
+        boundary_points = self._smooth_boundary([st["best"] for st in valid_states])
         polygon = self._build_polygon(boundary_points)
 
         try:
@@ -284,6 +292,45 @@ class IsochroneEngine:
             max_time=max_time,
             polygon=polygon
         )
+
+    @staticmethod
+    def _smooth_boundary(points: List[GeoPoint]) -> List[GeoPoint]:
+        """
+        采样点 -> 周期三次样条加密成光滑闭合环（interpolator 是接线的目标）。
+
+        输出点数 max(96, 采样数×4)：36 方向 -> 144 点，每段约 2.5°，
+        直线段短到看不出棱角；坐标 6 位小数（约 0.1 米）控制 JSON 体积。
+        """
+        if len(points) < 3:
+            return points
+
+        # 先循环滑动平均压掉二分搜索的量化抖动（~30m 级）：
+        # 不压的话样条会忠实跟随噪声，边界出现小毛刺
+        n = len(points)
+        if n >= 5:
+            points = [
+                GeoPoint(
+                    lng=(points[(i - 1) % n].lng + points[i].lng + points[(i + 1) % n].lng) / 3,
+                    lat=(points[(i - 1) % n].lat + points[i].lat + points[(i + 1) % n].lat) / 3,
+                )
+                for i in range(n)
+            ]
+
+        dense = interpolator.interpolate_boundary(
+            points, num_interpolated=max(96, len(points) * 4)
+        )
+        smoothed = [
+            GeoPoint(lng=round(p.lng, 6), lat=round(p.lat, 6))
+            for p in dense
+        ]
+        # 相邻方向可达半径剧烈抖动（河流/快速路阻隔）时样条可能过冲自交——
+        # 自交环会让 shapely 求交报错，宁可退回原始采样环
+        from shapely.geometry import Polygon
+        ring = Polygon([(p.lng, p.lat) for p in smoothed])
+        if not ring.is_valid:
+            print("[等时圈] 样条加密结果自交，退回原始采样点")
+            return points
+        return smoothed
 
     def _build_polygon(self, points: List[GeoPoint]) -> Dict[str, Any]:
         """构建GeoJSON格式的多边形"""

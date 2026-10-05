@@ -57,7 +57,7 @@ YINGYAN_GEOFENCE_API = f"{YINGYAN_API_BASE}/geofence"
 # 方向数只决定多边形顶点数和单次矩阵携带的终点数，保持16以免单次
 # 请求过重触发401。改用 routematrix 批量后每轮固定1次调用，
 # 提精度从4->6 只让调用数 4->6 次/方式（旧实现是 16*4=64 次单发）。
-ISOCHRONE_DIRECTIONS = 16  # 采样方向数（多边形顶点数）
+ISOCHRONE_DIRECTIONS = 36  # 采样方向数（输出经周期样条加密到144点；routematrix单次≤64终点，36安全）
 ISOCHRONE_MAX_TIME = 15 * 60  # 15分钟（秒）
 ISOCHRONE_WALKING_SPEED = 1.2  # 步行速度（米/秒）
 BINARY_SEARCH_ITERATIONS = 6  # 二分迭代：驾车量化步长 540m -> 135m

@@ -132,8 +132,12 @@ async def get_isochrone_graph(
         builder = GraphBuilder()
         baidu_map = BaiduMapService()
 
-        # 从中心点向各边界点请求路线
-        for point in isochrone.boundary_points:
+        # 从中心点向各边界点请求路线。
+        # 边界点经样条加密后有上百个，逐个请求会打出上百次路线 API——
+        # 抽样封顶 24 个方向（与旧版 12~24 同量级）
+        raw_pts = isochrone.boundary_points
+        step = max(1, len(raw_pts) // 24)
+        for point in raw_pts[::step][:24]:
             origin = {"lng": center.lng, "lat": center.lat}
             destination = {"lng": point.lng, "lat": point.lat}
 

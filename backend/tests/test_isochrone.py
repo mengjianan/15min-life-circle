@@ -44,7 +44,7 @@ async def test_calculate_isochrone_returns_data(engine, sample_center):
         assert result is not None
         assert hasattr(result, 'boundary_points')
         assert hasattr(result, 'polygon')
-        assert len(result.boundary_points) == 8
+        assert len(result.boundary_points) >= 96  # 样条加密后的光滑环
 
 @pytest.mark.asyncio
 async def test_calculate_isochrone_handles_exceptions(engine, sample_center):
@@ -61,7 +61,7 @@ async def test_calculate_isochrone_handles_exceptions(engine, sample_center):
 
         # 应该返回结果，即使部分失败
         assert result is not None
-        assert len(result.boundary_points) == 4
+        assert len(result.boundary_points) >= 96  # 样条加密后的光滑环
 
 @pytest.mark.asyncio
 async def test_calculate_isochrone_validates_center(engine):
@@ -190,7 +190,7 @@ async def test_calculate_isochrone_boundary_points_count(engine, sample_center):
                 directions=directions
             )
 
-            assert len(result.boundary_points) == directions
+            assert len(result.boundary_points) >= 96  # 样条加密后的光滑环
 
 @pytest.mark.asyncio
 async def test_calculate_isochrone_with_high_walking_time(engine, sample_center):
@@ -205,7 +205,7 @@ async def test_calculate_isochrone_with_high_walking_time(engine, sample_center)
         )
 
         assert result is not None
-        assert len(result.boundary_points) == 4
+        assert len(result.boundary_points) >= 96  # 样条加密后的光滑环
 
 @pytest.mark.asyncio
 async def test_calculate_isochrone_with_zero_walking_time(engine, sample_center):
@@ -220,7 +220,7 @@ async def test_calculate_isochrone_with_zero_walking_time(engine, sample_center)
         )
 
         assert result is not None
-        assert len(result.boundary_points) == 4
+        assert len(result.boundary_points) >= 96  # 样条加密后的光滑环
 
 def test_geo_point_initialization():
     """测试GeoPoint初始化"""

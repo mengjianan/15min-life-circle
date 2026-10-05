@@ -24,43 +24,58 @@ class SpatialInterpolator:
         num_interpolated: int = 100
     ) -> List[GeoPoint]:
         """
-        对边界点进行三次样条插值
+        对边界点做闭合周期三次样条插值，输出光滑曲线顶点。
+
+        用 bc_type='periodic' 保证首尾的一阶导连续——
+        默认样条在接缝处会留一个折角，闭合圈仍会有棱。
 
         Args:
-            boundary_points: 原始边界点列表
+            boundary_points: 原始边界点列表（按顺序绕圈）
             num_interpolated: 插值后的点数
 
         Returns:
-            插值后的边界点列表
+            插值后的边界点列表（不含重复的闭合点）
         """
         if len(boundary_points) < 3:
             return boundary_points
 
-        # 提取坐标
-        lngs = [p.lng for p in boundary_points]
-        lats = [p.lat for p in boundary_points]
+        # 去掉相邻重复点：累积距离会出现 0 增量，t 非严格递增，CubicSpline 会报错
+        pts = [boundary_points[0]]
+        for p in boundary_points[1:]:
+            if abs(p.lng - pts[-1].lng) > 1e-12 or abs(p.lat - pts[-1].lat) > 1e-12:
+                pts.append(p)
+        if len(pts) < 3:
+            return boundary_points
 
-        # 添加首尾相连（闭合曲线）
+        # 提取坐标，首尾闭合（periodic 要求 y[0] == y[-1]）
+        lngs = [p.lng for p in pts]
+        lats = [p.lat for p in pts]
+        if abs(lngs[-1] - lngs[0]) < 1e-12 and abs(lats[-1] - lats[0]) < 1e-12:
+            lngs.pop()
+            lats.pop()
         lngs.append(lngs[0])
         lats.append(lats[0])
 
         # 参数化（使用累积距离作为参数）
-        distances = [0]
+        distances = [0.0]
         for i in range(1, len(lngs)):
             dx = lngs[i] - lngs[i-1]
             dy = lats[i] - lats[i-1]
-            dist = np.sqrt(dx**2 + dy**2)
-            distances.append(distances[-1] + dist)
+            distances.append(distances[-1] + np.sqrt(dx**2 + dy**2))
 
-        # 归一化到[0, 1]
         total_distance = distances[-1]
+        if total_distance <= 0:
+            return boundary_points
         t = [d / total_distance for d in distances]
-        t_new = np.linspace(0, 1, num_interpolated)
+        # 避免浮点误差造成 t[-1] 略小于 1
+        t[-1] = 1.0
 
-        # 三次样条插值
-        cs_lng = CubicSpline(t, lngs)
-        cs_lat = CubicSpline(t, lats)
+        # 周期三次样条：闭合曲线，接缝处也光滑
+        cs_lng = CubicSpline(t, lngs, bc_type="periodic")
+        cs_lat = CubicSpline(t, lats, bc_type="periodic")
 
+        # 不取终点（t=1）：那是首点的重复，建多边形时会自己闭合
+        t_new = np.linspace(0, 1, num_interpolated, endpoint=False)
         lngs_interp = cs_lng(t_new)
         lats_interp = cs_lat(t_new)
 
