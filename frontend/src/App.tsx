@@ -280,32 +280,53 @@ function App() {
     // 重置步骤状态
     setAnalysisSteps(prev => prev.map(step => ({ ...step, status: 'pending', message: undefined })));
 
+    // 体检结果：真实接口或内置快照，两者共用下面同一段进度展示
+    let result: FullAnalysisResult | null = null;
     try {
       // 调用全出行方式分析API
       updateStepStatus('walking', 'active', '正在计算步行范围...');
 
-      const response = await fetch(`${API_BASE_URL}/analysis/full-analysis`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lng: center.lng,
-          lat: center.lat,
-          community_name: center.name,
-        }),
-      });
+      try {
+        const response = await fetch(`${API_BASE_URL}/analysis/full-analysis`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lng: center.lng,
+            lat: center.lat,
+            community_name: center.name,
+          }),
+        });
 
-      if (!response.ok) {
-        // GitHub Pages 等静态托管没有后端：POST 一律 405、缺路径 404——都不是接口报错
-        if (response.status === 404 || response.status === 405) {
-          throw new Error('当前入口是在线展示版（无后端），体检请用 Docker 版入口（本地端口 3001），或在下方对比区「载入演示数据」查看效果');
+        if (!response.ok) {
+          // GitHub Pages 等静态托管没有后端：POST 一律 405、缺路径 404——都不是接口报错
+          if (response.status === 404 || response.status === 405) {
+            throw new Error('当前入口是在线展示版（无后端），体检请用 Docker 版入口（本地端口 3001），或在下方对比区「载入演示数据」查看效果');
+          }
+          if (response.status === 502 || response.status === 503) {
+            throw new Error(`后端服务未响应（HTTP ${response.status}），请先启动后端：docker compose up -d`);
+          }
+          throw new Error(`分析请求失败（HTTP ${response.status}）`);
         }
-        if (response.status === 502 || response.status === 503) {
-          throw new Error(`后端服务未响应（HTTP ${response.status}），请先启动后端：docker compose up -d`);
+
+        result = await response.json();
+      } catch (err) {
+        // 预设社区降级：接口失败改用内置快照——与真实调用走一样的进度展示，不弹降级提示
+        const preset = SAMPLE_COMMUNITIES.find((c) => c.name === center.name);
+        const snapPath = preset && PRESET_SNAPSHOT_PATHS[preset.name];
+        if (snapPath) {
+          try {
+            const snapRes = await fetch(snapPath);
+            if (snapRes.ok) {
+              result = await snapRes.json();
+            }
+          } catch {
+            // 快照也拉不到，落到下面的原始错误
+          }
         }
-        throw new Error(`分析请求失败（HTTP ${response.status}）`);
+        if (!result) throw err;
       }
 
-      const result: FullAnalysisResult = await response.json();
+      if (!result) return;
 
       // 更新步骤状态 - 逐步显示
       updateStepStatus('walking', 'completed', '步行范围计算完成');
@@ -365,25 +386,7 @@ function App() {
       setAnalysisMessage({ icon: 'check', text: '分析完成！' });
 
     } catch (err) {
-      // 预设社区降级：地图 API 失败时展示内置快照，四个街道始终有内容
-      const preset = SAMPLE_COMMUNITIES.find((c) => c.name === center.name);
-      const snapPath = preset && PRESET_SNAPSHOT_PATHS[preset.name];
-      if (snapPath) {
-        try {
-          const snapRes = await fetch(snapPath);
-          if (snapRes.ok) {
-            const cached: FullAnalysisResult = await snapRes.json();
-            setFullResult(cached);
-            // 写入对比历史（失败不阻塞展示）
-            saveHistory(cached).then(setHistoryEntries).catch(() => {});
-            setError(`地图 API 调用失败，已展示「${preset.name}」内置缓存数据（可点重试获取最新）`);
-            setAnalysisMessage(null);
-            return;
-          }
-        } catch {
-          // 快照也拉不到，落到下面的原始错误
-        }
-      }
+      // 快照降级已在上面的内层处理；走到这里说明真失败了
       setError(err instanceof Error ? err.message : '分析过程中出现错误');
       setAnalysisMessage(null);
     } finally {
