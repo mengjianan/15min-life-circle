@@ -235,7 +235,8 @@ const MapView: React.FC<MapViewProps> = ({
   const poiMarkersRef = useRef<Array<{ marker: any; name: string }>>([]);
   // 当前那条路线的折线句柄
   const routeOverlayRef = useRef<any>(null);
-  const [hoverPixel, setHoverPixel] = useState<{ x: number; y: number } | null>(null);
+  // below: 卡片放在设施下方（路线从中心上方过来时），否则放上方
+  const [hoverPixel, setHoverPixel] = useState<{ x: number; y: number; below: boolean } | null>(null);
 
   // 当前要画的那条路线。key 必须与目标设施匹配才渲染，避免显示上一条的残影
   const [routeState, setRouteState] = useState<{ key: string; geo: RouteGeo | null }>({
@@ -792,7 +793,7 @@ const MapView: React.FC<MapViewProps> = ({
                   clearTimeout(hoverTimerRef.current);
                   // 只留当前设施：关掉之前点开的其它设施弹窗
                   map.closeInfoWindow();
-                  setHoverPixel({ x: pixel.x, y: pixel.y });
+                  setHoverPixel({ x: pixel.x, y: pixel.y, below: cardBelow(pixel) });
                   setHoverTimes(null);
                   setHoverLoading(true);
                   setHoverFacility(target);
@@ -1050,6 +1051,26 @@ const MapView: React.FC<MapViewProps> = ({
     });
   }, [activeFacility, overlayEpoch]);
 
+  // 卡片放设施上方还是下方（mouseover 与位置 effect 共用同一判断）：
+  // 路线从中心画过来，中心在设施屏幕上方时末段从上边进入——卡片翻到下方避开；
+  // 中心在下方/两侧保持默认上方。只依赖中心与设施坐标，路线算完前位置已定，
+  // 路线到达后不会跳。再做边缘夹取：贴顶/贴底放不下就翻到另一侧。
+  const cardBelow = (px: { x: number; y: number }): boolean => {
+    const CARD_H = 200; // 卡片最大高度估算（地址换行 + 5 行耗时）
+    const GAP = 14;
+    const containerH = mapRef.current?.clientHeight ?? 0;
+    const map = mapInstanceRef.current;
+    let below = false;
+    if (center && map) {
+      const BMap = (window as any).BMap;
+      const cpx = map.pointToPixel(new BMap.Point(center.lng, center.lat));
+      below = cpx.y < px.y - 24; // 中心明显在设施上方才翻（贴太近不折腾）
+    }
+    if (below && px.y + GAP + CARD_H > containerH && px.y - GAP - CARD_H >= 0) below = false;
+    else if (!below && px.y - GAP - CARD_H < 0 && px.y + GAP + CARD_H <= containerH) below = true;
+    return below;
+  };
+
   // 卡片位置由 activeFacility（悬浮或选中）驱动。
   // 相机推近/缩放后必须重算，否则点了设施、镜头一动卡片就留在旧的屏幕坐标。
   useEffect(() => {
@@ -1063,7 +1084,7 @@ const MapView: React.FC<MapViewProps> = ({
       const px = map.pointToPixel(
         new BMap.Point(activeFacility.location.lng, activeFacility.location.lat)
       );
-      setHoverPixel({ x: px.x, y: px.y });
+      setHoverPixel({ x: px.x, y: px.y, below: cardBelow(px) });
     };
     place();
     map.addEventListener('moveend', place);
@@ -1072,7 +1093,7 @@ const MapView: React.FC<MapViewProps> = ({
       map.removeEventListener('moveend', place);
       map.removeEventListener('zoomend', place);
     };
-  }, [mapReady, activeFacility]);
+  }, [mapReady, activeFacility, center]);
 
   // 「选中」也要有和悬浮一样的卡片（点右侧设施卡片时就是这条路）。
   // 悬浮路径已在 mouseover 里触发，这里只在「没有悬浮、但有选中」时补上。
@@ -1136,8 +1157,9 @@ const MapView: React.FC<MapViewProps> = ({
           style={{
             position: 'absolute',
             left: hoverPixel.x,
-            top: hoverPixel.y - 14,
-            transform: 'translate(-50%, -100%)',
+            // 默认在设施上方；路线从上方进入（中心在北侧）时翻到下方，别压住路线
+            top: hoverPixel.below ? hoverPixel.y + 14 : hoverPixel.y - 14,
+            transform: hoverPixel.below ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
             zIndex: 13,
             pointerEvents: 'none',
             width: 210,
